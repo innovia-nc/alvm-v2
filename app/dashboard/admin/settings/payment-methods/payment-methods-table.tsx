@@ -126,8 +126,8 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
         // Create
         await createMutation.mutateAsync({
           name: values.name,
-          description: values.description,
-          accountingCode: values.accountingCode,
+          description: values.description || undefined,
+          accountingCode: values.accountingCode || undefined,
         });
       }
 
