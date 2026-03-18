@@ -1,0 +1,269 @@
+'use client';
+
+import { ColumnDef } from '@tanstack/react-table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Eye, Download, Trash2, Check, CreditCard, FileText, Clock, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import Link from 'next/link';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export type StaffInvoiceType = {
+  id: string;
+  invoiceNumber: string;
+  parentId: string;
+  issueDate: Date;
+  dueDate: Date;
+  status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  pdfUrl?: string | null;
+  payments?: Array<{
+    id: string;
+    paymentDate: Date;
+    amount: number;
+  }>;
+};
+
+// ============================================================================
+// COLUMN DEFINITIONS
+// ============================================================================
+
+export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
+  {
+    accessorKey: 'invoiceNumber',
+    header: 'N\u00b0 Facture',
+    cell: ({ row }) => {
+      return <div className="font-medium">{row.original.invoiceNumber}</div>;
+    },
+  },
+  {
+    accessorKey: 'issueDate',
+    header: 'Date \u00e9mission',
+    cell: ({ row }) => {
+      return (
+        <div className="text-sm">
+          {new Date(row.original.issueDate).toLocaleDateString('fr-FR')}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'dueDate',
+    header: '\u00c9ch\u00e9ance',
+    cell: ({ row }) => {
+      const invoice = row.original;
+      const now = new Date();
+      const dueDate = new Date(invoice.dueDate);
+      const isOverdue = dueDate < now && invoice.status !== 'PAID' && invoice.status !== 'CANCELLED';
+
+      return (
+        <div className={isOverdue ? 'text-red-600 font-medium' : ''}>
+          {dueDate.toLocaleDateString('fr-FR')}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'totalAmount',
+    header: 'Montant',
+    cell: ({ row }) => {
+      const amount = row.original.totalAmount;
+      return (
+        <div className="font-medium">
+          {parseFloat(amount.toString()).toLocaleString('fr-FR')} XPF
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'paidAmount',
+    header: 'Pay\u00e9',
+    cell: ({ row }) => {
+      const amount = row.original.paidAmount;
+      return (
+        <div className="text-sm">
+          {parseFloat(amount.toString()).toLocaleString('fr-FR')} XPF
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'remainingAmount',
+    header: 'Reste',
+    cell: ({ row }) => {
+      const amount = row.original.remainingAmount;
+      return (
+        <div className={amount > 0 ? 'font-medium text-orange-600' : 'text-muted-foreground'}>
+          {parseFloat(amount.toString()).toLocaleString('fr-FR')} XPF
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'status',
+    header: 'Statut',
+    cell: ({ row }) => {
+      const status = row.original.status;
+      const statusInfo = getStatusBadge(status);
+      const StatusIcon = statusInfo.icon;
+      return (
+        <Badge variant={statusInfo.variant}>
+          <StatusIcon className="mr-1 h-3 w-3" />
+          {statusInfo.label}
+        </Badge>
+      );
+    },
+  },
+  {
+    id: 'actions',
+    header: () => <div className="text-right">Actions</div>,
+    cell: ({ row }) => {
+      return <StaffInvoiceActions item={row.original} />;
+    },
+  },
+];
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case 'DRAFT':
+      return { variant: 'outline' as const, label: 'Devis', icon: FileText, color: 'text-gray-600' };
+    case 'SENT':
+      return { variant: 'secondary' as const, label: '\u00c9mise', icon: Clock, color: 'text-yellow-600' };
+    case 'PAID':
+      return { variant: 'default' as const, label: 'Pay\u00e9e', icon: CheckCircle, color: 'text-green-600' };
+    case 'OVERDUE':
+      return { variant: 'destructive' as const, label: 'En retard', icon: AlertCircle, color: 'text-red-600' };
+    case 'CANCELLED':
+      return { variant: 'outline' as const, label: 'Annul\u00e9e', icon: XCircle, color: 'text-gray-600' };
+    default:
+      return { variant: 'secondary' as const, label: status, icon: AlertCircle, color: 'text-gray-600' };
+  }
+}
+
+// ============================================================================
+// ACTIONS COMPONENT
+// ============================================================================
+
+interface StaffInvoiceActionsProps {
+  item: StaffInvoiceType;
+  onDelete?: (item: StaffInvoiceType) => void;
+  onGeneratePDF?: (item: StaffInvoiceType) => void;
+  onValidate?: (item: StaffInvoiceType) => void;
+  onRecordPayment?: (item: StaffInvoiceType) => void;
+  pdfUrl?: string | null;
+}
+
+function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onRecordPayment }: StaffInvoiceActionsProps) {
+  const remainingAmount = item.remainingAmount;
+
+  const handleDownloadPDF = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!item.pdfUrl) {
+      // Si pas de PDF, on g\u00e9n\u00e8re d'abord
+      onGeneratePDF?.(item);
+    } else {
+      // Si PDF existe, on t\u00e9l\u00e9charge directement
+      window.open(item.pdfUrl, '_blank');
+    }
+  };
+
+  return (
+    <div className="text-right">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Ouvrir menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {/* Actions pour statut DRAFT (Brouillon) */}
+          {item.status === 'DRAFT' && (
+            <>
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/staff/invoices/${item.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Voir d\u00e9tails
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPDF}>
+                <Download className="mr-2 h-4 w-4" />
+                T\u00e9l\u00e9charger PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onValidate?.(item)}>
+                <Check className="mr-2 h-4 w-4" />
+                Valider
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete?.(item)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Supprimer
+              </DropdownMenuItem>
+            </>
+          )}
+
+          {/* Actions pour statut SENT (\u00c9mise) */}
+          {item.status === 'SENT' && (
+            <>
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/staff/invoices/${item.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Voir d\u00e9tails
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPDF}>
+                <Download className="mr-2 h-4 w-4" />
+                T\u00e9l\u00e9charger PDF
+              </DropdownMenuItem>
+              {remainingAmount > 0 && (
+                <DropdownMenuItem onClick={() => onRecordPayment?.(item)}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Enregistrer un paiement
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+
+          {/* Actions pour les autres statuts (PAID, OVERDUE, CANCELLED) */}
+          {item.status !== 'DRAFT' && item.status !== 'SENT' && (
+            <>
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/staff/invoices/${item.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Voir d\u00e9tails
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPDF}>
+                <Download className="mr-2 h-4 w-4" />
+                T\u00e9l\u00e9charger PDF
+              </DropdownMenuItem>
+              {/* Pour les factures en retard non annul\u00e9es avec un solde restant */}
+              {item.status === 'OVERDUE' && remainingAmount > 0 && (
+                <DropdownMenuItem onClick={() => onRecordPayment?.(item)}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Enregistrer un paiement
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
