@@ -3,8 +3,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Inscription Parent | ALVM',
-  description: 'Créez votre compte parent ALVM',
+  title: 'Inscription Parent | Mikado',
+  description: 'Créez votre compte parent Mikado',
 };
 
 export default function SignUpParentPage() {

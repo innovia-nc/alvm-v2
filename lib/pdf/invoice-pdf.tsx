@@ -202,7 +202,7 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
             <Text style={styles.title}>{documentType}</Text>
             <Text style={styles.companyInfo}>Association de Loisirs et Vacances Multiples</Text>
             <Text style={styles.companyInfo}>Nouméa, Nouvelle-Calédonie</Text>
-            <Text style={styles.companyInfo}>Email: contact@alvm.nc</Text>
+            <Text style={styles.companyInfo}>Email: contact@mikado.nc</Text>
           </View>
           {data.logoUrl && (
             <View style={styles.headerRight}>

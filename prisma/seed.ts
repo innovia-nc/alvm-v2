@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting ALVM database seed...\n');
+  console.log('🌱 Starting Mikado database seed...\n');
 
   // =========================================================================
   // 1. Admin user with credentials
@@ -15,7 +15,7 @@ async function main() {
     update: { role: 'ADMIN' },
     create: {
       email: 'admin@alvm.nc',
-      name: 'Admin ALVM',
+      name: 'Admin Mikado',
       role: 'ADMIN',
       emailVerified: new Date(),
     },
@@ -194,14 +194,14 @@ async function main() {
   // =========================================================================
   console.log('⚙️  Creating application settings...');
   const settings = [
-    { category: 'organization', key: 'name', value: '"ALVM"', description: "Nom de l'organisation" },
+    { category: 'organization', key: 'name', value: '"Mikado"', description: "Nom de l'organisation" },
     { category: 'organization', key: 'logo_url', value: null, description: "URL du logo de l'organisation" },
     { category: 'documents', key: 'invoice_footer', value: '"Facture à régler dans les 30 jours"', description: 'Mention en bas des factures' },
     { category: 'documents', key: 'child_form_footer', value: '"Document à conserver"', description: 'Mention en bas des fiches enfant' },
     { category: 'pricing', key: 'default_camp_price', value: '5000', description: 'Prix par défaut par jour de camp (en XPF)' },
     { category: 'email', key: 'email_from', value: '"noreply@alvm.nc"', description: "Adresse email d'envoi par défaut" },
     { category: 'email', key: 'email_reply_to', value: '"contact@alvm.nc"', description: 'Adresse email de réponse' },
-    { category: 'accounting', key: 'accounting_prefix', value: '"ALVM"', description: 'Préfixe pour les numéros de facturation' },
+    { category: 'accounting', key: 'accounting_prefix', value: '"MKD"', description: 'Préfixe pour les numéros de facturation' },
     { category: 'accounting', key: 'accounting_year', value: '2025', description: 'Année comptable en cours' },
   ];
 

@@ -9,7 +9,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'ALVM - Gestion de Camps de Vacances',
+  title: 'Mikado - Gestion de Camps de Vacances',
   description: 'Application de gestion de camps de vacances pour enfants',
 };
 

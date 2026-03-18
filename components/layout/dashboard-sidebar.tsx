@@ -165,7 +165,7 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Users,
         },
         {
-          title: 'Personnel ALVM',
+          title: 'Personnel Mikado',
           href: '/dashboard/admin/users/staff',
           icon: Users,
         },
@@ -253,7 +253,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-primary">ALVM</span>
+            <span className="text-xl font-bold text-primary">Mikado</span>
           </Link>
         )}
 
@@ -340,7 +340,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
             <p className="font-medium">
               Espace {role === 'parent' ? 'Parent' : role === 'staff' ? 'Personnel' : 'Administrateur'}
             </p>
-            <p className="mt-1">Version 1.0.0</p>
+            <p className="mt-1">Version 2.0.0</p>
           </div>
         </div>
       )}

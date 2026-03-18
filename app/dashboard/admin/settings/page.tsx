@@ -342,7 +342,7 @@ export default function AdminSettingsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Paramètres du Système"
-        description="Configurez les paramètres de l'application ALVM"
+        description="Configurez les paramètres de l'application Mikado"
       />
 
       {/* ========== ORGANIZATION ========== */}

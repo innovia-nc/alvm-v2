@@ -1,5 +1,5 @@
 /**
- * Constantes de pagination standardisées pour l'application ALVM
+ * Constantes de pagination standardisées pour l'application Mikado
  *
  * Ces constantes garantissent une expérience utilisateur cohérente
  * sur toutes les tables de données de l'application.
