@@ -165,7 +165,7 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Users,
         },
         {
-          title: 'Personnel Mikado',
+          title: 'Personnel ALVM',
           href: '/dashboard/admin/users/staff',
           icon: Users,
         },
