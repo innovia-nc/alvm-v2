@@ -198,7 +198,7 @@ export const paymentsRouter = router({
   create: staffProcedure
     .input(z.object({
       invoiceId: z.string().uuid(),
-      amount: z.number().min(0.01, 'Montant doit etre positif'),
+      amount: z.number().min(0.01, 'Montant doit être positif'),
       paymentDate: z.string().date(),
       paymentMethodId: z.string().uuid(),
       creditNoteId: z.string().uuid().optional(),
@@ -215,19 +215,19 @@ export const paymentsRouter = router({
           where: { id: input.invoiceId, invoiceType: 'INVOICE', deletedAt: null },
         });
         if (!invoice) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
         }
 
         if (invoice.status === 'CANCELLED') {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: "Impossible d'ajouter un paiement a une facture annulee",
+            message: "Impossible d'ajouter un paiement à une facture annulée",
           });
         }
         if (invoice.status === 'DRAFT') {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: "Impossible d'ajouter un paiement a une facture en brouillon",
+            message: "Impossible d'ajouter un paiement à une facture en brouillon",
           });
         }
 
@@ -239,7 +239,7 @@ export const paymentsRouter = router({
         if (input.amount > remainingAmount) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Le montant depasse le reste a payer (${remainingAmount} XPF)`,
+            message: `Le montant dépasse le reste à payer (${remainingAmount} XPF)`,
           });
         }
 
@@ -257,18 +257,18 @@ export const paymentsRouter = router({
           });
 
           if (!creditNote) {
-            throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouve' });
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouvé' });
           }
           if (creditNote.status === 'CANCELLED') {
             throw new TRPCError({
               code: 'PRECONDITION_FAILED',
-              message: "Impossible d'utiliser un avoir annule",
+              message: "Impossible d'utiliser un avoir annulé",
             });
           }
           if (creditNote.parentId !== invoice.parentId) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
-              message: "L'avoir et la facture doivent appartenir au meme parent",
+              message: "L'avoir et la facture doivent appartenir au même parent",
             });
           }
 
@@ -283,7 +283,7 @@ export const paymentsRouter = router({
           if (input.amount > availableBalance) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
-              message: `Le montant depasse le solde disponible de l'avoir (${availableBalance} XPF)`,
+              message: `Le montant dépasse le solde disponible de l'avoir (${availableBalance} XPF)`,
             });
           }
 
@@ -351,7 +351,7 @@ export const paymentsRouter = router({
           where: { id: input.id },
         });
         if (!payment) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Paiement non trouve' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Paiement non trouvé' });
         }
 
         // Check for refunds
@@ -361,7 +361,7 @@ export const paymentsRouter = router({
         if (refundCount > 0) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: `Impossible de supprimer ce paiement car il est lie a ${refundCount} remboursement(s)`,
+            message: `Impossible de supprimer ce paiement car il est lié à ${refundCount} remboursement(s)`,
           });
         }
 

@@ -125,7 +125,7 @@ export const staffRouter = router({
       if (existingUser) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Un compte avec cet email existe deja',
+          message: 'Un compte avec cet email existe déjà',
         });
       }
 
@@ -135,7 +135,7 @@ export const staffRouter = router({
       if (existingStaff) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Un membre du personnel avec cet email existe deja',
+          message: 'Un membre du personnel avec cet email existe déjà',
         });
       }
 
@@ -198,7 +198,7 @@ export const staffRouter = router({
         where: { userId: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Membre du personnel non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Membre du personnel non trouvé' });
       }
 
       const { id, ...updates } = input;
@@ -251,7 +251,7 @@ export const staffRouter = router({
       if (campsCount > 0) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Impossible de supprimer ce membre : des camps ont ete crees par cette personne',
+          message: 'Impossible de supprimer ce membre : des camps ont été créés par cette personne',
         });
       }
 
@@ -261,7 +261,7 @@ export const staffRouter = router({
       });
 
       if (result.count === 0) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Membre du personnel non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Membre du personnel non trouvé' });
       }
 
       return { success: true };

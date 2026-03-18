@@ -70,7 +70,7 @@ describe('campTypes router', () => {
     admin.mockPrisma.campType.findUnique.mockResolvedValue(fakeCampType);
     await expect(
       admin.caller.campTypes.create({ name: 'Vacances' }),
-    ).rejects.toThrow('Un type de camp avec ce nom existe deja');
+    ).rejects.toThrow('Un type de camp avec ce nom existe déjà');
   });
 
   it('should reject duplicate accounting code', async () => {
@@ -78,7 +78,7 @@ describe('campTypes router', () => {
     admin.mockPrisma.campType.findFirst.mockResolvedValue(fakeCampType);
     await expect(
       admin.caller.campTypes.create({ name: 'New', accountingCode: '706100' }),
-    ).rejects.toThrow('Ce code comptable est deja utilise');
+    ).rejects.toThrow('Ce code comptable est déjà utilisé');
   });
 
   it('should update a camp type', async () => {
@@ -98,7 +98,7 @@ describe('campTypes router', () => {
     admin.mockPrisma.campType.findUnique.mockResolvedValue(null);
     await expect(
       admin.caller.campTypes.update({ id: fakeCampType.id, name: 'XX' }),
-    ).rejects.toThrow('Type de camp non trouve');
+    ).rejects.toThrow('Type de camp non trouvé');
   });
 
   it('should toggle active status', async () => {
@@ -117,7 +117,7 @@ describe('campTypes router', () => {
     admin.mockPrisma.camp.count.mockResolvedValue(3);
     await expect(
       admin.caller.campTypes.toggleActive({ id: fakeCampType.id }),
-    ).rejects.toThrow('Impossible de desactiver un type utilise par des camps actifs');
+    ).rejects.toThrow('Impossible de désactiver un type utilisé par des camps actifs');
   });
 
   it('should delete a camp type with no camps', async () => {
@@ -133,6 +133,6 @@ describe('campTypes router', () => {
     admin.mockPrisma.camp.count.mockResolvedValue(5);
     await expect(
       admin.caller.campTypes.delete({ id: fakeCampType.id }),
-    ).rejects.toThrow('Impossible de supprimer un type utilise par des camps');
+    ).rejects.toThrow('Impossible de supprimer un type utilisé par des camps');
   });
 });

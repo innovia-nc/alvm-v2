@@ -560,7 +560,7 @@ describe('parents router', () => {
 
       await expect(
         admin.caller.parents.create(validInput),
-      ).rejects.toThrow('Un compte avec cet email existe deja');
+      ).rejects.toThrow('Un compte avec cet email existe déjà');
     });
 
     it('should reject duplicate parent email', async () => {
@@ -571,7 +571,7 @@ describe('parents router', () => {
 
       await expect(
         admin.caller.parents.create(validInput),
-      ).rejects.toThrow('Un parent avec cet email existe deja');
+      ).rejects.toThrow('Un parent avec cet email existe déjà');
     });
 
     it('should create user with PARENT role and formatted name', async () => {
@@ -690,7 +690,7 @@ describe('parents router', () => {
 
       await expect(
         admin.caller.parents.updateByStaff({ id: PARENT_ID, firstName: 'Updated' }),
-      ).rejects.toThrow('Parent non trouve');
+      ).rejects.toThrow('Parent non trouvé');
     });
 
     it('should reject empty updates', async () => {
@@ -853,7 +853,7 @@ describe('parents router', () => {
 
       await expect(
         admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('Parent non trouve');
+      ).rejects.toThrow('Parent non trouvé');
     });
 
     it('should soft-delete orphan children (only this parent)', async () => {

@@ -140,24 +140,34 @@ export default async function ParentChildDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Nom</p>
-            <p className="text-base">{child.emergencyContactName}</p>
-          </div>
+          {child.emergencyContactName || child.emergencyContactPhone ? (
+            <>
+              {child.emergencyContactName && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Nom</p>
+                  <p className="text-base">{child.emergencyContactName}</p>
+                </div>
+              )}
 
-          <div className="flex items-start gap-2">
-            <Phone className="h-4 w-4 text-muted-foreground mt-1" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Telephone</p>
-              <p className="text-base">{child.emergencyContactPhone}</p>
-            </div>
-          </div>
+              {child.emergencyContactPhone && (
+                <div className="flex items-start gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Telephone</p>
+                    <p className="text-base">{child.emergencyContactPhone}</p>
+                  </div>
+                </div>
+              )}
 
-          {child.emergencyContactRelation && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Relation</p>
-              <p className="text-base">{child.emergencyContactRelation}</p>
-            </div>
+              {child.emergencyContactRelation && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Relation</p>
+                  <p className="text-base">{child.emergencyContactRelation}</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Non renseigné</p>
           )}
         </CardContent>
       </Card>

@@ -223,8 +223,8 @@ model Child {
   gender                GenderType
   ecole                 String?    @db.VarChar(100)
   medicalInfo           Json?      @default("{}") @map("medical_info") @db.JsonB
-  emergencyContactName  String     @map("emergency_contact_name")
-  emergencyContactPhone String     @map("emergency_contact_phone")
+  emergencyContactName  String?    @map("emergency_contact_name")
+  emergencyContactPhone String?    @map("emergency_contact_phone")
   emergencyContactRelation String? @map("emergency_contact_relation")
   createdAt             DateTime   @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt             DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()

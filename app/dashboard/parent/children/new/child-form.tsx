@@ -50,11 +50,12 @@ const childFormSchema = z.object({
     message: 'Genre requis',
   }),
   medicalNotes: z.string().optional(),
-  emergencyContactName: z.string().min(2, 'Nom du contact requis').max(100),
+  emergencyContactName: z.string().max(100).optional().or(z.literal('')),
   emergencyContactPhone: z
     .string()
-    .min(6, 'Téléphone requis')
-    .regex(/^[\d\s\-\(\)\+]+$/, 'Format téléphone invalide'),
+    .regex(/^[\d\s\-\(\)\+]*$/, 'Format téléphone invalide')
+    .optional()
+    .or(z.literal('')),
   emergencyContactRelation: z.string().optional(),
 });
 
@@ -103,9 +104,9 @@ export function ChildForm() {
           diet_restrictions: [],
           notes: values.medicalNotes || '',
         },
-        emergencyContactName: values.emergencyContactName,
-        emergencyContactPhone: values.emergencyContactPhone,
-        emergencyContactRelation: values.emergencyContactRelation || '',
+        emergencyContactName: values.emergencyContactName || undefined,
+        emergencyContactPhone: values.emergencyContactPhone || undefined,
+        emergencyContactRelation: values.emergencyContactRelation || undefined,
       });
 
       router.push('/dashboard/parent/children');
@@ -231,7 +232,7 @@ export function ChildForm() {
 
               {/* Contact d'urgence */}
               <div className="border-t pt-6">
-                <h3 className="text-lg font-medium mb-4">Contact d'urgence *</h3>
+                <h3 className="text-lg font-medium mb-4">Contact d'urgence</h3>
 
                 <div className="grid grid-cols-1 gap-4">
                   <FormField
@@ -239,7 +240,7 @@ export function ChildForm() {
                     name="emergencyContactName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nom du contact *</FormLabel>
+                        <FormLabel>Nom du contact</FormLabel>
                         <FormControl>
                           <Input placeholder="Marie Dupont" {...field} />
                         </FormControl>
@@ -254,7 +255,7 @@ export function ChildForm() {
                       name="emergencyContactPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Téléphone *</FormLabel>
+                          <FormLabel>Téléphone</FormLabel>
                           <FormControl>
                             <Input placeholder="75 12 34" {...field} />
                           </FormControl>

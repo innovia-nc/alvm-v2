@@ -252,12 +252,12 @@ export const creditNotesRouter = router({
             where: { id: input.creditedInvoiceId, invoiceType: 'INVOICE', deletedAt: null },
           });
           if (!origInvoice) {
-            throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture originale non trouvee' });
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture originale non trouvée' });
           }
           if (origInvoice.parentId !== input.parentId) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
-              message: "Le parent de l'avoir doit correspondre a celui de la facture",
+              message: "Le parent de l'avoir doit correspondre à celui de la facture",
             });
           }
         }
@@ -323,7 +323,7 @@ export const creditNotesRouter = router({
           where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
         });
         if (!cn) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouve' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouvé' });
         }
 
         const validTransitions: Record<string, string[]> = {
@@ -335,7 +335,7 @@ export const creditNotesRouter = router({
         if (!validTransitions[cn.status]?.includes(input.status)) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Transition de ${cn.status} vers ${input.status} non autorisee`,
+            message: `Transition de ${cn.status} vers ${input.status} non autorisée`,
           });
         }
 
@@ -399,7 +399,7 @@ export const creditNotesRouter = router({
                 amountOriginal: Math.abs(toNum(cn.totalAmount)),
                 amountRemaining: Math.abs(toNum(cn.totalAmount)),
                 expiresAt,
-                notes: 'Credit disponible suite a avoir',
+                notes: 'Crédit disponible suite à avoir',
               },
             });
           }
@@ -417,12 +417,12 @@ export const creditNotesRouter = router({
         where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
       });
       if (!cn) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouvé' });
       }
       if (cn.status !== 'DRAFT') {
         throw new TRPCError({
           code: 'BAD_REQUEST',
-          message: 'Seuls les avoirs en brouillon peuvent etre supprimes',
+          message: 'Seuls les avoirs en brouillon peuvent être supprimés',
         });
       }
 

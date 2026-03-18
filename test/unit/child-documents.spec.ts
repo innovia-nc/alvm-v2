@@ -130,7 +130,7 @@ describe('childDocuments router', () => {
 
       await expect(
         parent.caller.childDocuments.list({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should throw NOT_FOUND for ADMIN when child does not exist', async () => {
@@ -138,7 +138,7 @@ describe('childDocuments router', () => {
 
       await expect(
         admin.caller.childDocuments.list({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve');
+      ).rejects.toThrow('Enfant non trouvé');
     });
 
     it('should throw NOT_FOUND for STAFF when child does not exist', async () => {
@@ -146,7 +146,7 @@ describe('childDocuments router', () => {
 
       await expect(
         staff.caller.childDocuments.list({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve');
+      ).rejects.toThrow('Enfant non trouvé');
     });
 
     it('should return empty array when no documents exist', async () => {
@@ -273,7 +273,7 @@ describe('childDocuments router', () => {
 
       await expect(
         parent.caller.childDocuments.getById({ id: DOC_ID_1 }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should return null when document does not exist', async () => {
@@ -332,7 +332,7 @@ describe('childDocuments router', () => {
 
       await expect(
         admin.caller.childDocuments.getById({ id: DOC_ID_1 }),
-      ).rejects.toThrow('Enfant non trouve');
+      ).rejects.toThrow('Enfant non trouvé');
     });
   });
 
@@ -396,7 +396,7 @@ describe('childDocuments router', () => {
 
       await expect(
         parent.caller.childDocuments.delete({ documentId: DOC_ID_1 }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should throw NOT_FOUND when document does not exist', async () => {
@@ -404,7 +404,7 @@ describe('childDocuments router', () => {
 
       await expect(
         admin.caller.childDocuments.delete({ documentId: DOC_ID_1 }),
-      ).rejects.toThrow('Document non trouve ou deja supprime');
+      ).rejects.toThrow('Document non trouvé ou déjà supprimé');
     });
 
     it('should throw NOT_FOUND when document is already soft-deleted', async () => {
@@ -413,7 +413,7 @@ describe('childDocuments router', () => {
 
       await expect(
         admin.caller.childDocuments.delete({ documentId: DOC_ID_1 }),
-      ).rejects.toThrow('Document non trouve ou deja supprime');
+      ).rejects.toThrow('Document non trouvé ou déjà supprimé');
     });
 
     it('should throw NOT_FOUND for ADMIN when child of document does not exist', async () => {
@@ -422,7 +422,7 @@ describe('childDocuments router', () => {
 
       await expect(
         admin.caller.childDocuments.delete({ documentId: DOC_ID_1 }),
-      ).rejects.toThrow('Enfant non trouve');
+      ).rejects.toThrow('Enfant non trouvé');
     });
 
     it('should check child access before performing the delete', async () => {
@@ -504,7 +504,7 @@ describe('childDocuments router', () => {
 
       await expect(
         parent.caller.childDocuments.count({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should throw NOT_FOUND for ADMIN when child does not exist', async () => {
@@ -512,7 +512,7 @@ describe('childDocuments router', () => {
 
       await expect(
         admin.caller.childDocuments.count({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve');
+      ).rejects.toThrow('Enfant non trouvé');
     });
 
     it('should return zero when no documents exist', async () => {

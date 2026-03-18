@@ -390,7 +390,7 @@ describe('payments router', () => {
       staff.mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
       await expect(staff.caller.payments.create(validInput)).rejects.toThrow(
-        'Facture non trouvee',
+        'Facture non trouvée',
       );
     });
 
@@ -401,7 +401,7 @@ describe('payments router', () => {
       });
 
       await expect(staff.caller.payments.create(validInput)).rejects.toThrow(
-        "Impossible d'ajouter un paiement a une facture annulee",
+        "Impossible d'ajouter un paiement à une facture annulée",
       );
     });
 
@@ -412,7 +412,7 @@ describe('payments router', () => {
       });
 
       await expect(staff.caller.payments.create(validInput)).rejects.toThrow(
-        "Impossible d'ajouter un paiement a une facture en brouillon",
+        "Impossible d'ajouter un paiement à une facture en brouillon",
       );
     });
 
@@ -422,7 +422,7 @@ describe('payments router', () => {
 
       await expect(
         staff.caller.payments.create({ ...validInput, amount: 50000 }),
-      ).rejects.toThrow('Le montant depasse le reste a payer (40000 XPF)');
+      ).rejects.toThrow('Le montant dépasse le reste à payer (40000 XPF)');
     });
 
     it('should throw BAD_REQUEST when amount exactly exceeds remaining by small margin', async () => {
@@ -431,7 +431,7 @@ describe('payments router', () => {
 
       await expect(
         staff.caller.payments.create({ ...validInput, amount: 2 }),
-      ).rejects.toThrow('Le montant depasse le reste a payer (1 XPF)');
+      ).rejects.toThrow('Le montant dépasse le reste à payer (1 XPF)');
     });
 
     it('should allow payment for exact remaining amount', async () => {
@@ -684,7 +684,7 @@ describe('payments router', () => {
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue(creditNotePaymentMethod);
 
       await expect(staff.caller.payments.create(creditNoteInput)).rejects.toThrow(
-        'Avoir non trouve',
+        'Avoir non trouvé',
       );
     });
 
@@ -695,7 +695,7 @@ describe('payments router', () => {
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue(creditNotePaymentMethod);
 
       await expect(staff.caller.payments.create(creditNoteInput)).rejects.toThrow(
-        "Impossible d'utiliser un avoir annule",
+        "Impossible d'utiliser un avoir annulé",
       );
     });
 
@@ -709,7 +709,7 @@ describe('payments router', () => {
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue(creditNotePaymentMethod);
 
       await expect(staff.caller.payments.create(creditNoteInput)).rejects.toThrow(
-        "L'avoir et la facture doivent appartenir au meme parent",
+        "L'avoir et la facture doivent appartenir au même parent",
       );
     });
 
@@ -725,7 +725,7 @@ describe('payments router', () => {
 
       // available = 20000 - 10000 = 10000, requesting 15000 => exceeds
       await expect(staff.caller.payments.create(creditNoteInput)).rejects.toThrow(
-        "Le montant depasse le solde disponible de l'avoir (10000 XPF)",
+        "Le montant dépasse le solde disponible de l'avoir (10000 XPF)",
       );
     });
 
@@ -908,7 +908,7 @@ describe('payments router', () => {
       admin.mockPrisma.payment.findUnique.mockResolvedValue(null);
 
       await expect(admin.caller.payments.delete({ id: PAYMENT_ID })).rejects.toThrow(
-        'Paiement non trouve',
+        'Paiement non trouvé',
       );
     });
 
@@ -917,7 +917,7 @@ describe('payments router', () => {
       admin.mockPrisma.refund.count.mockResolvedValue(2);
 
       await expect(admin.caller.payments.delete({ id: PAYMENT_ID })).rejects.toThrow(
-        'Impossible de supprimer ce paiement car il est lie a 2 remboursement(s)',
+        'Impossible de supprimer ce paiement car il est lié à 2 remboursement(s)',
       );
     });
   });

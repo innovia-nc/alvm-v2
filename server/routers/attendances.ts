@@ -71,7 +71,7 @@ export const attendancesRouter = router({
         select: { startDate: true, endDate: true },
       });
       if (!camp) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
       // Generate all dates in the camp range
@@ -223,7 +223,7 @@ export const attendancesRouter = router({
         include: { camp: { select: { startDate: true, endDate: true } } },
       });
       if (!reg) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee ou non confirmee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée ou non confirmée' });
       }
 
       // Verify date is within camp range
@@ -231,7 +231,7 @@ export const attendancesRouter = router({
       if (attDate < reg.camp.startDate || attDate > reg.camp.endDate) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
-          message: 'La date de presence doit etre dans la periode du camp',
+          message: 'La date de présence doit être dans la période du camp',
         });
       }
 
@@ -296,12 +296,12 @@ export const attendancesRouter = router({
         select: { startDate: true, endDate: true },
       });
       if (!camp) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
       const attDate = new Date(input.date);
       if (attDate < camp.startDate || attDate > camp.endDate) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'La date est en dehors de la periode du camp' });
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'La date est en dehors de la période du camp' });
       }
 
       let count = 0;
@@ -344,7 +344,7 @@ export const attendancesRouter = router({
         where: { id: input.id },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Presence non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Présence non trouvée' });
       }
 
       await ctx.prisma.attendance.delete({ where: { id: input.id } });

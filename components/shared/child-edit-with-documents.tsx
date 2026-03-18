@@ -27,8 +27,8 @@ interface ChildData {
     diet_restrictions: string[];
     notes: string;
   };
-  emergencyContactName: string;
-  emergencyContactPhone: string;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   emergencyContactRelation: string | null;
   parents: Array<{
     parentId: string;

@@ -196,7 +196,7 @@ export const refundsRouter = router({
           },
         });
         if (!payment) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Paiement non trouve' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Paiement non trouvé' });
         }
 
         const paymentAmount = toNum(payment.amount);
@@ -211,7 +211,7 @@ export const refundsRouter = router({
         if (totalRefunded + input.amount > paymentAmount) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Le montant total des remboursements (${(totalRefunded + input.amount)} XPF) depasse le montant du paiement (${paymentAmount} XPF)`,
+            message: `Le montant total des remboursements (${(totalRefunded + input.amount)} XPF) dépasse le montant du paiement (${paymentAmount} XPF)`,
           });
         }
 
@@ -254,7 +254,7 @@ export const refundsRouter = router({
           where: { id: input.id },
         });
         if (!refund) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Remboursement non trouve' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Remboursement non trouvé' });
         }
 
         // Cancel associated accounting entries

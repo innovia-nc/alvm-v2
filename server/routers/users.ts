@@ -181,7 +181,7 @@ export const usersRouter = router({
         where: { email: input.email },
       });
       if (existingUser) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Un utilisateur avec cet email existe deja' });
+        throw new TRPCError({ code: 'CONFLICT', message: 'Un utilisateur avec cet email existe déjà' });
       }
 
       if (input.role === 'PARENT' && !input.parentProfile) {
@@ -272,7 +272,7 @@ export const usersRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.user.findUnique({ where: { id: input.id } });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
       if (input.email && input.email !== existing.email) {
@@ -280,7 +280,7 @@ export const usersRouter = router({
           where: { email: input.email, id: { not: input.id } },
         });
         if (emailExists) {
-          throw new TRPCError({ code: 'CONFLICT', message: 'Un utilisateur avec cet email existe deja' });
+          throw new TRPCError({ code: 'CONFLICT', message: 'Un utilisateur avec cet email existe déjà' });
         }
       }
 
@@ -340,7 +340,7 @@ export const usersRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.user.findUnique({ where: { id: input.id } });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
       if (existing.role === 'ADMIN') {
@@ -413,7 +413,7 @@ export const usersRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.user.findUnique({ where: { id: input.userId } });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
       const tempPassword = input.newPassword || generateTempPassword();
@@ -427,7 +427,7 @@ export const usersRouter = router({
       if (updated.count === 0) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Compte credentials non trouve pour cet utilisateur',
+          message: 'Compte credentials non trouvé pour cet utilisateur',
         });
       }
 

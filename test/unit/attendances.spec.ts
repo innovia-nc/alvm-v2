@@ -122,7 +122,7 @@ describe('attendances.getGridForCamp', () => {
     it('should throw NOT_FOUND when camp does not exist', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.attendances.getGridForCamp({ campId: CAMP_ID })).rejects.toThrow('Camp non trouve');
+      await expect(caller.attendances.getGridForCamp({ campId: CAMP_ID })).rejects.toThrow('Camp non trouvé');
     });
 
     it('should generate dates from startDate to endDate inclusive', async () => {
@@ -529,7 +529,7 @@ describe('attendances.markAttendance', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
       await expect(caller.attendances.markAttendance(markInput)).rejects.toThrow(
-        'Inscription non trouvee ou non confirmee',
+        'Inscription non trouvée ou non confirmée',
       );
     });
 
@@ -539,7 +539,7 @@ describe('attendances.markAttendance', () => {
       await expect(caller.attendances.markAttendance({
         ...markInput,
         date: '2026-06-30', // Before July 1
-      })).rejects.toThrow('La date de presence doit etre dans la periode du camp');
+      })).rejects.toThrow('La date de présence doit être dans la période du camp');
     });
 
     it('should throw BAD_REQUEST when date is after camp end', async () => {
@@ -548,7 +548,7 @@ describe('attendances.markAttendance', () => {
       await expect(caller.attendances.markAttendance({
         ...markInput,
         date: '2026-07-11', // After July 10
-      })).rejects.toThrow('La date de presence doit etre dans la periode du camp');
+      })).rejects.toThrow('La date de présence doit être dans la période du camp');
     });
 
     it('should accept date on camp start boundary', async () => {
@@ -788,7 +788,7 @@ describe('attendances.markBulkAttendance', () => {
     it('should throw NOT_FOUND when camp does not exist', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.attendances.markBulkAttendance(bulkInput)).rejects.toThrow('Camp non trouve');
+      await expect(caller.attendances.markBulkAttendance(bulkInput)).rejects.toThrow('Camp non trouvé');
     });
 
     it('should throw BAD_REQUEST when date is outside camp range', async () => {
@@ -800,7 +800,7 @@ describe('attendances.markBulkAttendance', () => {
       await expect(caller.attendances.markBulkAttendance({
         ...bulkInput,
         date: '2026-07-11',
-      })).rejects.toThrow('La date est en dehors de la periode du camp');
+      })).rejects.toThrow('La date est en dehors de la période du camp');
     });
 
     it('should throw BAD_REQUEST when date is before camp start', async () => {
@@ -812,7 +812,7 @@ describe('attendances.markBulkAttendance', () => {
       await expect(caller.attendances.markBulkAttendance({
         ...bulkInput,
         date: '2026-06-30',
-      })).rejects.toThrow('La date est en dehors de la periode du camp');
+      })).rejects.toThrow('La date est en dehors de la période du camp');
     });
 
     it('should create attendances when none exist', async () => {
@@ -947,7 +947,7 @@ describe('attendances.delete', () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
       mockPrisma.attendance.findUnique.mockResolvedValue(null);
 
-      await expect(caller.attendances.delete({ id: ATTENDANCE_ID })).rejects.toThrow('Presence non trouvee');
+      await expect(caller.attendances.delete({ id: ATTENDANCE_ID })).rejects.toThrow('Présence non trouvée');
     });
 
     it('should perform hard delete (not soft delete)', async () => {

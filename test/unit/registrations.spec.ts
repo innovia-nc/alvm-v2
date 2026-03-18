@@ -427,7 +427,7 @@ describe('registrations.create', () => {
       mockPrisma.childParent.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.create(createInput)).rejects.toThrow(
-        'Enfant non trouve ou ne correspond pas au parent specifie',
+        'Enfant non trouvé ou ne correspond pas au parent spécifié',
       );
     });
 
@@ -435,7 +435,7 @@ describe('registrations.create', () => {
       mockPrisma.childParent.findFirst.mockResolvedValue({ childId: CHILD_ID, parentId: PARENT_USER.id });
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.registrations.create(createInput)).rejects.toThrow('Camp non trouve');
+      await expect(caller.registrations.create(createInput)).rejects.toThrow('Camp non trouvé');
     });
 
     it('should reject if camp is not PUBLISHED', async () => {
@@ -452,7 +452,7 @@ describe('registrations.create', () => {
       mockPrisma.camp.findFirst.mockResolvedValue(makeCamp({ registrationDeadline: pastDate }));
 
       await expect(caller.registrations.create(createInput)).rejects.toThrow(
-        "La date limite d'inscription est depassee",
+        "La date limite d'inscription est dépassée",
       );
     });
 
@@ -462,7 +462,7 @@ describe('registrations.create', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow());
 
       await expect(caller.registrations.create(createInput)).rejects.toThrow(
-        'Cet enfant est deja inscrit a ce camp',
+        'Cet enfant est déjà inscrit à ce camp',
       );
     });
 
@@ -607,7 +607,7 @@ describe('registrations.createByStaff', () => {
       mockPrisma.childParent.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.createByStaff(createByStaffInput)).rejects.toThrow(
-        'Enfant non trouve ou ne correspond pas au parent specifie',
+        'Enfant non trouvé ou ne correspond pas au parent spécifié',
       );
     });
 
@@ -615,7 +615,7 @@ describe('registrations.createByStaff', () => {
       mockPrisma.childParent.findFirst.mockResolvedValue({ childId: CHILD_ID, parentId: PARENT_USER.id });
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.registrations.createByStaff(createByStaffInput)).rejects.toThrow('Camp non trouve');
+      await expect(caller.registrations.createByStaff(createByStaffInput)).rejects.toThrow('Camp non trouvé');
     });
 
     it('should reject if child is already registered', async () => {
@@ -624,7 +624,7 @@ describe('registrations.createByStaff', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow());
 
       await expect(caller.registrations.createByStaff(createByStaffInput)).rejects.toThrow(
-        'Cet enfant est deja inscrit a ce camp',
+        'Cet enfant est déjà inscrit à ce camp',
       );
     });
 
@@ -706,7 +706,7 @@ describe('registrations.updateByStaff', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.updateByStaff({ id: REG_ID, status: 'CONFIRMED' })).rejects.toThrow(
-        'Inscription non trouvee',
+        'Inscription non trouvée',
       );
     });
 
@@ -714,7 +714,7 @@ describe('registrations.updateByStaff', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID' }));
 
       await expect(caller.registrations.updateByStaff({ id: REG_ID, status: 'CANCELLED' })).rejects.toThrow(
-        'Cette inscription a deja ete payee et ne peut plus etre modifiee',
+        'Cette inscription a déjà été payée et ne peut plus être modifiée',
       );
     });
 
@@ -786,7 +786,7 @@ describe('registrations.updateStatus', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.updateStatus({ id: REG_ID, status: 'CONFIRMED' })).rejects.toThrow(
-        'Inscription non trouvee',
+        'Inscription non trouvée',
       );
     });
 
@@ -794,7 +794,7 @@ describe('registrations.updateStatus', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID' }));
 
       await expect(caller.registrations.updateStatus({ id: REG_ID, status: 'CANCELLED' })).rejects.toThrow(
-        'Cette inscription a deja ete payee et ne peut plus etre modifiee',
+        'Cette inscription a déjà été payée et ne peut plus être modifiée',
       );
     });
 
@@ -865,7 +865,7 @@ describe('registrations.analyzeRegistrationStatus', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.analyzeRegistrationStatus({ registrationId: REG_ID })).rejects.toThrow(
-        'Inscription non trouvee',
+        'Inscription non trouvée',
       );
     });
 
@@ -873,7 +873,7 @@ describe('registrations.analyzeRegistrationStatus', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'PENDING' }));
 
       await expect(caller.registrations.analyzeRegistrationStatus({ registrationId: REG_ID })).rejects.toThrow(
-        'Seules les inscriptions confirmees peuvent etre analysees pour annulation',
+        'Seules les inscriptions confirmées peuvent être analysées pour annulation',
       );
     });
 
@@ -1004,7 +1004,7 @@ describe('registrations.cancelWithAccounting', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.cancelWithAccounting(cancelInput)).rejects.toThrow(
-        'Inscription non trouvee',
+        'Inscription non trouvée',
       );
     });
 
@@ -1012,7 +1012,7 @@ describe('registrations.cancelWithAccounting', () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'PENDING' }));
 
       await expect(caller.registrations.cancelWithAccounting(cancelInput)).rejects.toThrow(
-        'Seules les inscriptions confirmees peuvent etre annulees avec gestion comptable',
+        'Seules les inscriptions confirmées peuvent être annulées avec gestion comptable',
       );
     });
 
@@ -1279,14 +1279,14 @@ describe('registrations.delete', () => {
     it('should throw NOT_FOUND when registration does not exist', async () => {
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
-      await expect(caller.registrations.delete({ id: REG_ID })).rejects.toThrow('Inscription non trouvee');
+      await expect(caller.registrations.delete({ id: REG_ID })).rejects.toThrow('Inscription non trouvée');
     });
 
     it('should reject deletion when paymentStatus is PAID', async () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID' }));
 
       await expect(caller.registrations.delete({ id: REG_ID })).rejects.toThrow(
-        'Cette inscription a deja ete payee et ne peut plus etre supprimee',
+        'Cette inscription a déjà été payée et ne peut plus être supprimée',
       );
     });
 
@@ -1494,7 +1494,7 @@ describe('registrations.applyCredit', () => {
     it('should throw NOT_FOUND when credit does not exist', async () => {
       mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
 
-      await expect(caller.registrations.applyCredit(applyCreditInput)).rejects.toThrow('Credit non trouve');
+      await expect(caller.registrations.applyCredit(applyCreditInput)).rejects.toThrow('Crédit non trouvé');
     });
 
     it('should reject when amount exceeds remaining credit', async () => {
@@ -1514,7 +1514,7 @@ describe('registrations.applyCredit', () => {
         expires_at: pastDate,
       }]);
 
-      await expect(caller.registrations.applyCredit(applyCreditInput)).rejects.toThrow('Credit expire');
+      await expect(caller.registrations.applyCredit(applyCreditInput)).rejects.toThrow('Crédit expiré');
     });
 
     it('should update remaining balance and create credit application', async () => {

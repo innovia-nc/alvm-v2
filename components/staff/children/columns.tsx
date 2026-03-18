@@ -29,8 +29,8 @@ export type StaffChildType = {
     diet_restrictions: string[];
     notes: string;
   };
-  emergencyContactName: string;
-  emergencyContactPhone: string;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   emergencyContactRelation: string | null;
   parents: Array<{
     id: string;
@@ -126,10 +126,13 @@ export const staffChildColumns: ColumnDef<StaffChildType>[] = [
     header: 'Contact d\'urgence',
     cell: ({ row }) => {
       const child = row.original;
+      if (!child.emergencyContactName && !child.emergencyContactPhone) {
+        return <span className="text-xs text-muted-foreground">Non renseigné</span>;
+      }
       return (
         <div className="text-sm">
-          <div>{child.emergencyContactName}</div>
-          <div className="text-xs text-muted-foreground">{child.emergencyContactPhone}</div>
+          <div>{child.emergencyContactName || '-'}</div>
+          <div className="text-xs text-muted-foreground">{child.emergencyContactPhone || '-'}</div>
         </div>
       );
     },

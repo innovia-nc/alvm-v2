@@ -93,7 +93,7 @@ describe('paymentMethods router', () => {
       admin.mockPrisma.paymentMethod.findFirst.mockResolvedValue(makePaymentMethod());
       await expect(
         admin.caller.paymentMethods.create({ name: 'Especes' }),
-      ).rejects.toThrow('Une methode de paiement avec ce nom existe deja');
+      ).rejects.toThrow('Une méthode de paiement avec ce nom existe déjà');
     });
 
     it('should reject invalid accountingCode format', async () => {
@@ -122,7 +122,7 @@ describe('paymentMethods router', () => {
       admin.mockPrisma.paymentMethod.findUnique.mockResolvedValue(null);
       await expect(
         admin.caller.paymentMethods.update({ id: PM_ID, name: 'Updated' }),
-      ).rejects.toThrow('Methode de paiement non trouvee');
+      ).rejects.toThrow('Méthode de paiement non trouvée');
     });
 
     it('should reject duplicate name when renaming', async () => {
@@ -132,7 +132,7 @@ describe('paymentMethods router', () => {
       );
       await expect(
         admin.caller.paymentMethods.update({ id: PM_ID, name: 'Cheque' }),
-      ).rejects.toThrow('Une methode de paiement avec ce nom existe deja');
+      ).rejects.toThrow('Une méthode de paiement avec ce nom existe déjà');
     });
   });
 
@@ -150,7 +150,7 @@ describe('paymentMethods router', () => {
       admin.mockPrisma.payment.count.mockResolvedValue(5);
       await expect(
         admin.caller.paymentMethods.toggleActive({ id: PM_ID }),
-      ).rejects.toThrow('Impossible de desactiver une methode utilisee recemment (30 jours)');
+      ).rejects.toThrow('Impossible de désactiver une méthode utilisée récemment (30 jours)');
     });
   });
 
@@ -167,7 +167,7 @@ describe('paymentMethods router', () => {
       admin.mockPrisma.paymentMethod.findUnique.mockResolvedValue(makePaymentMethod({ isSystem: true }));
       await expect(
         admin.caller.paymentMethods.delete({ id: PM_ID }),
-      ).rejects.toThrow('Impossible de supprimer une methode de paiement systeme');
+      ).rejects.toThrow('Impossible de supprimer une méthode de paiement système');
     });
 
     it('should reject deletion when payments reference the method', async () => {
@@ -175,7 +175,7 @@ describe('paymentMethods router', () => {
       admin.mockPrisma.payment.count.mockResolvedValue(10);
       await expect(
         admin.caller.paymentMethods.delete({ id: PM_ID }),
-      ).rejects.toThrow('Impossible de supprimer une methode utilisee par des paiements');
+      ).rejects.toThrow('Impossible de supprimer une méthode utilisée par des paiements');
     });
   });
 });

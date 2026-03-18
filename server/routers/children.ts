@@ -36,8 +36,8 @@ const childSchema = z.object({
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
   ecole: z.string().nullable(),
   medicalInfo: medicalInfoSchema,
-  emergencyContactName: z.string(),
-  emergencyContactPhone: z.string(),
+  emergencyContactName: z.string().nullable(),
+  emergencyContactPhone: z.string().nullable(),
   emergencyContactRelation: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -197,8 +197,8 @@ export const childrenRouter = router({
       medicalInfo: medicalInfoSchema.optional().default({
         allergies: [], medications: [], conditions: [], diet_restrictions: [], notes: '',
       }),
-      emergencyContactName: z.string().min(2).max(100),
-      emergencyContactPhone: z.string().min(6),
+      emergencyContactName: z.string().min(2).max(100).optional(),
+      emergencyContactPhone: z.string().min(6).optional(),
       emergencyContactRelation: z.string().optional(),
       parents: z.array(z.object({
         parentId: z.string().uuid(),
@@ -206,10 +206,10 @@ export const childrenRouter = router({
         relationship: relationshipEnum.optional(),
       }))
         .min(1, 'Au moins un parent requis')
-        .max(3, 'Maximum 3 parents autorises')
+        .max(3, 'Maximum 3 parents autorisés')
         .refine(
           (parents) => parents.filter((p) => p.isPrimary).length === 1,
-          { message: 'Exactement un parent doit etre marque comme principal' },
+          { message: 'Exactement un parent doit être marqué comme principal' },
         ),
     }))
     .output(childSchema)
@@ -220,7 +220,7 @@ export const childrenRouter = router({
           where: { userId: p.parentId, deletedAt: null },
         });
         if (!exists) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Parent ${p.parentId} non trouve` });
+          throw new TRPCError({ code: 'NOT_FOUND', message: `Parent ${p.parentId} non trouvé` });
         }
       }
 
@@ -233,8 +233,8 @@ export const childrenRouter = router({
             gender: input.gender,
             ecole: input.ecole || null,
             medicalInfo: input.medicalInfo as any,
-            emergencyContactName: input.emergencyContactName,
-            emergencyContactPhone: input.emergencyContactPhone,
+            emergencyContactName: input.emergencyContactName || null,
+            emergencyContactPhone: input.emergencyContactPhone || null,
             emergencyContactRelation: input.emergencyContactRelation || null,
           },
         });
@@ -269,8 +269,8 @@ export const childrenRouter = router({
       medicalInfo: medicalInfoSchema.optional().default({
         allergies: [], medications: [], conditions: [], diet_restrictions: [], notes: '',
       }),
-      emergencyContactName: z.string().min(2).max(100),
-      emergencyContactPhone: z.string().min(6),
+      emergencyContactName: z.string().min(2).max(100).optional(),
+      emergencyContactPhone: z.string().min(6).optional(),
       emergencyContactRelation: z.string().optional(),
       relationship: relationshipEnum.optional(),
     }))
@@ -283,7 +283,7 @@ export const childrenRouter = router({
         where: { userId: parentId, deletedAt: null },
       });
       if (!parentExists) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profil parent non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profil parent non trouvé' });
       }
 
       const child = await ctx.prisma.$transaction(async (tx) => {
@@ -295,8 +295,8 @@ export const childrenRouter = router({
             gender: input.gender,
             ecole: input.ecole || null,
             medicalInfo: input.medicalInfo as any,
-            emergencyContactName: input.emergencyContactName,
-            emergencyContactPhone: input.emergencyContactPhone,
+            emergencyContactName: input.emergencyContactName || null,
+            emergencyContactPhone: input.emergencyContactPhone || null,
             emergencyContactRelation: input.emergencyContactRelation || null,
           },
         });
@@ -340,7 +340,7 @@ export const childrenRouter = router({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id }),
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouve ou acces refuse' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
       }
 
       const data: Prisma.ChildUpdateInput = {};
@@ -375,7 +375,7 @@ export const childrenRouter = router({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id: input.id }),
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouve ou acces refuse' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
       }
 
       const activeRegistrations = await ctx.prisma.registration.count({
@@ -404,7 +404,7 @@ export const childrenRouter = router({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id: input.childId }),
       });
       if (!child) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouve ou acces refuse' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
       }
 
       const links = await ctx.prisma.childParent.findMany({
@@ -440,7 +440,7 @@ export const childrenRouter = router({
         where: { id: input.childId, deletedAt: null },
       });
       if (!child) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé' });
       }
 
       const parent = await ctx.prisma.parent.findFirst({
@@ -448,7 +448,7 @@ export const childrenRouter = router({
         select: { userId: true, firstName: true, lastName: true, email: true, phone: true },
       });
       if (!parent) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
       }
 
       const linkCount = await ctx.prisma.childParent.count({
@@ -457,7 +457,7 @@ export const childrenRouter = router({
       if (linkCount >= 3) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Un enfant ne peut avoir plus de 3 parents associes',
+          message: 'Un enfant ne peut avoir plus de 3 parents associés',
         });
       }
 
@@ -465,7 +465,7 @@ export const childrenRouter = router({
         where: { childId_parentId: { childId: input.childId, parentId: input.parentId } },
       });
       if (existing) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Ce parent est deja associe a cet enfant' });
+        throw new TRPCError({ code: 'CONFLICT', message: 'Ce parent est déjà associé à cet enfant' });
       }
 
       const link = await ctx.prisma.childParent.create({
@@ -500,7 +500,7 @@ export const childrenRouter = router({
         where: { childId_parentId: { childId: input.childId, parentId: input.parentId } },
       });
       if (!link) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Association parent-enfant non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Association parent-enfant non trouvée' });
       }
 
       const totalLinks = await ctx.prisma.childParent.count({
@@ -531,7 +531,7 @@ export const childrenRouter = router({
         where: { childId_parentId: { childId: input.childId, parentId: input.parentId } },
       });
       if (!link) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Association parent-enfant non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Association parent-enfant non trouvée' });
       }
 
       await ctx.prisma.$transaction([

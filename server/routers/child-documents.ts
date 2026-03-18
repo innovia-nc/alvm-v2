@@ -33,7 +33,7 @@ async function assertChildAccess(
       select: { id: true },
     });
     if (!child) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouve' });
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé' });
     }
     return;
   }
@@ -48,7 +48,7 @@ async function assertChildAccess(
   });
 
   if (!link) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouve ou acces refuse' });
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
   }
 }
 
@@ -116,7 +116,7 @@ export const childDocumentsRouter = router({
       });
 
       if (!doc) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Document non trouve ou deja supprime' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Document non trouvé ou déjà supprimé' });
       }
 
       await assertChildAccess(ctx.prisma, ctx.user.id, ctx.user.role, doc.childId);

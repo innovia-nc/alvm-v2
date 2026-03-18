@@ -237,14 +237,14 @@ export const parentsRouter = router({
         where: { email: input.email },
       });
       if (existingUser) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Un compte avec cet email existe deja' });
+        throw new TRPCError({ code: 'CONFLICT', message: 'Un compte avec cet email existe déjà' });
       }
 
       const existingParent = await ctx.prisma.parent.findFirst({
         where: { email: input.email, deletedAt: null },
       });
       if (existingParent) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Un parent avec cet email existe deja' });
+        throw new TRPCError({ code: 'CONFLICT', message: 'Un parent avec cet email existe déjà' });
       }
 
       const result = await ctx.prisma.$transaction(async (tx) => {
@@ -306,7 +306,7 @@ export const parentsRouter = router({
         where: { userId: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
       }
 
       const { id, ...updates } = input;
@@ -369,7 +369,7 @@ export const parentsRouter = router({
         });
 
         if (result.count === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouve' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
         }
 
         // Soft delete children where this parent is the only parent

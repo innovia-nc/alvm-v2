@@ -73,7 +73,7 @@ export const authRouter = router({
       });
 
       if (!user) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
       return {
@@ -125,7 +125,7 @@ export const authRouter = router({
     .input(z.object({
       currentPassword: z.string().min(6),
       newPassword: z.string()
-        .min(8, 'Minimum 8 caracteres')
+        .min(8, 'Minimum 8 caractères')
         .regex(/[A-Z]/, 'Au moins une majuscule')
         .regex(/[a-z]/, 'Au moins une minuscule')
         .regex(/[0-9]/, 'Au moins un chiffre'),
@@ -137,7 +137,7 @@ export const authRouter = router({
       });
 
       if (!account) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte credentials non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte credentials non trouvé' });
       }
 
       const isValid = await compare(input.currentPassword, account.providerAccountId);
@@ -164,7 +164,7 @@ export const authRouter = router({
       });
 
       if (!account) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte credentials non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte credentials non trouvé' });
       }
 
       const isValid = await compare(input.password, account.providerAccountId);

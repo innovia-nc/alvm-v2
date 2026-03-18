@@ -305,7 +305,7 @@ export const invoicesRouter = router({
       });
 
       if (!reg) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
       // 2. Check no existing active invoice
@@ -319,7 +319,7 @@ export const invoicesRouter = router({
       if (existingLine) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Une facture existe deja pour cette inscription',
+          message: 'Une facture existe déjà pour cette inscription',
         });
       }
 
@@ -327,7 +327,7 @@ export const invoicesRouter = router({
       if (reg.status === 'CANCELLED') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Impossible de creer une facture pour une inscription annulee',
+          message: 'Impossible de créer une facture pour une inscription annulée',
         });
       }
 
@@ -410,12 +410,12 @@ export const invoicesRouter = router({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
       }
       if (existing.status !== 'DRAFT') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Seules les factures en brouillon peuvent etre validees',
+          message: 'Seules les factures en brouillon peuvent être validées',
         });
       }
 
@@ -482,7 +482,7 @@ export const invoicesRouter = router({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
       }
 
       // Validate status transitions
@@ -521,7 +521,7 @@ export const invoicesRouter = router({
       if (result.count === 0) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'La facture a ete modifiee par un autre utilisateur. Rechargez et reessayez.',
+          message: 'La facture a été modifiée par un autre utilisateur. Rechargez et réessayez.',
         });
       }
 
@@ -554,7 +554,7 @@ export const invoicesRouter = router({
         });
 
         if (result.count === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
         }
 
         // Reset paymentStatus on associated registrations
@@ -584,7 +584,7 @@ export const invoicesRouter = router({
       // TODO: PDF generation will be implemented in Phase 3 (storage migration)
       throw new TRPCError({
         code: 'NOT_IMPLEMENTED' as any,
-        message: 'La generation PDF sera implementee lors de la migration du stockage',
+        message: 'La génération PDF sera implémentée lors de la migration du stockage',
       });
     }),
 
@@ -595,7 +595,7 @@ export const invoicesRouter = router({
       // TODO: Email sending will be implemented in Phase 3 (email setup)
       throw new TRPCError({
         code: 'NOT_IMPLEMENTED' as any,
-        message: "L'envoi d'email sera implemente lors de la configuration email",
+        message: "L'envoi d'email sera implémenté lors de la configuration email",
       });
     }),
 

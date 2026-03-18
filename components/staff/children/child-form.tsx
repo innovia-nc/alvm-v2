@@ -86,11 +86,13 @@ const childFormSchema = z.object({
   dietRestrictions: z.string(),
   medicalNotes: z.string(),
   // Contact d'urgence
-  emergencyContactName: z.string().min(2, 'Nom du contact d\'urgence requis').max(100),
+  emergencyContactName: z.string().max(100).optional().or(z.literal('')),
   emergencyContactPhone: z
     .string()
-    .regex(/^[\d\s\-\(\)\+]+$/, 'Format t\u00e9l\u00e9phone invalide (ex: 28 45 67)'),
-  emergencyContactRelation: z.string(),
+    .regex(/^[\d\s\-\(\)\+]*$/, 'Format t\u00e9l\u00e9phone invalide (ex: 28 45 67)')
+    .optional()
+    .or(z.literal('')),
+  emergencyContactRelation: z.string().optional().or(z.literal('')),
 });
 
 type ChildFormValues = z.infer<typeof childFormSchema>;
@@ -115,8 +117,8 @@ interface ChildFormProps {
       diet_restrictions: string[];
       notes: string;
     };
-    emergencyContactName: string;
-    emergencyContactPhone: string;
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
     emergencyContactRelation: string | null;
     parents: Array<{
       id: string;
@@ -190,8 +192,8 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
         conditions: initialData.medicalInfo?.conditions?.join(', ') || '',
         dietRestrictions: initialData.medicalInfo?.diet_restrictions?.join(', ') || '',
         medicalNotes: initialData.medicalInfo?.notes || '',
-        emergencyContactName: initialData.emergencyContactName,
-        emergencyContactPhone: initialData.emergencyContactPhone,
+        emergencyContactName: initialData.emergencyContactName || '',
+        emergencyContactPhone: initialData.emergencyContactPhone || '',
         emergencyContactRelation: initialData.emergencyContactRelation || '',
       }
     : {
@@ -248,8 +250,8 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
         gender: values.gender,
         ecole: values.ecole || undefined,
         medicalInfo,
-        emergencyContactName: values.emergencyContactName,
-        emergencyContactPhone: values.emergencyContactPhone,
+        emergencyContactName: values.emergencyContactName || undefined,
+        emergencyContactPhone: values.emergencyContactPhone || undefined,
         emergencyContactRelation: values.emergencyContactRelation || undefined,
         parents: values.parents,
       });
@@ -264,8 +266,8 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
         gender: values.gender,
         ecole: values.ecole || undefined,
         medicalInfo,
-        emergencyContactName: values.emergencyContactName,
-        emergencyContactPhone: values.emergencyContactPhone,
+        emergencyContactName: values.emergencyContactName || undefined,
+        emergencyContactPhone: values.emergencyContactPhone || undefined,
         emergencyContactRelation: values.emergencyContactRelation || undefined,
       });
     }
@@ -601,7 +603,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
               name="emergencyContactName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom du contact *</FormLabel>
+                  <FormLabel>Nom du contact</FormLabel>
                   <FormControl>
                     <Input placeholder="Marie Dupont" {...field} />
                   </FormControl>
@@ -619,7 +621,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                 name="emergencyContactPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>T\u00e9l\u00e9phone *</FormLabel>
+                    <FormLabel>T\u00e9l\u00e9phone</FormLabel>
                     <FormControl>
                       <Input placeholder="28 45 67" {...field} />
                     </FormControl>

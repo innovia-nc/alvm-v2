@@ -49,8 +49,8 @@ interface ChildProfileData {
     gender: 'MALE' | 'FEMALE' | 'OTHER';
     school: string | null;
     medicalInfo: MedicalInfo;
-    emergencyContactName: string;
-    emergencyContactPhone: string;
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
     emergencyContactRelation: string | null;
   };
   parents: ChildParent[];
@@ -469,20 +469,32 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CONTACT D'URGENCE</Text>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Nom :</Text>
-            <Text style={styles.value}>{child.emergencyContactName}</Text>
-          </View>
+          {child.emergencyContactName || child.emergencyContactPhone ? (
+            <>
+              {child.emergencyContactName && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Nom :</Text>
+                  <Text style={styles.value}>{child.emergencyContactName}</Text>
+                </View>
+              )}
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Téléphone :</Text>
-            <Text style={styles.value}>{child.emergencyContactPhone}</Text>
-          </View>
+              {child.emergencyContactPhone && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Téléphone :</Text>
+                  <Text style={styles.value}>{child.emergencyContactPhone}</Text>
+                </View>
+              )}
 
-          {child.emergencyContactRelation && (
+              {child.emergencyContactRelation && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Relation :</Text>
+                  <Text style={styles.value}>{formatRelationship(child.emergencyContactRelation)}</Text>
+                </View>
+              )}
+            </>
+          ) : (
             <View style={styles.row}>
-              <Text style={styles.label}>Relation :</Text>
-              <Text style={styles.value}>{formatRelationship(child.emergencyContactRelation)}</Text>
+              <Text style={styles.value}>Non renseigné</Text>
             </View>
           )}
         </View>

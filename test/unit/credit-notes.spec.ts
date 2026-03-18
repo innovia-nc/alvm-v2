@@ -172,7 +172,7 @@ describe('creditNotes router', () => {
         reason: 'Test refund reason here',
         lines: [{ registrationId: null, description: 'Test', quantity: 1, unitPrice: 5000 }],
       }),
-    ).rejects.toThrow('Facture originale non trouvee');
+    ).rejects.toThrow('Facture originale non trouvée');
   });
 
   it('should reject if parent mismatch with original invoice', async () => {
@@ -245,7 +245,7 @@ describe('creditNotes router', () => {
 
     await expect(
       staff.caller.creditNotes.updateStatus({ id: creditNoteId, status: 'SENT' }),
-    ).rejects.toThrow('Transition de CANCELLED vers SENT non autorisee');
+    ).rejects.toThrow('Transition de CANCELLED vers SENT non autorisée');
   });
 
   // --- delete ---
@@ -269,7 +269,7 @@ describe('creditNotes router', () => {
 
     await expect(
       admin.caller.creditNotes.delete({ id: creditNoteId }),
-    ).rejects.toThrow('Seuls les avoirs en brouillon peuvent etre supprimes');
+    ).rejects.toThrow('Seuls les avoirs en brouillon peuvent être supprimés');
   });
 
   it('should deny STAFF from deleting credit notes', async () => {

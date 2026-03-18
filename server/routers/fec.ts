@@ -183,7 +183,7 @@ export const fecRouter = router({
       if (entries.length === 0) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Aucune ecriture comptable trouvee pour cette periode',
+          message: 'Aucune écriture comptable trouvée pour cette période',
         });
       }
 
@@ -201,7 +201,7 @@ export const fecRouter = router({
       if (Math.abs(balance) > 0.01) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: `Balance comptable desequilibree : ${balance.toFixed(2)} XPF`,
+          message: `Balance comptable déséquilibrée : ${balance.toFixed(2)} XPF`,
         });
       }
 

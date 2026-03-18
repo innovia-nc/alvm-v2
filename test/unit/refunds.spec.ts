@@ -468,7 +468,7 @@ describe('refunds router', () => {
         }),
       ).rejects.toMatchObject({
         code: 'NOT_FOUND',
-        message: 'Paiement non trouve',
+        message: 'Paiement non trouvé',
       });
     });
 
@@ -670,7 +670,7 @@ describe('refunds router', () => {
         caller.refunds.delete({ id: REFUND_ID }),
       ).rejects.toMatchObject({
         code: 'NOT_FOUND',
-        message: 'Remboursement non trouve',
+        message: 'Remboursement non trouvé',
       });
 
       expect(mockPrisma.refund.delete).not.toHaveBeenCalled();

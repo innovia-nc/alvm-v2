@@ -263,7 +263,7 @@ export const registrationsRouter = router({
       if (!childLink) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Enfant non trouve ou ne correspond pas au parent specifie',
+          message: 'Enfant non trouvé ou ne correspond pas au parent spécifié',
         });
       }
 
@@ -285,7 +285,7 @@ export const registrationsRouter = router({
         },
       });
       if (!camp) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
       if (camp.status !== 'PUBLISHED') {
@@ -298,7 +298,7 @@ export const registrationsRouter = router({
       if (camp.registrationDeadline < new Date()) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: "La date limite d'inscription est depassee",
+          message: "La date limite d'inscription est dépassée",
         });
       }
 
@@ -309,7 +309,7 @@ export const registrationsRouter = router({
       if (existing) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Cet enfant est deja inscrit a ce camp',
+          message: 'Cet enfant est déjà inscrit à ce camp',
         });
       }
 
@@ -362,7 +362,7 @@ export const registrationsRouter = router({
       if (!childLink) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Enfant non trouve ou ne correspond pas au parent specifie',
+          message: 'Enfant non trouvé ou ne correspond pas au parent spécifié',
         });
       }
 
@@ -371,7 +371,7 @@ export const registrationsRouter = router({
         where: { id: input.campId, deletedAt: null },
       });
       if (!camp) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
       // 3. Check no duplicate
@@ -381,7 +381,7 @@ export const registrationsRouter = router({
       if (existing) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Cet enfant est deja inscrit a ce camp',
+          message: 'Cet enfant est déjà inscrit à ce camp',
         });
       }
 
@@ -423,13 +423,13 @@ export const registrationsRouter = router({
         where: { id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
       if (existing.paymentStatus === 'PAID') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a deja ete payee et ne peut plus etre modifiee',
+          message: 'Cette inscription a déjà été payée et ne peut plus être modifiée',
         });
       }
 
@@ -460,13 +460,13 @@ export const registrationsRouter = router({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
       if (existing.paymentStatus === 'PAID') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a deja ete payee et ne peut plus etre modifiee',
+          message: 'Cette inscription a déjà été payée et ne peut plus être modifiée',
         });
       }
 
@@ -519,13 +519,13 @@ export const registrationsRouter = router({
         where: { id: input.registrationId, deletedAt: null },
       });
       if (!reg) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
       if (reg.status !== 'CONFIRMED') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Seules les inscriptions confirmees peuvent etre analysees pour annulation',
+          message: 'Seules les inscriptions confirmées peuvent être analysées pour annulation',
         });
       }
 
@@ -617,14 +617,14 @@ export const registrationsRouter = router({
 
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
-        message: 'Etat de facture incoherent',
+        message: 'État de facture incohérent',
       });
     }),
 
   cancelWithAccounting: staffProcedure
     .input(z.object({
       registrationId: z.string().uuid(),
-      reason: z.string().min(10, 'Le motif doit contenir au moins 10 caracteres'),
+      reason: z.string().min(10, 'Le motif doit contenir au moins 10 caractères'),
       refundChoice: z.enum(['IMMEDIATE_REFUND', 'FUTURE_CREDIT']).optional(),
     }))
     .output(z.object({
@@ -673,12 +673,12 @@ export const registrationsRouter = router({
           },
         });
         if (!reg) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
         }
         if (reg.status !== 'CONFIRMED') {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: 'Seules les inscriptions confirmees peuvent etre annulees avec gestion comptable',
+            message: 'Seules les inscriptions confirmées peuvent être annulées avec gestion comptable',
           });
         }
 
@@ -823,7 +823,7 @@ export const registrationsRouter = router({
               amountOriginal: amount,
               amountRemaining: amount,
               expiresAt,
-              notes: 'Credit automatique suite a annulation',
+              notes: 'Crédit automatique suite à annulation',
             },
           });
 
@@ -940,7 +940,7 @@ export const registrationsRouter = router({
           } else {
             throw new TRPCError({
               code: 'INTERNAL_SERVER_ERROR',
-              message: 'Etat de paiement de la facture incoherent',
+              message: 'État de paiement de la facture incohérent',
             });
           }
         }
@@ -963,13 +963,13 @@ export const registrationsRouter = router({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
       if (existing.paymentStatus === 'PAID') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a deja ete payee et ne peut plus etre supprimee',
+          message: 'Cette inscription a déjà été payée et ne peut plus être supprimée',
         });
       }
 
@@ -1063,7 +1063,7 @@ export const registrationsRouter = router({
       notes: z.string().optional(),
     }).refine(
       (data) => data.registrationId || data.invoiceId,
-      { message: 'Au moins un ID (registration ou invoice) doit etre fourni' },
+      { message: 'Au moins un ID (registration ou invoice) doit être fourni' },
     ))
     .output(z.object({
       success: z.boolean(),
@@ -1085,7 +1085,7 @@ export const registrationsRouter = router({
         );
 
         if (!credit) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Credit non trouve' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Crédit non trouvé' });
         }
 
         if (Number(credit.amount_remaining) < input.amount) {
@@ -1098,7 +1098,7 @@ export const registrationsRouter = router({
         if (credit.expires_at && credit.expires_at < new Date()) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: 'Credit expire',
+            message: 'Crédit expiré',
           });
         }
 

@@ -204,7 +204,7 @@ export const campsRouter = router({
       status: z.enum(['DRAFT', 'PUBLISHED']).default('DRAFT'),
     }).refine(
       (d) => new Date(d.endDate) >= new Date(d.startDate),
-      { message: 'La date de fin doit etre apres ou egale a la date de debut', path: ['endDate'] },
+      { message: 'La date de fin doit être après ou égale à la date de début', path: ['endDate'] },
     ))
     .output(campSchema)
     .mutation(async ({ ctx, input }) => {
@@ -212,7 +212,7 @@ export const campsRouter = router({
         where: { id: input.campTypeId, active: true },
       });
       if (!campType) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouve ou inactif' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé ou inactif' });
       }
 
       const daysCount = computeDaysCount(
@@ -258,7 +258,7 @@ export const campsRouter = router({
         if (d.startDate && d.endDate) return new Date(d.endDate) >= new Date(d.startDate);
         return true;
       },
-      { message: 'La date de fin doit etre apres ou egale a la date de debut', path: ['endDate'] },
+      { message: 'La date de fin doit être après ou égale à la date de début', path: ['endDate'] },
     ))
     .output(campSchema)
     .mutation(async ({ ctx, input }) => {
@@ -266,7 +266,7 @@ export const campsRouter = router({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
       if (existing.createdBy !== ctx.user.id && ctx.user.role !== 'ADMIN') {
@@ -311,7 +311,7 @@ export const campsRouter = router({
       if (confirmedRegs > 0) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Impossible de supprimer ce camp : des inscriptions confirmees existent',
+          message: 'Impossible de supprimer ce camp : des inscriptions confirmées existent',
         });
       }
 
@@ -320,7 +320,7 @@ export const campsRouter = router({
         data: { deletedAt: new Date() },
       });
       if (result.count === 0) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
       return { success: true };
@@ -352,7 +352,7 @@ export const campsRouter = router({
         where: { id: input.id, deletedAt: null },
       });
       if (!source) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp source non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp source non trouvé' });
       }
 
       const camp = await ctx.prisma.camp.create({

@@ -495,7 +495,7 @@ export async function cancelAccountingEntries(
       isCancelled: true,
       cancelledAt: new Date(),
       cancelledBy: userId,
-      cancellationReason: 'Suppression associee',
+      cancellationReason: 'Suppression associée',
     },
   });
 }

@@ -34,7 +34,7 @@ const requireAuth = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
-      message: 'Vous devez etre connecte pour effectuer cette action',
+      message: 'Vous devez être connecté pour effectuer cette action',
     });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
@@ -45,14 +45,14 @@ const requireRole = (allowedRoles: Array<'PARENT' | 'STAFF' | 'ADMIN'>) =>
     if (!ctx.user) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: 'Vous devez etre connecte pour effectuer cette action',
+        message: 'Vous devez être connecté pour effectuer cette action',
       });
     }
 
     if (!ctx.user.role || !allowedRoles.includes(ctx.user.role)) {
       throw new TRPCError({
         code: 'FORBIDDEN',
-        message: "Vous n'avez pas les permissions necessaires",
+        message: "Vous n'avez pas les permissions nécessaires",
       });
     }
 
@@ -64,14 +64,14 @@ const requireStaffRole = (allowedStaffRoles: Array<'ANIMATOR'>) =>
     if (!ctx.user) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: 'Vous devez etre connecte pour effectuer cette action',
+        message: 'Vous devez être connecté pour effectuer cette action',
       });
     }
 
     if (ctx.user.role !== 'STAFF' && ctx.user.role !== 'ADMIN') {
       throw new TRPCError({
         code: 'FORBIDDEN',
-        message: 'Cette action est reservee au personnel',
+        message: 'Cette action est réservée au personnel',
       });
     }
 
@@ -85,7 +85,7 @@ const requireStaffRole = (allowedStaffRoles: Array<'ANIMATOR'>) =>
     ) {
       throw new TRPCError({
         code: 'FORBIDDEN',
-        message: "Vous n'avez pas les permissions staff necessaires",
+        message: "Vous n'avez pas les permissions staff nécessaires",
       });
     }
 

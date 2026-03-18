@@ -136,7 +136,7 @@ describe('fec router', () => {
         startDate: '2025-01-01',
         endDate: '2025-12-31',
       }),
-    ).rejects.toThrow('Aucune ecriture comptable trouvee');
+    ).rejects.toThrow('Aucune écriture comptable trouvée');
   });
 
   it('should throw if balance is not zero', async () => {
@@ -147,7 +147,7 @@ describe('fec router', () => {
         startDate: '2025-01-01',
         endDate: '2025-12-31',
       }),
-    ).rejects.toThrow('Balance comptable desequilibree');
+    ).rejects.toThrow('Balance comptable déséquilibrée');
   });
 
   // --- getStats ---

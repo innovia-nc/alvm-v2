@@ -384,7 +384,7 @@ describe('camps.getById', () => {
 describe('camps.create', () => {
   const createInput = {
     name: 'Nouveau Camp',
-    description: 'Description du nouveau camp avec au moins dix caracteres',
+    description: 'Description du nouveau camp avec au moins dix caractères',
     campTypeId: CAMP_TYPE_ID,
     location: 'Noumea',
     maxCapacity: 20,
@@ -445,7 +445,7 @@ describe('camps.create', () => {
     it('should reject if campType is not found or inactive', async () => {
       mockPrisma.campType.findFirst.mockResolvedValue(null);
 
-      await expect(caller.camps.create(createInput)).rejects.toThrow('Type de camp non trouve ou inactif');
+      await expect(caller.camps.create(createInput)).rejects.toThrow('Type de camp non trouvé ou inactif');
     });
 
     it('should compute pricePerDay from totalPrice / daysCount', async () => {
@@ -599,7 +599,7 @@ describe('camps.update', () => {
     it('should throw NOT_FOUND when camp does not exist', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.camps.update(updateInput)).rejects.toThrow('Camp non trouve');
+      await expect(caller.camps.update(updateInput)).rejects.toThrow('Camp non trouvé');
     });
 
     it('should throw BAD_REQUEST when no modifications provided', async () => {
@@ -739,7 +739,7 @@ describe('camps.delete', () => {
       mockPrisma.registration.count.mockResolvedValue(3);
 
       await expect(caller.camps.delete({ id: CAMP_ID })).rejects.toThrow(
-        'Impossible de supprimer ce camp : des inscriptions confirmees existent',
+        'Impossible de supprimer ce camp : des inscriptions confirmées existent',
       );
     });
 
@@ -760,7 +760,7 @@ describe('camps.delete', () => {
       mockPrisma.registration.count.mockResolvedValue(0);
       mockPrisma.camp.updateMany.mockResolvedValue({ count: 0 });
 
-      await expect(caller.camps.delete({ id: CAMP_ID })).rejects.toThrow('Camp non trouve');
+      await expect(caller.camps.delete({ id: CAMP_ID })).rejects.toThrow('Camp non trouvé');
     });
 
     it('should check for CONFIRMED registrations with deletedAt null', async () => {
@@ -891,7 +891,7 @@ describe('camps.duplicate', () => {
     it('should throw NOT_FOUND when source camp does not exist', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.camps.duplicate(duplicateInput)).rejects.toThrow('Camp source non trouve');
+      await expect(caller.camps.duplicate(duplicateInput)).rejects.toThrow('Camp source non trouvé');
     });
 
     it('should create a copy with new name and DRAFT status', async () => {

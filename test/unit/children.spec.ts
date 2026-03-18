@@ -444,7 +444,7 @@ describe('children router', () => {
       admin.mockPrisma.parent.findFirst.mockResolvedValue(null);
 
       await expect(admin.caller.children.create(validInput)).rejects.toThrow(
-        `Parent ${PARENT_ID_A} non trouve`,
+        `Parent ${PARENT_ID_A} non trouvé`,
       );
     });
 
@@ -549,7 +549,7 @@ describe('children router', () => {
         .mockResolvedValueOnce(null); // Second parent doesn't exist
 
       await expect(admin.caller.children.create(inputTwoParents)).rejects.toThrow(
-        `Parent ${PARENT_ID_B} non trouve`,
+        `Parent ${PARENT_ID_B} non trouvé`,
       );
     });
   });
@@ -593,7 +593,7 @@ describe('children router', () => {
 
       await expect(
         admin.caller.children.update({ id: CHILD_ID, firstName: 'Xx' }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should throw BAD_REQUEST when no updates provided', async () => {
@@ -729,7 +729,7 @@ describe('children router', () => {
 
       await expect(
         admin.caller.children.delete({ id: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should block deletion when active registrations exist', async () => {
@@ -825,7 +825,7 @@ describe('children router', () => {
 
       await expect(
         admin.caller.children.getParents({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should throw NOT_FOUND when PARENT has no access to child', async () => {
@@ -833,7 +833,7 @@ describe('children router', () => {
 
       await expect(
         parent.caller.children.getParents({ childId: CHILD_ID }),
-      ).rejects.toThrow('Enfant non trouve ou acces refuse');
+      ).rejects.toThrow('Enfant non trouvé ou accès refusé');
     });
 
     it('should return relationship field for each parent', async () => {
@@ -922,7 +922,7 @@ describe('children router', () => {
           childId: CHILD_ID,
           parentId: PARENT_ID_B,
         }),
-      ).rejects.toThrow('Enfant non trouve');
+      ).rejects.toThrow('Enfant non trouvé');
     });
 
     it('should throw NOT_FOUND when parent does not exist', async () => {
@@ -934,7 +934,7 @@ describe('children router', () => {
           childId: CHILD_ID,
           parentId: PARENT_ID_B,
         }),
-      ).rejects.toThrow('Parent non trouve');
+      ).rejects.toThrow('Parent non trouvé');
     });
 
     it('should throw PRECONDITION_FAILED when child already has 3 parents', async () => {
@@ -947,7 +947,7 @@ describe('children router', () => {
           childId: CHILD_ID,
           parentId: PARENT_ID_D,
         }),
-      ).rejects.toThrow('Un enfant ne peut avoir plus de 3 parents associes');
+      ).rejects.toThrow('Un enfant ne peut avoir plus de 3 parents associés');
     });
 
     it('should throw CONFLICT when parent is already linked', async () => {
@@ -961,7 +961,7 @@ describe('children router', () => {
           childId: CHILD_ID,
           parentId: PARENT_ID_A,
         }),
-      ).rejects.toThrow('Ce parent est deja associe a cet enfant');
+      ).rejects.toThrow('Ce parent est déjà associé à cet enfant');
     });
 
     it('should allow STAFF to add a parent', async () => {
@@ -1066,7 +1066,7 @@ describe('children router', () => {
           childId: CHILD_ID,
           parentId: PARENT_ID_B,
         }),
-      ).rejects.toThrow('Association parent-enfant non trouvee');
+      ).rejects.toThrow('Association parent-enfant non trouvée');
     });
 
     it('should block removing the last parent', async () => {
@@ -1168,7 +1168,7 @@ describe('children router', () => {
           childId: CHILD_ID,
           parentId: PARENT_ID_B,
         }),
-      ).rejects.toThrow('Association parent-enfant non trouvee');
+      ).rejects.toThrow('Association parent-enfant non trouvée');
     });
 
     it('should allow STAFF to set primary parent', async () => {

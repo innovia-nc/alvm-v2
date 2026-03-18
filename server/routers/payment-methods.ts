@@ -57,7 +57,7 @@ export const paymentMethodsRouter = router({
       if (existing) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Une methode de paiement avec ce nom existe deja',
+          message: 'Une méthode de paiement avec ce nom existe déjà',
         });
       }
 
@@ -95,7 +95,7 @@ export const paymentMethodsRouter = router({
       if (!existing) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Methode de paiement non trouvee',
+          message: 'Méthode de paiement non trouvée',
         });
       }
 
@@ -106,7 +106,7 @@ export const paymentMethodsRouter = router({
         if (nameExists) {
           throw new TRPCError({
             code: 'CONFLICT',
-            message: 'Une methode de paiement avec ce nom existe deja',
+            message: 'Une méthode de paiement avec ce nom existe déjà',
           });
         }
       }
@@ -128,7 +128,7 @@ export const paymentMethodsRouter = router({
       if (!existing) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Methode de paiement non trouvee',
+          message: 'Méthode de paiement non trouvée',
         });
       }
 
@@ -143,7 +143,7 @@ export const paymentMethodsRouter = router({
         if (recentPayments > 0) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: `Impossible de desactiver une methode utilisee recemment (${inactiveDays} jours)`,
+            message: `Impossible de désactiver une méthode utilisée récemment (${inactiveDays} jours)`,
           });
         }
       }
@@ -162,12 +162,12 @@ export const paymentMethodsRouter = router({
         where: { id: input.id },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Methode de paiement non trouvee' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Méthode de paiement non trouvée' });
       }
       if (existing.isSystem) {
         throw new TRPCError({
           code: 'FORBIDDEN',
-          message: 'Impossible de supprimer une methode de paiement systeme',
+          message: 'Impossible de supprimer une méthode de paiement système',
         });
       }
 
@@ -177,7 +177,7 @@ export const paymentMethodsRouter = router({
       if (paymentsCount > 0) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Impossible de supprimer une methode utilisee par des paiements',
+          message: 'Impossible de supprimer une méthode utilisée par des paiements',
         });
       }
 

@@ -53,7 +53,7 @@ export const campTypesRouter = router({
       if (existing) {
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Un type de camp avec ce nom existe deja',
+          message: 'Un type de camp avec ce nom existe déjà',
         });
       }
 
@@ -64,7 +64,7 @@ export const campTypesRouter = router({
         if (codeExists) {
           throw new TRPCError({
             code: 'CONFLICT',
-            message: 'Ce code comptable est deja utilise par un autre type de camp',
+            message: 'Ce code comptable est déjà utilisé par un autre type de camp',
           });
         }
       }
@@ -93,7 +93,7 @@ export const campTypesRouter = router({
         where: { id: input.id },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé' });
       }
 
       if (input.name && input.name !== existing.name) {
@@ -103,7 +103,7 @@ export const campTypesRouter = router({
         if (nameExists) {
           throw new TRPCError({
             code: 'CONFLICT',
-            message: 'Un type de camp avec ce nom existe deja',
+            message: 'Un type de camp avec ce nom existe déjà',
           });
         }
       }
@@ -115,7 +115,7 @@ export const campTypesRouter = router({
         if (codeExists) {
           throw new TRPCError({
             code: 'CONFLICT',
-            message: 'Ce code comptable est deja utilise',
+            message: 'Ce code comptable est déjà utilisé',
           });
         }
       }
@@ -135,7 +135,7 @@ export const campTypesRouter = router({
         where: { id: input.id },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé' });
       }
 
       if (existing.active) {
@@ -149,7 +149,7 @@ export const campTypesRouter = router({
         if (activeCamps > 0) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: 'Impossible de desactiver un type utilise par des camps actifs',
+            message: 'Impossible de désactiver un type utilisé par des camps actifs',
           });
         }
       }
@@ -168,7 +168,7 @@ export const campTypesRouter = router({
         where: { id: input.id },
       });
       if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouve' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé' });
       }
 
       const campsCount = await ctx.prisma.camp.count({
@@ -177,7 +177,7 @@ export const campTypesRouter = router({
       if (campsCount > 0) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Impossible de supprimer un type utilise par des camps',
+          message: 'Impossible de supprimer un type utilisé par des camps',
         });
       }
 

@@ -145,7 +145,7 @@ describe('staff router', () => {
     it('should reject duplicate user email', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue({ id: 'x', email: createInput.email });
       await expect(admin.caller.staff.create(createInput)).rejects.toThrow(
-        'Un compte avec cet email existe deja',
+        'Un compte avec cet email existe déjà',
       );
     });
 
@@ -153,7 +153,7 @@ describe('staff router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow({ email: createInput.email }));
       await expect(admin.caller.staff.create(createInput)).rejects.toThrow(
-        'Un membre du personnel avec cet email existe deja',
+        'Un membre du personnel avec cet email existe déjà',
       );
     });
 
@@ -196,7 +196,7 @@ describe('staff router', () => {
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
       await expect(
         admin.caller.staff.update({ id: STAFF_ID, firstName: 'Updated' }),
-      ).rejects.toThrow('Membre du personnel non trouve');
+      ).rejects.toThrow('Membre du personnel non trouvé');
     });
 
     it('should reject empty update', async () => {
@@ -233,7 +233,7 @@ describe('staff router', () => {
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 0 });
       await expect(
         admin.caller.staff.delete({ id: 'b0000000-0000-4000-a000-000000000099' }),
-      ).rejects.toThrow('Membre du personnel non trouve');
+      ).rejects.toThrow('Membre du personnel non trouvé');
     });
 
     it('should deny STAFF from deleting', async () => {
