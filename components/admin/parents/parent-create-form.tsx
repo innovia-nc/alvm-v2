@@ -43,7 +43,9 @@ const parentCreateSchema = z.object({
     .min(8, 'Minimum 8 caractères')
     .regex(/[A-Z]/, 'Au moins une majuscule')
     .regex(/[a-z]/, 'Au moins une minuscule')
-    .regex(/[0-9]/, 'Au moins un chiffre'),
+    .regex(/[0-9]/, 'Au moins un chiffre')
+    .optional()
+    .or(z.literal('')),
 });
 
 type ParentCreateFormData = z.infer<typeof parentCreateSchema>;
@@ -88,7 +90,7 @@ export function ParentCreateForm() {
         postalCode: data.postalCode,
         employeur: data.employeur,
         fonction: data.fonction,
-        password: data.password,
+        ...(data.password ? { password: data.password } : {}),
       });
 
       toast.success('Parent créé avec succès');
@@ -203,12 +205,12 @@ export function ParentCreateForm() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Mot de passe</FormLabel>
+                <FormLabel>Mot de passe (optionnel)</FormLabel>
                 <FormControl>
                   <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
                 <FormDescription>
-                  Minimum 8 caractères, une majuscule, une minuscule et un chiffre
+                  Si renseigné : minimum 8 caractères, une majuscule, une minuscule et un chiffre. Sans mot de passe, le parent ne pourra pas se connecter.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

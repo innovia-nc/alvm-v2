@@ -228,7 +228,8 @@ export const parentsRouter = router({
       employeur: z.string().max(100).nullable().optional(),
       fonction: z.string().max(100).nullable().optional(),
       password: z.string()
-        .min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
+        .min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/)
+        .optional(),
     }))
     .output(parentSchema)
     .mutation(async ({ ctx, input }) => {
@@ -246,8 +247,6 @@ export const parentsRouter = router({
         throw new TRPCError({ code: 'CONFLICT', message: 'Un parent avec cet email existe deja' });
       }
 
-      const hashedPassword = await hash(input.password, 12);
-
       const result = await ctx.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
@@ -257,14 +256,17 @@ export const parentsRouter = router({
           },
         });
 
-        await tx.account.create({
-          data: {
-            userId: user.id,
-            type: 'credentials',
-            provider: 'credentials',
-            providerAccountId: hashedPassword,
-          },
-        });
+        if (input.password) {
+          const hashedPassword = await hash(input.password, 12);
+          await tx.account.create({
+            data: {
+              userId: user.id,
+              type: 'credentials',
+              provider: 'credentials',
+              providerAccountId: hashedPassword,
+            },
+          });
+        }
 
         return tx.parent.create({
           data: {
