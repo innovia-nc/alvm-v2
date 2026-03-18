@@ -39,11 +39,15 @@ export function AdminChildrenTableClient() {
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination et recherche
+  // Convertir le filtre d'âge en ageMin/ageMax pour le serveur
+  const ageRange = ageFilter !== 'all' ? ageFilter.split('-').map(Number) : null;
+
+  // Query tRPC avec pagination, recherche et filtre âge côté serveur
   const { data, isLoading } = trpc.children.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
     ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
+    ...(ageRange && { ageMin: ageRange[0], ageMax: ageRange[1] }),
   });
 
   const utils = trpc.useUtils();
@@ -63,32 +67,7 @@ export function AdminChildrenTableClient() {
     },
   });
 
-  // Calculer l'âge
-  function calculateAge(birthDate: Date): number {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  }
-
-  // Filtrer les enfants selon l'âge
-  const filteredChildren = (data?.children || []).filter((child) => {
-    // Filtre par âge
-    if (ageFilter === 'all') return true;
-
-    const age = calculateAge(child.birthDate);
-    if (ageFilter === '3-5') return age >= 3 && age <= 5;
-    else if (ageFilter === '6-8') return age >= 6 && age <= 8;
-    else if (ageFilter === '9-11') return age >= 9 && age <= 11;
-    else if (ageFilter === '12-14') return age >= 12 && age <= 14;
-    else if (ageFilter === '15-17') return age >= 15 && age <= 17;
-
-    return true;
-  });
+  const children = data?.children || [];
 
   // Enrichir les colonnes avec les callbacks
   const columnsWithActions = adminChildColumns.map((col) => {
@@ -127,7 +106,10 @@ export function AdminChildrenTableClient() {
           <Label htmlFor="age-filter" className="mb-2 block">
             Filtrer par âge
           </Label>
-          <Select value={ageFilter} onValueChange={(val) => setAgeFilter(val as AgeFilter)}>
+          <Select value={ageFilter} onValueChange={(val) => {
+            setAgeFilter(val as AgeFilter);
+            pagination.resetToFirstPage();
+          }}>
             <SelectTrigger id="age-filter">
               <SelectValue placeholder="Tous les âges" />
             </SelectTrigger>
@@ -155,7 +137,7 @@ export function AdminChildrenTableClient() {
       {/* Table avec pagination */}
       <DataTableServer
         columns={columnsWithActions}
-        data={filteredChildren}
+        data={children}
         totalCount={data?.total || 0}
         isLoading={isLoading}
         pagination={pagination}

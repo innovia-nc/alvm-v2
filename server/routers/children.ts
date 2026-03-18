@@ -107,12 +107,14 @@ export const childrenRouter = router({
       offset: z.number().min(0).default(0),
       parentId: z.string().uuid().optional(),
       search: z.string().optional(),
+      ageMin: z.number().min(0).max(100).optional(),
+      ageMax: z.number().min(0).max(100).optional(),
       sortBy: z.enum(['lastName', 'firstName', 'birthDate', 'createdAt']).default('lastName'),
       sortOrder: z.enum(['asc', 'desc']).default('asc'),
     }))
     .output(z.object({ children: z.array(childSchema), total: z.number() }))
     .query(async ({ ctx, input }) => {
-      const { limit, offset, parentId, search, sortBy, sortOrder } = input;
+      const { limit, offset, parentId, search, ageMin, ageMax, sortBy, sortOrder } = input;
 
       const where: Prisma.ChildWhereInput = {
         deletedAt: null,
@@ -123,6 +125,21 @@ export const childrenRouter = router({
         where.parentLinks = { some: { parentId: ctx.user.id } };
       } else if (parentId) {
         where.parentLinks = { some: { parentId } };
+      }
+
+      // Age filter: convert age range to birthDate range
+      if (ageMin !== undefined || ageMax !== undefined) {
+        const today = new Date();
+        if (ageMax !== undefined) {
+          // Born after this date = younger than ageMax+1
+          const minBirthDate = new Date(today.getFullYear() - ageMax - 1, today.getMonth(), today.getDate());
+          where.birthDate = { ...where.birthDate as object, gte: minBirthDate };
+        }
+        if (ageMin !== undefined) {
+          // Born before this date = older than ageMin
+          const maxBirthDate = new Date(today.getFullYear() - ageMin, today.getMonth(), today.getDate());
+          where.birthDate = { ...where.birthDate as object, lte: maxBirthDate };
+        }
       }
 
       if (search) {

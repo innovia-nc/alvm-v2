@@ -40,10 +40,11 @@ export function AdminCreditNotesTableClient() {
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination
+  // Query tRPC avec pagination et filtre statut
   const { data, isLoading } = trpc.creditNotes.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
+    ...(statusFilter !== 'all' && { status: statusFilter as 'DRAFT' | 'SENT' | 'CANCELLED' }),
   });
 
   const utils = trpc.useUtils();
@@ -99,11 +100,7 @@ export function AdminCreditNotesTableClient() {
     }
   }
 
-  // Filtrer les données par statut côté client
-  const filteredData = (data?.creditNotes || []).filter((item) => {
-    if (statusFilter === 'all') return true;
-    return item.status === statusFilter;
-  });
+  const creditNotes = data?.creditNotes || [];
 
   // Enrichir les colonnes avec les callbacks
   const columnsWithActions = adminCreditNoteColumns.map((col) => {
@@ -139,7 +136,10 @@ export function AdminCreditNotesTableClient() {
 
       {/* Filtre par statut */}
       <div className="flex gap-2">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(val) => {
+          setStatusFilter(val);
+          pagination.resetToFirstPage();
+        }}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filtrer par statut" />
           </SelectTrigger>
@@ -154,7 +154,7 @@ export function AdminCreditNotesTableClient() {
 
       <DataTableServer
         columns={columnsWithActions}
-        data={filteredData}
+        data={creditNotes}
         totalCount={data?.total || 0}
         isLoading={isLoading}
         pagination={pagination}

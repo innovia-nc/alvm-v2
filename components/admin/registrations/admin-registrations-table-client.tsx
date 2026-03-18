@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
@@ -49,11 +49,20 @@ export function AdminRegistrationsTableClient() {
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination, filtre statut et recherche
+  // Charger la liste des camps pour le dropdown
+  const { data: campsData } = trpc.camps.list.useQuery({
+    limit: 100,
+    offset: 0,
+    sortBy: 'name',
+    sortOrder: 'asc',
+  });
+
+  // Query tRPC avec pagination, filtres serveur et recherche
   const { data, isLoading } = trpc.registrations.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter }),
+    ...(campFilter !== 'all' && { campId: campFilter }),
     ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
   });
 
@@ -103,18 +112,10 @@ export function AdminRegistrationsTableClient() {
   });
 
 
-  // Extraire liste unique des camps
-  const uniqueCamps = useMemo(() => {
-    if (!data?.registrations) return [];
-    return Array.from(new Set(data.registrations.map((r) => r.camp.name))).sort();
-  }, [data?.registrations]);
+  // Liste des camps pour le dropdown (depuis la query camps séparée)
+  const campsList = campsData?.camps || [];
 
-  // Filtrer par camp (côté client post-fetch)
-  const filteredRegistrations = useMemo(() => {
-    if (!data?.registrations) return [];
-    if (campFilter === 'all') return data.registrations;
-    return data.registrations.filter((r) => r.camp.name === campFilter);
-  }, [data?.registrations, campFilter]);
+  const registrations = data?.registrations || [];
 
   // Enrichir les colonnes avec les callbacks
   const columnsWithActions = adminRegistrationColumns.map((col) => {
@@ -188,7 +189,10 @@ export function AdminRegistrationsTableClient() {
           </Label>
           <Select
             value={statusFilter}
-            onValueChange={(val) => setStatusFilter(val as StatusFilter)}
+            onValueChange={(val) => {
+              setStatusFilter(val as StatusFilter);
+              pagination.resetToFirstPage();
+            }}
           >
             <SelectTrigger id="status-filter">
               <SelectValue placeholder="Tous les statuts" />
@@ -207,15 +211,18 @@ export function AdminRegistrationsTableClient() {
           <Label htmlFor="camp-filter" className="mb-2 block">
             Filtrer par camp
           </Label>
-          <Select value={campFilter} onValueChange={setCampFilter}>
+          <Select value={campFilter} onValueChange={(val) => {
+            setCampFilter(val);
+            pagination.resetToFirstPage();
+          }}>
             <SelectTrigger id="camp-filter">
               <SelectValue placeholder="Tous les camps" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les camps</SelectItem>
-              {uniqueCamps.map((camp) => (
-                <SelectItem key={camp} value={camp}>
-                  {camp}
+              {campsList.map((camp) => (
+                <SelectItem key={camp.id} value={camp.id}>
+                  {camp.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -235,7 +242,7 @@ export function AdminRegistrationsTableClient() {
       {/* Table avec pagination */}
       <DataTableServer
         columns={columnsWithActions}
-        data={filteredRegistrations}
+        data={registrations}
         totalCount={data?.total || 0}
         isLoading={isLoading}
         pagination={pagination}

@@ -4,11 +4,24 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
+  MoreHorizontal,
   Eye,
+  FileText,
+  Trash2,
+  Check,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,6 +29,7 @@ export type CampRegistrationType = {
   id: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
   createdAt: Date;
+  updatedAt: Date;
   child: {
     id: string;
     firstName: string;
@@ -28,7 +42,14 @@ export type CampRegistrationType = {
     email: string;
     phone: string;
   };
+  camp: {
+    id: string;
+    name: string;
+    location: string;
+    daysCount: number;
+  };
   totalAmount: number;
+  invoiceId: string | null;
 };
 
 function calculateAge(birthDate: Date): number {
@@ -77,9 +98,96 @@ function getStatusBadge(status: string) {
   }
 }
 
+interface CampRegistrationActionsProps {
+  item: CampRegistrationType;
+  registrationsPath: string;
+  onConfirm?: (item: CampRegistrationType) => void;
+  onDelete?: (item: CampRegistrationType) => void;
+  onCancel?: (item: CampRegistrationType) => void;
+  onCreateInvoice?: (item: CampRegistrationType) => void;
+}
+
+export function CampRegistrationActions({
+  item,
+  registrationsPath,
+  onConfirm,
+  onDelete,
+  onCancel,
+  onCreateInvoice,
+}: CampRegistrationActionsProps) {
+  const isPending = item.status === 'PENDING';
+  const isConfirmed = item.status === 'CONFIRMED';
+  const canCreateInvoice = !item.invoiceId && isConfirmed;
+
+  return (
+    <div className="text-right">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem asChild>
+            <Link href={`${registrationsPath}/${item.id}`}>
+              <Eye className="mr-2 h-4 w-4" />
+              Voir détails
+            </Link>
+          </DropdownMenuItem>
+
+          {isPending && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onConfirm?.(item)}
+                className="text-green-600 focus:text-green-600"
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Valider
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete?.(item)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Supprimer
+              </DropdownMenuItem>
+            </>
+          )}
+
+          {isConfirmed && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onCancel?.(item)}
+                className="text-orange-600 focus:text-orange-600"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Annuler
+              </DropdownMenuItem>
+              {canCreateInvoice && (
+                <DropdownMenuItem onClick={() => onCreateInvoice?.(item)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Créer facture
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 export function createCampRegistrationColumns(
   basePath: string
 ): ColumnDef<CampRegistrationType>[] {
+  // Derive registrations path from camp basePath (e.g. /dashboard/admin/camps -> /dashboard/admin/registrations)
+  const registrationsPath = basePath.replace('/camps', '/registrations');
+
   return [
     {
       accessorKey: 'child',
@@ -154,13 +262,10 @@ export function createCampRegistrationColumns(
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => {
         return (
-          <div className="text-right">
-            <Link href={`${basePath.replace('/camps/', '/registrations/')}/${row.original.id}`}>
-              <Button variant="ghost" size="sm">
-                <Eye className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
+          <CampRegistrationActions
+            item={row.original}
+            registrationsPath={registrationsPath}
+          />
         );
       },
     },

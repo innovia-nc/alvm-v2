@@ -73,11 +73,12 @@ export function AdminCampsTableClient() {
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination et recherche
+  // Query tRPC avec pagination, recherche et filtre statut
   const { data, isLoading } = trpc.camps.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
     search: searchTerm || undefined,
+    ...(statusFilter !== 'ALL' && { status: statusFilter }),
   });
 
   const utils = trpc.useUtils();
@@ -121,11 +122,7 @@ export function AdminCampsTableClient() {
     },
   });
 
-  // Filtrer par statut (côté client post-fetch)
-  const filteredCamps = (data?.camps || []).filter((camp) => {
-    if (statusFilter === 'ALL') return true;
-    return camp.status === statusFilter;
-  });
+  const camps = data?.camps || [];
 
   async function handleAction() {
     if (!actioningCamp) return;
@@ -206,7 +203,10 @@ export function AdminCampsTableClient() {
           </Label>
           <Select
             value={statusFilter}
-            onValueChange={(val) => setStatusFilter(val as StatusFilter)}
+            onValueChange={(val) => {
+              setStatusFilter(val as StatusFilter);
+              pagination.resetToFirstPage();
+            }}
           >
             <SelectTrigger id="status-filter">
               <SelectValue placeholder="Tous les statuts" />
@@ -234,7 +234,7 @@ export function AdminCampsTableClient() {
       {/* Table avec pagination */}
       <DataTableServer
         columns={columnsWithActions}
-        data={filteredCamps}
+        data={camps}
         totalCount={data?.total || 0}
         isLoading={isLoading}
         pagination={pagination}
