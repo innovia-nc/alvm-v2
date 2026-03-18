@@ -9,6 +9,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/server/helpers/settings';
 import { toNum } from '@/server/helpers/decimal';
+import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
 
 type CreditNoteStatus = 'DRAFT' | 'SENT' | 'CANCELLED';
 
@@ -342,6 +343,45 @@ export const creditNotesRouter = router({
           where: { id: input.id },
           data: { status: input.status },
         });
+
+        // If transitioning to SENT, create accounting entries (VE)
+        if (input.status === 'SENT') {
+          // Resolve accountingCode from the first line's registration → camp → campType
+          let accountingCode = '706000';
+          const firstLine = await tx.invoiceLine.findFirst({
+            where: { invoiceId: input.id, registrationId: { not: null } },
+            select: {
+              registration: {
+                select: {
+                  camp: {
+                    select: {
+                      campType: {
+                        select: { accountingCode: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          });
+          if (firstLine?.registration?.camp?.campType?.accountingCode) {
+            accountingCode = firstLine.registration.camp.campType.accountingCode;
+          }
+
+          await createCreditNoteAccountingEntries(tx, {
+            creditNoteId: cn.id,
+            parentId: cn.parentId,
+            creditNoteNumber: cn.invoiceNumber,
+            issueDate: cn.issueDate,
+            subtotalHt: Math.abs(toNum(cn.subtotalHt)),
+            taxAmount: Math.abs(toNum(cn.taxAmount)),
+            totalAmount: Math.abs(toNum(cn.totalAmount)),
+            taxRate: toNum(cn.taxRate),
+            accountingCode,
+            isFutureCredit: cn.isFutureCredit ?? false,
+            userId: ctx.user.id,
+          });
+        }
 
         // If transitioning to SENT and is future credit, create parent_credits entry
         if (input.status === 'SENT' && cn.isFutureCredit) {

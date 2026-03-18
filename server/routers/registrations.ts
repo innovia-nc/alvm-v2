@@ -10,6 +10,7 @@ import type { Prisma, RegistrationStatus, InvoiceStatus } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
+import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
 
 type RegStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
 type CampStat = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
@@ -658,9 +659,18 @@ export const registrationsRouter = router({
       const userId = ctx.user.id;
 
       return ctx.prisma.$transaction(async (tx) => {
-        // 1. Get the registration
+        // 1. Get the registration with camp -> campType for accountingCode
         const reg = await tx.registration.findFirst({
           where: { id: input.registrationId, deletedAt: null },
+          include: {
+            camp: {
+              select: {
+                campType: {
+                  select: { accountingCode: true },
+                },
+              },
+            },
+          },
         });
         if (!reg) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
@@ -671,6 +681,8 @@ export const registrationsRouter = router({
             message: 'Seules les inscriptions confirmees peuvent etre annulees avec gestion comptable',
           });
         }
+
+        const accountingCode = reg.camp.campType.accountingCode || '706000';
 
         // 2. Find associated invoice
         const invoice = await tx.invoice.findFirst({
@@ -741,6 +753,21 @@ export const registrationsRouter = router({
             },
           });
 
+          // Generate VE accounting entries for the credit note
+          await createCreditNoteAccountingEntries(tx, {
+            creditNoteId: cn.id,
+            parentId: inv.parentId,
+            creditNoteNumber: cn.invoiceNumber,
+            issueDate: cn.issueDate,
+            subtotalHt,
+            taxAmount,
+            totalAmount: creditAmount,
+            taxRate,
+            accountingCode,
+            isFutureCredit: false,
+            userId,
+          });
+
           return {
             id: cn.id,
             invoiceNumber: cn.invoiceNumber,
@@ -771,6 +798,21 @@ export const registrationsRouter = router({
               status: 'SENT',
               isFutureCredit: true,
             },
+          });
+
+          // Generate VE accounting entries for the future credit note
+          await createCreditNoteAccountingEntries(tx, {
+            creditNoteId: cn.id,
+            parentId: inv.parentId,
+            creditNoteNumber: cn.invoiceNumber,
+            issueDate: cn.issueDate,
+            subtotalHt,
+            taxAmount,
+            totalAmount: amount,
+            taxRate,
+            accountingCode,
+            isFutureCredit: true,
+            userId,
           });
 
           // Create parent credit (trigger no longer does this)

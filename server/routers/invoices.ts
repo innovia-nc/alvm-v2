@@ -10,6 +10,7 @@ import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
+import { createInvoiceAccountingEntries } from '@/server/services/accounting.service';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
@@ -298,7 +299,7 @@ export const invoicesRouter = router({
       const reg = await ctx.prisma.registration.findFirst({
         where: { id: input.registrationId, deletedAt: null },
         include: {
-          camp: { select: { name: true, startDate: true, endDate: true, pricePerDay: true } },
+          camp: { select: { name: true, startDate: true, endDate: true, pricePerDay: true, campType: { select: { accountingCode: true } } } },
           child: { select: { firstName: true, lastName: true } },
         },
       });
@@ -376,6 +377,25 @@ export const invoicesRouter = router({
           },
         });
 
+        // Generate accounting entries if invoice is created as SENT
+        if (input.status === 'SENT') {
+          const accountingCode =
+            reg.camp.campType?.accountingCode || '706000';
+
+          await createInvoiceAccountingEntries(tx, {
+            invoiceId: created.id,
+            parentId: reg.parentId,
+            invoiceNumber: created.invoiceNumber,
+            issueDate: created.issueDate,
+            subtotalHt,
+            taxAmount,
+            totalAmount,
+            taxRate,
+            accountingCode,
+            userId: ctx.user.id,
+          });
+        }
+
         return created;
       });
 
@@ -399,9 +419,52 @@ export const invoicesRouter = router({
         });
       }
 
-      const invoice = await ctx.prisma.invoice.update({
-        where: { id: input.id },
-        data: { status: 'SENT' },
+      const invoice = await ctx.prisma.$transaction(async (tx) => {
+        const updated = await tx.invoice.update({
+          where: { id: input.id },
+          data: { status: 'SENT' },
+        });
+
+        // Fetch invoice with lines and camp type accounting code
+        const invoiceWithLines = await tx.invoice.findUniqueOrThrow({
+          where: { id: input.id },
+          include: {
+            lines: {
+              where: { deletedAt: null },
+              include: {
+                registration: {
+                  include: {
+                    camp: {
+                      include: {
+                        campType: { select: { accountingCode: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Derive accountingCode from the first line's camp type, fallback to default
+        const firstLine = invoiceWithLines.lines[0];
+        const accountingCode =
+          firstLine?.registration?.camp?.campType?.accountingCode || '706000';
+
+        await createInvoiceAccountingEntries(tx, {
+          invoiceId: updated.id,
+          parentId: updated.parentId,
+          invoiceNumber: updated.invoiceNumber,
+          issueDate: updated.issueDate,
+          subtotalHt: toNum(updated.subtotalHt),
+          taxAmount: toNum(updated.taxAmount),
+          totalAmount: toNum(updated.totalAmount),
+          taxRate: toNum(updated.taxRate),
+          accountingCode,
+          userId: ctx.user.id,
+        });
+
+        return updated;
       });
 
       return mapInvoice(invoice);
