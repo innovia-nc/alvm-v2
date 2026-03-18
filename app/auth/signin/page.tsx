@@ -25,27 +25,13 @@ export default function SignInPage() {
       </Suspense>
 
       {/* Liens */}
-      <div className="space-y-3 text-center text-sm">
-        <div>
-          <Link
-            href="/auth/reset-password"
-            className="text-indigo-600 hover:text-indigo-500 font-medium"
-          >
-            Mot de passe oublié ?
-          </Link>
-        </div>
-
-        <div className="pt-4 border-t border-gray-200">
-          <p className="text-gray-600">
-            Pas encore de compte ?{' '}
-            <Link
-              href="/auth/signup/parent"
-              className="text-indigo-600 hover:text-indigo-500 font-medium"
-            >
-              Créer un compte parent
-            </Link>
-          </p>
-        </div>
+      <div className="text-center text-sm">
+        <Link
+          href="/auth/reset-password"
+          className="text-indigo-600 hover:text-indigo-500 font-medium"
+        >
+          Mot de passe oublié ?
+        </Link>
       </div>
     </div>
   );
