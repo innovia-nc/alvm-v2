@@ -1,0 +1,588 @@
+import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import {
+  router,
+  protectedProcedure,
+  staffProcedure,
+  adminProcedure,
+} from '@/server/trpc/init';
+import type { Prisma } from '@prisma/client';
+import { getTaxRateDecimal, getDefaultDueDate } from '@/server/helpers/settings';
+import { computeDaysCount } from '@/server/helpers/date';
+import { toNum } from '@/server/helpers/decimal';
+
+type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
+
+// ============================================================================
+// SCHEMAS
+// ============================================================================
+
+const invoiceStatusEnum = z.enum(['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED', 'CREDITED']);
+
+const invoiceLineSchema = z.object({
+  id: z.string().uuid(),
+  invoiceId: z.string().uuid(),
+  registrationId: z.string().uuid().nullable(),
+  description: z.string(),
+  quantity: z.number(),
+  unitPrice: z.number(),
+  totalPrice: z.number(),
+});
+
+const invoiceSchema = z.object({
+  id: z.string().uuid(),
+  invoiceNumber: z.string(),
+  parentId: z.string().uuid(),
+  issueDate: z.date(),
+  dueDate: z.date(),
+  subtotalHt: z.number().optional(),
+  taxAmount: z.number().optional(),
+  taxRate: z.number().optional(),
+  totalAmount: z.number(),
+  paidAmount: z.number(),
+  status: invoiceStatusEnum,
+  pdfUrl: z.string().nullable(),
+  accountingExportedAt: z.date().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+const invoiceWithDetailsSchema = invoiceSchema.extend({
+  parent: z.object({
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+    address: z.string(),
+    city: z.string(),
+    postalCode: z.string(),
+  }),
+  lines: z.array(invoiceLineSchema),
+  payments: z.array(z.object({
+    id: z.string().uuid(),
+    amount: z.number(),
+    paymentDate: z.date(),
+    paymentMethod: z.string(),
+  })),
+  remainingAmount: z.number(),
+});
+
+const invoiceInclude = {
+  parent: {
+    select: {
+      firstName: true,
+      lastName: true,
+      email: true,
+      address: true,
+      city: true,
+      postalCode: true,
+    },
+  },
+  lines: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      invoiceId: true,
+      registrationId: true,
+      description: true,
+      quantity: true,
+      unitPrice: true,
+      totalPrice: true,
+    },
+  },
+  payments: {
+    select: {
+      id: true,
+      amount: true,
+      paymentDate: true,
+      paymentMethod: {
+        select: { name: true },
+      },
+    },
+  },
+} as const;
+
+function mapInvoiceWithDetails(inv: any) {
+  const totalAmount = toNum(inv.totalAmount);
+  const paidAmount = toNum(inv.paidAmount);
+  return {
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    parentId: inv.parentId,
+    issueDate: inv.issueDate,
+    dueDate: inv.dueDate,
+    subtotalHt: inv.subtotalHt ? toNum(inv.subtotalHt) : undefined,
+    taxAmount: inv.taxAmount ? toNum(inv.taxAmount) : undefined,
+    taxRate: inv.taxRate ? toNum(inv.taxRate) : undefined,
+    totalAmount,
+    paidAmount,
+    status: inv.status as InvStatus,
+    pdfUrl: inv.pdfUrl,
+    accountingExportedAt: inv.accountingExportedAt,
+    createdAt: inv.createdAt,
+    updatedAt: inv.updatedAt,
+    parent: inv.parent,
+    lines: (inv.lines || []).map((l: any) => ({
+      id: l.id,
+      invoiceId: l.invoiceId,
+      registrationId: l.registrationId,
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: toNum(l.unitPrice),
+      totalPrice: toNum(l.totalPrice),
+    })),
+    payments: (inv.payments || []).map((p: any) => ({
+      id: p.id,
+      amount: toNum(p.amount),
+      paymentDate: p.paymentDate,
+      paymentMethod: p.paymentMethod?.name || 'Unknown',
+    })),
+    remainingAmount: totalAmount - paidAmount,
+  };
+}
+
+function mapInvoice(inv: any) {
+  return {
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    parentId: inv.parentId,
+    issueDate: inv.issueDate,
+    dueDate: inv.dueDate,
+    subtotalHt: inv.subtotalHt ? toNum(inv.subtotalHt) : undefined,
+    taxAmount: inv.taxAmount ? toNum(inv.taxAmount) : undefined,
+    taxRate: inv.taxRate ? toNum(inv.taxRate) : undefined,
+    totalAmount: toNum(inv.totalAmount),
+    paidAmount: toNum(inv.paidAmount),
+    status: inv.status as InvStatus,
+    pdfUrl: inv.pdfUrl,
+    accountingExportedAt: inv.accountingExportedAt,
+    createdAt: inv.createdAt,
+    updatedAt: inv.updatedAt,
+  };
+}
+
+// ============================================================================
+// ROUTER
+// ============================================================================
+
+export const invoicesRouter = router({
+  list: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(20),
+      offset: z.number().min(0).default(0),
+      parentId: z.string().uuid().optional(),
+      status: invoiceStatusEnum.optional(),
+      sortBy: z.enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount']).default('issueDate'),
+      sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    }))
+    .output(z.object({
+      invoices: z.array(invoiceWithDetailsSchema),
+      total: z.number(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, offset, parentId, status, sortBy, sortOrder } = input;
+
+      const where: Prisma.InvoiceWhereInput = {
+        deletedAt: null,
+        invoiceType: 'INVOICE',
+      };
+
+      if (ctx.user.role === 'PARENT') {
+        where.parentId = ctx.user.id;
+      } else if (parentId) {
+        where.parentId = parentId;
+      }
+
+      if (status) where.status = status;
+
+      const [invoices, total] = await Promise.all([
+        ctx.prisma.invoice.findMany({
+          where,
+          include: invoiceInclude,
+          orderBy: { [sortBy]: sortOrder },
+          take: limit,
+          skip: offset,
+        }),
+        ctx.prisma.invoice.count({ where }),
+      ]);
+
+      return {
+        invoices: invoices.map(mapInvoiceWithDetails),
+        total,
+      };
+    }),
+
+  getById: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(invoiceWithDetailsSchema.nullable())
+    .query(async ({ ctx, input }) => {
+      const where: Prisma.InvoiceWhereInput = {
+        id: input.id,
+        deletedAt: null,
+      };
+
+      if (ctx.user.role === 'PARENT') {
+        where.parentId = ctx.user.id;
+      }
+
+      const invoice = await ctx.prisma.invoice.findFirst({
+        where,
+        include: invoiceInclude,
+      });
+
+      return invoice ? mapInvoiceWithDetails(invoice) : null;
+    }),
+
+  create: staffProcedure
+    .input(z.object({
+      parentId: z.string().uuid(),
+      dueDate: z.string().date(),
+      lines: z.array(z.object({
+        registrationId: z.string().uuid().nullable(),
+        description: z.string().min(3),
+        quantity: z.number().min(1),
+        unitPrice: z.number().min(0),
+      })).min(1, 'Au moins une ligne requise'),
+    }))
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => {
+      const subtotalHt = input.lines.reduce(
+        (sum, line) => sum + line.quantity * line.unitPrice,
+        0,
+      );
+
+      const invoice = await ctx.prisma.$transaction(async (tx) => {
+        const taxRate = await getTaxRateDecimal(tx);
+        const taxAmount = subtotalHt * taxRate;
+        const totalAmount = subtotalHt + taxAmount;
+
+        const created = await tx.invoice.create({
+          data: {
+            parentId: input.parentId,
+            dueDate: new Date(input.dueDate),
+            totalAmount,
+            subtotalHt,
+            taxAmount,
+            taxRate,
+            status: 'DRAFT',
+          },
+        });
+
+        for (const line of input.lines) {
+          await tx.invoiceLine.create({
+            data: {
+              invoiceId: created.id,
+              registrationId: line.registrationId,
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              totalPrice: line.quantity * line.unitPrice,
+            },
+          });
+        }
+
+        return created;
+      });
+
+      return mapInvoice(invoice);
+    }),
+
+  createFromRegistration: staffProcedure
+    .input(z.object({
+      registrationId: z.string().uuid(),
+      dueDate: z.string().date().optional(),
+      status: z.enum(['DRAFT', 'SENT']).default('DRAFT'),
+    }))
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => {
+      // 1. Get registration with camp and child details
+      const reg = await ctx.prisma.registration.findFirst({
+        where: { id: input.registrationId, deletedAt: null },
+        include: {
+          camp: { select: { name: true, startDate: true, endDate: true, pricePerDay: true } },
+          child: { select: { firstName: true, lastName: true } },
+        },
+      });
+
+      if (!reg) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvee' });
+      }
+
+      // 2. Check no existing active invoice
+      const existingLine = await ctx.prisma.invoiceLine.findFirst({
+        where: {
+          registrationId: input.registrationId,
+          deletedAt: null,
+          invoice: { deletedAt: null },
+        },
+      });
+      if (existingLine) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Une facture existe deja pour cette inscription',
+        });
+      }
+
+      // 3. Check registration status
+      if (reg.status === 'CANCELLED') {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Impossible de creer une facture pour une inscription annulee',
+        });
+      }
+
+      // 4. Calculate amounts
+      const daysCount = computeDaysCount(reg.camp.startDate, reg.camp.endDate);
+      const pricePerDay = toNum(reg.camp.pricePerDay);
+      const subtotalHt = daysCount * pricePerDay;
+
+      // 5. Create invoice with line
+      const startStr = reg.camp.startDate
+        ? reg.camp.startDate.toLocaleDateString('fr-FR')
+        : '?';
+      const endStr = reg.camp.endDate
+        ? reg.camp.endDate.toLocaleDateString('fr-FR')
+        : '?';
+      const description = `Camp "${reg.camp.name}" - ${reg.child.firstName} ${reg.child.lastName} (${startStr} - ${endStr})`;
+
+      const invoice = await ctx.prisma.$transaction(async (tx) => {
+        const taxRate = await getTaxRateDecimal(tx);
+        const taxAmount = subtotalHt * taxRate;
+        const totalAmount = subtotalHt + taxAmount;
+
+        const dueDate = input.dueDate
+          ? new Date(input.dueDate)
+          : await getDefaultDueDate(tx);
+
+        const created = await tx.invoice.create({
+          data: {
+            parentId: reg.parentId,
+            dueDate,
+            totalAmount,
+            subtotalHt,
+            taxAmount,
+            taxRate,
+            status: input.status,
+          },
+        });
+
+        await tx.invoiceLine.create({
+          data: {
+            invoiceId: created.id,
+            registrationId: reg.id,
+            description,
+            quantity: daysCount,
+            unitPrice: pricePerDay,
+            totalPrice: subtotalHt,
+          },
+        });
+
+        return created;
+      });
+
+      return mapInvoice(invoice);
+    }),
+
+  validate: staffProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.invoice.findFirst({
+        where: { id: input.id, deletedAt: null },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+      }
+      if (existing.status !== 'DRAFT') {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Seules les factures en brouillon peuvent etre validees',
+        });
+      }
+
+      const invoice = await ctx.prisma.invoice.update({
+        where: { id: input.id },
+        data: { status: 'SENT' },
+      });
+
+      return mapInvoice(invoice);
+    }),
+
+  updateStatus: adminProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      status: z.enum(['SENT', 'PAID', 'OVERDUE', 'CANCELLED']),
+      version: z.number().int().min(0),
+    }))
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.invoice.findFirst({
+        where: { id: input.id, deletedAt: null },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+      }
+
+      // Validate status transitions
+      const currentStatus = existing.status as InvStatus;
+      const validTransitions: Record<InvStatus, InvStatus[]> = {
+        DRAFT: ['SENT', 'CANCELLED'],
+        SENT: ['PAID', 'OVERDUE', 'CANCELLED'],
+        OVERDUE: ['PAID', 'CANCELLED'],
+        PAID: ['CREDITED'],
+        CANCELLED: [],
+        CREDITED: [],
+      };
+
+      const allowed = validTransitions[currentStatus] || [];
+      if (!allowed.includes(input.status as InvStatus)) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: `Transition de statut invalide : ${currentStatus} -> ${input.status}`,
+        });
+      }
+
+      // Block cancellation of paid invoices without prior refund
+      if (input.status === 'CANCELLED' && toNum(existing.paidAmount) > 0) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Impossible d\'annuler une facture avec des paiements. Creer un avoir ou un remboursement d\'abord.',
+        });
+      }
+
+      // Optimistic locking
+      const result = await ctx.prisma.invoice.updateMany({
+        where: { id: input.id, version: input.version },
+        data: { status: input.status, version: { increment: 1 } },
+      });
+
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'La facture a ete modifiee par un autre utilisateur. Rechargez et reessayez.',
+        });
+      }
+
+      const invoice = await ctx.prisma.invoice.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+
+      return mapInvoice(invoice);
+    }),
+
+  delete: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.$transaction(async (tx) => {
+        // Check for payments
+        const paymentCount = await tx.payment.count({
+          where: { invoiceId: input.id },
+        });
+        if (paymentCount > 0) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Impossible de supprimer une facture avec des paiements',
+          });
+        }
+
+        const result = await tx.invoice.updateMany({
+          where: { id: input.id, deletedAt: null },
+          data: { deletedAt: new Date() },
+        });
+
+        if (result.count === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvee' });
+        }
+
+        // Reset paymentStatus on associated registrations
+        const lines = await tx.invoiceLine.findMany({
+          where: { invoiceId: input.id, registrationId: { not: null } },
+          select: { registrationId: true },
+        });
+        const regIds = lines
+          .map((l) => l.registrationId)
+          .filter((id): id is string => id !== null);
+
+        if (regIds.length > 0) {
+          await tx.registration.updateMany({
+            where: { id: { in: regIds }, deletedAt: null },
+            data: { paymentStatus: 'UNPAID' },
+          });
+        }
+
+        return { success: true };
+      });
+    }),
+
+  generatePDF: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean(), pdfUrl: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // TODO: PDF generation will be implemented in Phase 3 (storage migration)
+      throw new TRPCError({
+        code: 'NOT_IMPLEMENTED' as any,
+        message: 'La generation PDF sera implementee lors de la migration du stockage',
+      });
+    }),
+
+  sendEmail: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      // TODO: Email sending will be implemented in Phase 3 (email setup)
+      throw new TRPCError({
+        code: 'NOT_IMPLEMENTED' as any,
+        message: "L'envoi d'email sera implemente lors de la configuration email",
+      });
+    }),
+
+  fetchUnpaidRegistrations: staffProcedure
+    .input(z.object({ parentId: z.string().uuid() }))
+    .output(z.object({
+      registrations: z.array(z.object({
+        id: z.string().uuid(),
+        campId: z.string().uuid(),
+        campName: z.string(),
+        childId: z.string().uuid(),
+        childFirstName: z.string(),
+        childLastName: z.string(),
+        registrationDate: z.date(),
+        totalAmount: z.number(),
+        status: z.enum(['CONFIRMED']),
+        paymentStatus: z.enum(['UNPAID']),
+      })),
+    }))
+    .query(async ({ ctx, input }) => {
+      const registrations = await ctx.prisma.registration.findMany({
+        where: {
+          parentId: input.parentId,
+          status: 'CONFIRMED',
+          paymentStatus: 'UNPAID',
+          deletedAt: null,
+        },
+        include: {
+          camp: { select: { id: true, name: true, startDate: true, endDate: true, pricePerDay: true } },
+          child: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { registrationDate: 'desc' },
+      });
+
+      return {
+        registrations: registrations.map((r) => {
+          const daysCount = computeDaysCount(r.camp.startDate, r.camp.endDate);
+          return {
+            id: r.id,
+            campId: r.campId,
+            campName: r.camp.name,
+            childId: r.childId,
+            childFirstName: r.child.firstName,
+            childLastName: r.child.lastName,
+            registrationDate: r.registrationDate,
+            totalAmount: daysCount * toNum(r.camp.pricePerDay),
+            status: 'CONFIRMED' as const,
+            paymentStatus: 'UNPAID' as const,
+          };
+        }),
+      };
+    }),
+});

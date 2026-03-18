@@ -1,0 +1,647 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  PARENT
+  STAFF
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum GenderType {
+  MALE
+  FEMALE
+  OTHER
+
+  @@map("gender_type")
+}
+
+enum CampStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  CANCELLED
+
+  @@map("camp_status")
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  WAITLIST
+
+  @@map("registration_status")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+
+  @@map("attendance_status")
+}
+
+enum InvoiceType {
+  INVOICE
+  CREDIT_NOTE
+
+  @@map("invoice_type")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  CREDITED
+
+  @@map("invoice_status")
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  PARTIAL
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+enum RefundMethod {
+  IMMEDIATE_REFUND
+  FUTURE_CREDIT
+
+  @@map("refund_method")
+}
+
+// ============================================================================
+// AUTH (NextAuth.js v5)
+// ============================================================================
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified") @db.Timestamptz()
+  image         String?
+  role          UserRole  @default(PARENT)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  accounts      Account[]
+  sessions      Session[]
+  parent        Parent?
+  staffMember   StaffMember?
+
+  createdCamps               Camp[]              @relation("CampCreator")
+  uploadedDocuments          ChildDocument[]     @relation("DocumentUploader")
+  updatedSettings            AppSetting[]        @relation("SettingUpdater")
+  recordedAttendances        Attendance[]        @relation("AttendanceRecorder")
+  recordedPayments           Payment[]           @relation("PaymentRecorder")
+  recordedRefunds            Refund[]            @relation("RefundRecorder")
+  cancelledRegistrations     Registration[]      @relation("RegistrationCanceller")
+  createdAccountingEntries   AccountingEntry[]   @relation("EntryCreator")
+  cancelledAccountingEntries AccountingEntry[]   @relation("EntryCanceller")
+  appliedCredits             CreditApplication[] @relation("CreditApplier")
+  recordedAllocations        CreditNoteAllocation[] @relation("AllocationRecorder")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token")
+  accessToken       String? @map("access_token")
+  expiresAt         BigInt? @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String?
+  idToken           String? @map("id_token")
+  sessionState      String? @map("session_state")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime @db.Timestamptz()
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime @db.Timestamptz()
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================================================
+// PROFILES
+// ============================================================================
+
+model Parent {
+  userId     String    @id @map("user_id") @db.Uuid
+  firstName  String    @map("first_name")
+  lastName   String    @map("last_name")
+  phone      String
+  email      String
+  address    String
+  city       String
+  postalCode String    @map("postal_code")
+  employeur  String?   @db.VarChar(100)
+  fonction   String?   @db.VarChar(100)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz()
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  childrenLinks  ChildParent[]
+  registrations  Registration[]
+  invoices       Invoice[]
+  parentCredits  ParentCredit[]
+
+  @@map("parents")
+}
+
+model StaffMember {
+  userId    String    @id @map("user_id") @db.Uuid
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  phone     String?
+  email     String    @unique
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("staff_members")
+}
+
+// ============================================================================
+// CHILDREN & FAMILY
+// ============================================================================
+
+model Child {
+  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName             String     @map("first_name")
+  lastName              String     @map("last_name")
+  birthDate             DateTime   @map("birth_date") @db.Date
+  gender                GenderType
+  ecole                 String?    @db.VarChar(100)
+  medicalInfo           Json?      @default("{}") @map("medical_info") @db.JsonB
+  emergencyContactName  String     @map("emergency_contact_name")
+  emergencyContactPhone String     @map("emergency_contact_phone")
+  emergencyContactRelation String? @map("emergency_contact_relation")
+  createdAt             DateTime   @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt             DateTime?  @map("deleted_at") @db.Timestamptz()
+
+  parentLinks    ChildParent[]
+  documents      ChildDocument[]
+  registrations  Registration[]
+
+  @@map("children")
+}
+
+model ChildParent {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  childId      String   @map("child_id") @db.Uuid
+  parentId     String   @map("parent_id") @db.Uuid
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  relationship String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  child  Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [userId], onDelete: Cascade)
+
+  @@unique([childId, parentId])
+  @@map("children_parents")
+}
+
+model ChildDocument {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  childId          String    @map("child_id") @db.Uuid
+  filename         String
+  originalFilename String    @map("original_filename")
+  fileUrl          String    @map("file_url")
+  mimeType         String    @map("mime_type")
+  fileSize         Int       @map("file_size")
+  description      String?
+  uploadedBy       String    @map("uploaded_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz()
+
+  child    Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  uploader User  @relation("DocumentUploader", fields: [uploadedBy], references: [id])
+
+  @@map("child_documents")
+}
+
+// ============================================================================
+// SETTINGS
+// ============================================================================
+
+model AppSetting {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category    String
+  key         String
+  value       String?
+  description String?
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  updater User? @relation("SettingUpdater", fields: [updatedBy], references: [id])
+
+  @@unique([category, key], map: "app_settings_category_key_unique")
+  @@map("app_settings")
+}
+
+// ============================================================================
+// CAMPS
+// ============================================================================
+
+model CampType {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String   @unique
+  description    String?
+  active         Boolean  @default(true)
+  accountingCode String?  @map("accounting_code")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  camps Camp[]
+
+  @@map("camp_types")
+}
+
+model Camp {
+  id                   String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  description          String
+  campTypeId           String     @map("camp_type_id") @db.Uuid
+  location             String
+  maxCapacity          Int        @map("max_capacity")
+  startDate            DateTime   @map("start_date") @db.Date
+  endDate              DateTime   @map("end_date") @db.Date
+  registrationDeadline DateTime   @map("registration_deadline") @db.Timestamptz()
+  pricePerDay          Decimal    @map("price_per_day") @db.Decimal(10, 2)
+  status               CampStatus @default(DRAFT)
+  createdBy            String     @map("created_by") @db.Uuid
+  createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt            DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt            DateTime?  @map("deleted_at") @db.Timestamptz()
+
+  campType      CampType       @relation(fields: [campTypeId], references: [id])
+  creator       User           @relation("CampCreator", fields: [createdBy], references: [id])
+  days          CampDay[]
+  registrations Registration[]
+
+  @@map("camps")
+}
+
+model CampDay {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campId              String   @map("camp_id") @db.Uuid
+  date                DateTime @db.Date
+  theme               String?
+  location            String?
+  maxCapacityOverride Int?     @map("max_capacity_override")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  camp Camp @relation(fields: [campId], references: [id], onDelete: Cascade)
+
+  @@unique([campId, date])
+  @@map("camp_days")
+}
+
+// ============================================================================
+// REGISTRATIONS & ATTENDANCE
+// ============================================================================
+
+model Registration {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campId              String             @map("camp_id") @db.Uuid
+  childId             String             @map("child_id") @db.Uuid
+  parentId            String             @map("parent_id") @db.Uuid
+  status              RegistrationStatus @default(PENDING)
+  paymentStatus       PaymentStatus      @default(UNPAID) @map("payment_status")
+  registrationDate    DateTime           @default(now()) @map("registration_date") @db.Timestamptz()
+  specialRequirements String?            @map("special_requirements")
+  selectedDays        String[]           @map("selected_days") @db.Uuid
+  cancellationDate    DateTime?          @map("cancellation_date") @db.Timestamptz()
+  cancellationReason  String?            @map("cancellation_reason")
+  cancelledBy         String?            @map("cancelled_by") @db.Uuid
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt           DateTime?          @map("deleted_at") @db.Timestamptz()
+
+  camp       Camp   @relation(fields: [campId], references: [id], onDelete: Restrict)
+  child      Child  @relation(fields: [childId], references: [id], onDelete: Restrict)
+  parent     Parent @relation(fields: [parentId], references: [userId], onDelete: Restrict)
+  canceller  User?  @relation("RegistrationCanceller", fields: [cancelledBy], references: [id], onDelete: SetNull)
+
+  attendances        Attendance[]
+  invoiceLines       InvoiceLine[]
+  creditApplications CreditApplication[]
+
+  @@unique([campId, childId])
+  @@map("registrations")
+}
+
+model Attendance {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  registrationId String           @map("registration_id") @db.Uuid
+  attendanceDate DateTime         @map("attendance_date") @db.Date
+  status         AttendanceStatus @default(PRESENT)
+  arrivalTime    DateTime?        @map("arrival_time") @db.Time()
+  departureTime  DateTime?        @map("departure_time") @db.Time()
+  notes          String?
+  recordedBy     String           @map("recorded_by") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  recorder     User         @relation("AttendanceRecorder", fields: [recordedBy], references: [id])
+
+  @@unique([registrationId, attendanceDate])
+  @@map("attendances")
+}
+
+// ============================================================================
+// INVOICING
+// ============================================================================
+
+model Invoice {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceNumber       String        @unique @default(dbgenerated()) @map("invoice_number")
+  parentId            String        @map("parent_id") @db.Uuid
+  invoiceType         InvoiceType   @default(INVOICE) @map("invoice_type")
+  creditedInvoiceId   String?       @map("credited_invoice_id") @db.Uuid
+  isFutureCredit      Boolean?      @default(false) @map("is_future_credit")
+  refundMethod        RefundMethod? @map("refund_method")
+  issueDate           DateTime      @default(dbgenerated("CURRENT_DATE")) @map("issue_date") @db.Date
+  dueDate             DateTime      @map("due_date") @db.Date
+  totalAmount         Decimal       @map("total_amount") @db.Decimal(10, 2)
+  subtotalHt          Decimal?      @map("subtotal_ht") @db.Decimal(10, 2)
+  taxAmount           Decimal?      @map("tax_amount") @db.Decimal(10, 2)
+  taxRate             Decimal?      @map("tax_rate") @db.Decimal(5, 4)
+  paidAmount          Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  status              InvoiceStatus @default(DRAFT)
+  version             Int           @default(0)
+  pdfUrl              String?       @map("pdf_url")
+  accountingExportedAt DateTime?    @map("accounting_exported_at") @db.Timestamptz()
+  notes               String?
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt           DateTime?     @map("deleted_at") @db.Timestamptz()
+
+  parent           Parent   @relation(fields: [parentId], references: [userId], onDelete: Restrict)
+  creditedInvoice  Invoice? @relation("CreditedInvoice", fields: [creditedInvoiceId], references: [id])
+  creditNotes      Invoice[] @relation("CreditedInvoice")
+
+  lines                   InvoiceLine[]
+  payments                Payment[]            @relation("InvoicePayments")
+  creditNotePayments      Payment[]            @relation("CreditNotePayments")
+  accountingEntries       AccountingEntry[]     @relation("InvoiceEntries")
+  creditNoteEntries       AccountingEntry[]     @relation("CreditNoteEntries")
+  parentCredits           ParentCredit[]
+  creditApplications      CreditApplication[]
+  allocationsAsCreditNote CreditNoteAllocation[] @relation("AllocationCreditNote")
+  allocationsAsInvoice    CreditNoteAllocation[] @relation("AllocationInvoice")
+
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId      String    @map("invoice_id") @db.Uuid
+  registrationId String?   @map("registration_id") @db.Uuid
+  description    String
+  quantity       Int
+  unitPrice      Decimal   @map("unit_price") @db.Decimal(10, 2)
+  totalPrice     Decimal   @map("total_price") @db.Decimal(10, 2)
+  totalHt        Decimal?  @map("total_ht") @db.Decimal(10, 2)
+  totalTtc       Decimal?  @map("total_ttc") @db.Decimal(10, 2)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz()
+
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  registration Registration? @relation(fields: [registrationId], references: [id])
+
+  @@map("invoice_lines")
+}
+
+// ============================================================================
+// PAYMENTS
+// ============================================================================
+
+model PaymentMethod {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String   @unique @db.VarChar(50)
+  name           String   @db.VarChar(100)
+  description    String?
+  active         Boolean  @default(true)
+  displayOrder   Int      @default(0) @map("display_order")
+  isSystem       Boolean  @default(false) @map("is_system")
+  accountingCode String?  @map("accounting_code") @db.VarChar(10)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  payments Payment[]
+
+  @@map("payment_methods")
+}
+
+model Payment {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentNumber   String   @unique @default(dbgenerated()) @map("payment_number")
+  invoiceId       String   @map("invoice_id") @db.Uuid
+  amount          Decimal  @db.Decimal(10, 2)
+  paymentDate     DateTime @default(dbgenerated("CURRENT_DATE")) @map("payment_date") @db.Date
+  paymentMethodId String   @map("payment_method_id") @db.Uuid
+  reference       String?
+  notes           String?
+  creditNoteId    String?  @map("credit_note_id") @db.Uuid
+  recordedBy      String   @map("recorded_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  invoice       Invoice       @relation("InvoicePayments", fields: [invoiceId], references: [id], onDelete: Restrict)
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  creditNote    Invoice?      @relation("CreditNotePayments", fields: [creditNoteId], references: [id])
+  recorder      User          @relation("PaymentRecorder", fields: [recordedBy], references: [id])
+
+  refunds           Refund[]
+  accountingEntries AccountingEntry[]
+
+  @@map("payments")
+}
+
+model Refund {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  refundNumber String       @unique @default(dbgenerated()) @map("refund_number")
+  paymentId    String       @map("payment_id") @db.Uuid
+  amount       Decimal      @db.Decimal(10, 2)
+  refundDate   DateTime     @default(dbgenerated("CURRENT_DATE")) @map("refund_date") @db.Date
+  refundMethod RefundMethod @map("refund_method")
+  reason       String
+  reference    String?
+  notes        String?
+  recordedBy   String?      @map("recorded_by") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  payment  Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  recorder User?   @relation("RefundRecorder", fields: [recordedBy], references: [id], onDelete: SetNull)
+
+  accountingEntries AccountingEntry[]
+
+  @@map("refunds")
+}
+
+// ============================================================================
+// ACCOUNTING (FEC)
+// ============================================================================
+
+model AccountingEntry {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId            String?   @map("invoice_id") @db.Uuid
+  paymentId            String?   @map("payment_id") @db.Uuid
+  creditNoteId         String?   @map("credit_note_id") @db.Uuid
+  refundId             String?   @map("refund_id") @db.Uuid
+  journalCode          String    @map("journal_code") @db.VarChar(3)
+  journalLib           String    @map("journal_lib")
+  entryNum             String?   @map("entry_num")
+  entryDate            DateTime  @map("entry_date") @db.Date
+  accountNumber        String    @map("account_number") @db.VarChar(10)
+  accountLabel         String    @map("account_label")
+  compteAuxNum         String?   @map("compte_aux_num") @db.VarChar(20)
+  compteAuxLib         String?   @map("compte_aux_lib")
+  pieceRef             String    @map("piece_ref")
+  pieceDate            DateTime  @map("piece_date") @db.Date
+  description          String
+  debit                Decimal   @default(0) @db.Decimal(15, 2)
+  credit               Decimal   @default(0) @db.Decimal(15, 2)
+  ecritureLet          String?   @map("ecriture_let") @db.VarChar(10)
+  dateLet              DateTime? @map("date_let") @db.Date
+  validDate            DateTime? @map("valid_date") @db.Date
+  montantDevise        Decimal?  @map("montant_devise") @db.Decimal(15, 2)
+  idDevise             String?   @map("id_devise") @db.VarChar(3)
+  isCancelled          Boolean   @default(false) @map("is_cancelled")
+  cancelledAt          DateTime? @map("cancelled_at") @db.Timestamptz()
+  cancelledBy          String?   @map("cancelled_by") @db.Uuid
+  cancellationEntryId  String?   @map("cancellation_entry_id") @db.Uuid
+  cancellationReason   String?   @map("cancellation_reason")
+  createdBy            String?   @map("created_by") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  invoice           Invoice?          @relation("InvoiceEntries", fields: [invoiceId], references: [id], onDelete: SetNull)
+  payment           Payment?          @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  creditNote        Invoice?          @relation("CreditNoteEntries", fields: [creditNoteId], references: [id], onDelete: SetNull)
+  refund            Refund?           @relation(fields: [refundId], references: [id], onDelete: SetNull)
+  cancellationEntry AccountingEntry?  @relation("CancellationLink", fields: [cancellationEntryId], references: [id], onDelete: SetNull)
+  cancelledEntries  AccountingEntry[] @relation("CancellationLink")
+  creator           User?             @relation("EntryCreator", fields: [createdBy], references: [id])
+  canceller         User?             @relation("EntryCanceller", fields: [cancelledBy], references: [id], onDelete: SetNull)
+
+  @@map("accounting_entries")
+}
+
+// ============================================================================
+// CREDITS
+// ============================================================================
+
+model ParentCredit {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentId        String    @map("parent_id") @db.Uuid
+  creditNoteId    String    @unique @map("credit_note_id") @db.Uuid
+  amountOriginal  Decimal   @map("amount_original") @db.Decimal(10, 2)
+  amountRemaining Decimal   @map("amount_remaining") @db.Decimal(10, 2)
+  currency        String?   @default("XPF")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz()
+  notes           String?
+
+  parent       Parent              @relation(fields: [parentId], references: [userId], onDelete: Cascade)
+  creditNote   Invoice             @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  applications CreditApplication[]
+
+  @@map("parent_credits")
+}
+
+model CreditApplication {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentCreditId String   @map("parent_credit_id") @db.Uuid
+  registrationId String?  @map("registration_id") @db.Uuid
+  invoiceId      String?  @map("invoice_id") @db.Uuid
+  amountUsed     Decimal  @map("amount_used") @db.Decimal(10, 2)
+  appliedAt      DateTime @default(now()) @map("applied_at") @db.Timestamptz()
+  appliedBy      String   @map("applied_by") @db.Uuid
+  notes          String?
+
+  parentCredit ParentCredit  @relation(fields: [parentCreditId], references: [id], onDelete: Cascade)
+  registration Registration? @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  applier      User          @relation("CreditApplier", fields: [appliedBy], references: [id])
+
+  @@map("credit_applications")
+}
+
+model CreditNoteAllocation {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creditNoteId       String   @map("credit_note_id") @db.Uuid
+  appliedToInvoiceId String   @map("applied_to_invoice_id") @db.Uuid
+  amount             Decimal  @db.Decimal(10, 2)
+  allocationDate     DateTime @default(dbgenerated("CURRENT_DATE")) @map("allocation_date") @db.Date
+  notes              String?
+  recordedBy         String   @map("recorded_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  creditNote       Invoice @relation("AllocationCreditNote", fields: [creditNoteId], references: [id])
+  appliedToInvoice Invoice @relation("AllocationInvoice", fields: [appliedToInvoiceId], references: [id])
+  recorder         User    @relation("AllocationRecorder", fields: [recordedBy], references: [id])
+
+  @@unique([creditNoteId, appliedToInvoiceId], map: "unique_allocation")
+  @@map("credit_note_allocations")
+}

@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: 203 89% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 71% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 27 96% 61%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 203 89% 53%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --radius: 0.5rem;
+
+    --status-pending: 45 93% 47%;
+    --status-confirmed: 142 71% 45%;
+    --status-cancelled: 0 84% 60%;
+    --status-paid: 142 71% 45%;
+    --status-overdue: 14 91% 51%;
+  }
+
+  .dark {
+    --primary: 203 89% 63%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 142 71% 55%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 27 96% 71%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 70%;
+    --destructive-foreground: 210 40% 98%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 65%;
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 203 89% 63%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --status-pending: 45 93% 57%;
+    --status-confirmed: 142 71% 55%;
+    --status-cancelled: 0 84% 70%;
+    --status-paid: 142 71% 55%;
+    --status-overdue: 14 91% 61%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .status-badge-pending {
+    @apply bg-[hsl(var(--status-pending))] text-white;
+  }
+  .status-badge-confirmed {
+    @apply bg-[hsl(var(--status-confirmed))] text-white;
+  }
+  .status-badge-cancelled {
+    @apply bg-[hsl(var(--status-cancelled))] text-white;
+  }
+  .status-badge-paid {
+    @apply bg-[hsl(var(--status-paid))] text-white;
+  }
+  .status-badge-overdue {
+    @apply bg-[hsl(var(--status-overdue))] text-white;
+  }
+}
