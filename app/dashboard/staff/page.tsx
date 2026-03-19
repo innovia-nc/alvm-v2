@@ -16,7 +16,7 @@ export default async function StaffDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard Staff"
+        title="Tableau de Bord"
         description="Gérez vos camps et les inscriptions"
       />
 

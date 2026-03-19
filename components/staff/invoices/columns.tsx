@@ -149,6 +149,8 @@ function getStatusBadge(status: string) {
       return { variant: 'destructive' as const, label: 'En retard', icon: AlertCircle, color: 'text-red-600' };
     case 'CANCELLED':
       return { variant: 'outline' as const, label: 'Annul\u00e9e', icon: XCircle, color: 'text-gray-600' };
+    case 'CREDITED':
+      return { variant: 'secondary' as const, label: 'Créditée', icon: FileText, color: 'text-purple-600' };
     default:
       return { variant: 'secondary' as const, label: status, icon: AlertCircle, color: 'text-gray-600' };
   }

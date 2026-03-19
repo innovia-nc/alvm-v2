@@ -148,6 +148,11 @@ function getStatusBadge(status: string) {
         label: 'Annulée',
         className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       };
+    case 'CREDITED':
+      return {
+        label: 'Créditée',
+        className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      };
     default:
       return {
         label: status,

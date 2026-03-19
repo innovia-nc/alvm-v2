@@ -39,6 +39,7 @@ const segmentLabels: Record<string, string> = {
   // Actions
   new: 'Nouveau',
   edit: 'Modifier',
+  attendance: 'Présences',
 };
 
 interface BreadcrumbItem {
