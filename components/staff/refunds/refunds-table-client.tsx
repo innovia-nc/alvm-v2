@@ -24,7 +24,7 @@ export function RefundsTableClient() {
         isLoading={isLoading}
         pagination={pagination}
         searchKey="reference"
-        searchPlaceholder="Rechercher par avoir, parent ou m\u00e9thode..."
+        searchPlaceholder="Rechercher par avoir, parent ou méthode..."
       />
     </div>
   );

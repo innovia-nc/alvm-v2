@@ -36,7 +36,7 @@ export function CancelRegistrationDialog({
 
   const updateMutation = trpc.registrations.updateStatus.useMutation({
     onSuccess: () => {
-      toast.success('Inscription annul\u00e9e avec succ\u00e8s');
+      toast.success('Inscription annulée avec succès');
       utils.registrations.list.invalidate();
       onOpenChange(false);
     },
@@ -65,7 +65,7 @@ export function CancelRegistrationDialog({
             <DialogTitle>Annuler l'inscription</DialogTitle>
           </div>
           <DialogDescription>
-            \u00cates-vous s\u00fbr de vouloir annuler l'inscription de {childName} pour le camp "{campName}" ?
+            Êtes-vous sûr de vouloir annuler l'inscription de {childName} pour le camp "{campName}" ?
           </DialogDescription>
         </DialogHeader>
 
@@ -75,13 +75,13 @@ export function CancelRegistrationDialog({
             <div>
               <p className="font-medium mb-1">Attention</p>
               <p className="text-xs">
-                Cette action marquera l'inscription comme annul\u00e9e. La place sera lib\u00e9r\u00e9e dans la
-                capacit\u00e9 du camp.
+                Cette action marquera l'inscription comme annulée. La place sera libérée dans la
+                capacité du camp.
               </p>
               {hasInvoice && (
                 <p className="text-xs mt-2 font-medium">
-                  Une facture existe pour cette inscription. Vous devrez cr\u00e9er un avoir si
-                  n\u00e9cessaire.
+                  Une facture existe pour cette inscription. Vous devrez créer un avoir si
+                  nécessaire.
                 </p>
               )}
             </div>

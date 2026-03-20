@@ -25,7 +25,7 @@ export function StaffCreditNotesTableClient() {
     offset: pagination.offset,
   });
 
-  // Filtrer les donn\u00e9es par statut c\u00f4t\u00e9 client
+  // Filtrer les données par statut côté client
   const filteredData = (data?.creditNotes || []).filter((item) => {
     if (statusFilter === 'all') return true;
     return item.status === statusFilter;
@@ -42,8 +42,8 @@ export function StaffCreditNotesTableClient() {
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
             <SelectItem value="DRAFT">Brouillons</SelectItem>
-            <SelectItem value="SENT">\u00c9mis</SelectItem>
-            <SelectItem value="CANCELLED">Annul\u00e9s</SelectItem>
+            <SelectItem value="SENT">Émis</SelectItem>
+            <SelectItem value="CANCELLED">Annulés</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -55,7 +55,7 @@ export function StaffCreditNotesTableClient() {
         isLoading={isLoading}
         pagination={pagination}
         searchKey="creditNoteNumber"
-        searchPlaceholder="Rechercher par num\u00e9ro, facture, parent ou raison..."
+        searchPlaceholder="Rechercher par numéro, facture, parent ou raison..."
       />
     </div>
   );

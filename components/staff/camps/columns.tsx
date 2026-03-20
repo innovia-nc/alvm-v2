@@ -55,17 +55,17 @@ function getStatusBadge(status: string) {
       };
     case 'PUBLISHED':
       return {
-        label: 'Publi\u00e9',
+        label: 'Publié',
         className: 'bg-green-100 text-green-800 border-green-200',
       };
     case 'CLOSED':
       return {
-        label: 'Ferm\u00e9',
+        label: 'Fermé',
         className: 'bg-red-100 text-red-800 border-red-200',
       };
     case 'CANCELLED':
       return {
-        label: 'Annul\u00e9',
+        label: 'Annulé',
         className: 'bg-orange-100 text-orange-800 border-orange-200',
       };
     default:
@@ -98,7 +98,7 @@ export const staffCampColumns: ColumnDef<StaffCampType>[] = [
   },
   {
     accessorKey: 'daysCount',
-    header: () => <div className="text-center">Dur\u00e9e</div>,
+    header: () => <div className="text-center">Durée</div>,
     cell: ({ row }) => {
       return (
         <div className="text-center">
@@ -109,7 +109,7 @@ export const staffCampColumns: ColumnDef<StaffCampType>[] = [
   },
   {
     accessorKey: 'maxCapacity',
-    header: () => <div className="text-center">Capacit\u00e9</div>,
+    header: () => <div className="text-center">Capacité</div>,
     cell: ({ row }) => {
       const camp = row.original;
       const fillRate =
@@ -225,7 +225,7 @@ export function StaffCampActions({
             onClick={() => router.push(`/dashboard/staff/camps/${item.id}?tab=presences`)}
           >
             <ClipboardCheck className="mr-2 h-4 w-4" />
-            Pr\u00e9sences
+            Présences
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => onDuplicate?.(item)}>

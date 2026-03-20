@@ -39,7 +39,7 @@ interface AttendanceGridProps {
 
 const STATUS_CONFIG: Record<AttendanceStatus, { label: string; className: string }> = {
   PRESENT: {
-    label: 'Pr\u00e9sent',
+    label: 'Présent',
     className: 'bg-green-100 text-green-800 border-green-200',
   },
   ABSENT: {
@@ -51,7 +51,7 @@ const STATUS_CONFIG: Record<AttendanceStatus, { label: string; className: string
     className: 'bg-orange-100 text-orange-800 border-orange-200',
   },
   EXCUSED: {
-    label: 'Excus\u00e9',
+    label: 'Excusé',
     className: 'bg-gray-100 text-gray-800 border-gray-200',
   },
 };
@@ -99,7 +99,7 @@ export function AttendanceGrid({
                     disabled={isPending}
                   >
                     <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="\u2014 Choisir \u2014" />
+                      <SelectValue placeholder="— Choisir —" />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(STATUS_CONFIG).map(([key, config]) => (

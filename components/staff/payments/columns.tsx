@@ -71,7 +71,7 @@ export const staffPaymentColumns: ColumnDef<StaffPaymentType>[] = [
   },
   {
     accessorKey: 'paymentMethodName',
-    header: 'M\u00e9thode',
+    header: 'Méthode',
     cell: ({ row }) => {
       return (
         <div className="text-sm">
@@ -94,7 +94,7 @@ export const staffPaymentColumns: ColumnDef<StaffPaymentType>[] = [
   },
   {
     accessorKey: 'reference',
-    header: 'R\u00e9f\u00e9rence',
+    header: 'Référence',
     cell: ({ row }) => {
       const ref = row.original.reference;
       return (

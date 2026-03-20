@@ -58,13 +58,13 @@ function getStatusBadge(status: string) {
       };
     case 'CONFIRMED':
       return {
-        label: 'Confirm\u00e9e',
+        label: 'Confirmée',
         icon: CheckCircle,
         className: 'bg-green-100 text-green-800 border-green-200',
       };
     case 'CANCELLED':
       return {
-        label: 'Annul\u00e9e',
+        label: 'Annulée',
         icon: XCircle,
         className: 'bg-red-100 text-red-800 border-red-200',
       };
@@ -194,12 +194,12 @@ export function StaffRegistrationActions({
   onWaitlist,
   onCancel,
 }: StaffRegistrationActionsProps) {
-  // Logique des actions bas\u00e9e sur le statut
+  // Logique des actions basée sur le statut
   const isPending = item.status === 'PENDING';
   const isConfirmed = item.status === 'CONFIRMED';
   const isWaitlist = item.status === 'WAITLIST';
 
-  // Le staff peut avoir des actions suppl\u00e9mentaires sur les waitlist
+  // Le staff peut avoir des actions supplémentaires sur les waitlist
   const hasActions = isPending || isConfirmed || isWaitlist;
 
   return (
@@ -232,7 +232,7 @@ export function StaffRegistrationActions({
               </>
             )}
 
-            {/* Actions pour CONFIRM\u00c9E */}
+            {/* Actions pour CONFIRMÉE */}
             {isConfirmed && (
               <DropdownMenuItem
                 onClick={() => onCancel?.(item)}

@@ -38,7 +38,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
   const bulkMutation = trpc.attendances.markBulkAttendance.useMutation({
     onSuccess: (data) => {
       utils.attendances.getGridForCamp.invalidate({ campId });
-      toast.success(`${data.count} pr\u00e9sences marqu\u00e9es`);
+      toast.success(`${data.count} présences marquées`);
     },
     onError: (error) => {
       toast.error('Erreur', { description: error.message });
@@ -149,7 +149,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
       <Card>
         <CardContent className="pt-6">
           <p className="text-center text-muted-foreground">
-            Aucune date configur\u00e9e pour ce camp
+            Aucune date configurée pour ce camp
           </p>
         </CardContent>
       </Card>
@@ -181,7 +181,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
 
           <div className="min-w-[280px] text-center">
             <span className="font-medium capitalize">
-              {selectedDate ? formatDate(selectedDate) : '\u2014'}
+              {selectedDate ? formatDate(selectedDate) : '—'}
             </span>
             <span className="text-xs text-muted-foreground ml-2">
               ({currentDateIndex + 1}/{dates.length})
@@ -203,7 +203,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users className="h-4 w-4" />
             <span>
-              {presentCount}/{childrenForDate.length} pr\u00e9sents
+              {presentCount}/{childrenForDate.length} présents
             </span>
           </div>
 
@@ -214,7 +214,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
             size="sm"
           >
             <CheckCircle className="mr-2 h-4 w-4" />
-            Tous pr\u00e9sents
+            Tous présents
           </Button>
         </div>
       </div>
@@ -224,7 +224,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              Aucun enfant inscrit \u00e0 ce camp
+              Aucun enfant inscrit à ce camp
             </p>
           </CardContent>
         </Card>

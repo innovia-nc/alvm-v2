@@ -50,7 +50,7 @@ export const staffRefundColumns: ColumnDef<StaffRefundType>[] = [
   },
   {
     accessorKey: 'invoice',
-    header: 'N\u00b0 Facture',
+    header: 'N° Facture',
     cell: ({ row }) => {
       const refund = row.original;
       return (
@@ -86,7 +86,7 @@ export const staffRefundColumns: ColumnDef<StaffRefundType>[] = [
   },
   {
     accessorKey: 'refundMethod',
-    header: 'M\u00e9thode',
+    header: 'Méthode',
     cell: ({ row }) => {
       return (
         <div className="text-sm">
@@ -97,12 +97,12 @@ export const staffRefundColumns: ColumnDef<StaffRefundType>[] = [
   },
   {
     accessorKey: 'reference',
-    header: 'R\u00e9f\u00e9rence',
+    header: 'Référence',
     cell: ({ row }) => {
       const ref = row.original.reference;
       return (
         <div className="text-sm text-muted-foreground">
-          {ref || '\u2014'}
+          {ref || '—'}
         </div>
       );
     },
@@ -138,7 +138,7 @@ function StaffRefundActions({ item }: StaffRefundActionsProps) {
           <DropdownMenuItem asChild>
             <Link href={`/dashboard/staff/refunds/${item.id}`}>
               <Eye className="mr-2 h-4 w-4" />
-              Voir d\u00e9tails
+              Voir détails
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>

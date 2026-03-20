@@ -53,7 +53,7 @@ type ActionType = 'publish' | 'close';
 type StatusFilter = 'ALL' | 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
 
 const duplicateSchema = z.object({
-  name: z.string().min(3, 'Nom requis (min 3 caract\u00e8res)').max(200),
+  name: z.string().min(3, 'Nom requis (min 3 caractères)').max(200),
 });
 
 type DuplicateFormData = z.infer<typeof duplicateSchema>;
@@ -82,19 +82,19 @@ export function CampsTableClient() {
 
   const utils = trpc.useUtils();
 
-  // Mutation de mise \u00e0 jour (publish/close)
+  // Mutation de mise à jour (publish/close)
   const updateMutation = trpc.camps.update.useMutation({
     onSuccess: () => {
       const action = actioningCamp?.action;
       toast.success(
-        action === 'publish' ? 'Camp publi\u00e9 avec succ\u00e8s' : 'Camp ferm\u00e9 avec succ\u00e8s'
+        action === 'publish' ? 'Camp publié avec succès' : 'Camp fermé avec succès'
       );
       setActioningCamp(null);
       utils.camps.list.invalidate();
       router.refresh();
     },
     onError: (err) => {
-      toast.error(err.message || 'Impossible de mettre \u00e0 jour le camp');
+      toast.error(err.message || 'Impossible de mettre à jour le camp');
       setActioningCamp(null);
     },
   });
@@ -102,7 +102,7 @@ export function CampsTableClient() {
   // Mutation de duplication
   const duplicateMutation = trpc.camps.duplicate.useMutation({
     onSuccess: () => {
-      toast.success('Camp dupliqu\u00e9 avec succ\u00e8s');
+      toast.success('Camp dupliqué avec succès');
       setDuplicatingCamp(null);
       duplicateForm.reset();
       utils.camps.list.invalidate();
@@ -121,7 +121,7 @@ export function CampsTableClient() {
     },
   });
 
-  // Filtrer par statut (c\u00f4t\u00e9 client post-fetch)
+  // Filtrer par statut (côté client post-fetch)
   const filteredCamps = (data?.camps || []).filter((camp) => {
     if (statusFilter === 'ALL') return true;
     return camp.status === statusFilter;
@@ -135,7 +135,7 @@ export function CampsTableClient() {
         status: actioningCamp.action === 'publish' ? 'PUBLISHED' : 'CLOSED',
       });
     } catch (err: any) {
-      // Erreur d\u00e9j\u00e0 g\u00e9r\u00e9e par onError
+      // Erreur déjà gérée par onError
     }
   }
 
@@ -163,8 +163,8 @@ export function CampsTableClient() {
     if (!actioningCamp) return '';
     const campName = actioningCamp.camp.name;
     return actioningCamp.action === 'publish'
-      ? `\u00cates-vous s\u00fbr de vouloir publier le camp "${campName}" ? Il sera visible par tous les parents.`
-      : `\u00cates-vous s\u00fbr de vouloir fermer le camp "${campName}" ? Aucune nouvelle inscription ne sera accept\u00e9e.`;
+      ? `Êtes-vous sûr de vouloir publier le camp "${campName}" ? Il sera visible par tous les parents.`
+      : `Êtes-vous sûr de vouloir fermer le camp "${campName}" ? Aucune nouvelle inscription ne sera acceptée.`;
   };
 
   // Enrichir les colonnes avec les callbacks
@@ -210,9 +210,9 @@ export function CampsTableClient() {
             <SelectContent>
               <SelectItem value="ALL">Tous les statuts</SelectItem>
               <SelectItem value="DRAFT">Brouillons</SelectItem>
-              <SelectItem value="PUBLISHED">Publi\u00e9s</SelectItem>
-              <SelectItem value="CLOSED">Ferm\u00e9s</SelectItem>
-              <SelectItem value="CANCELLED">Annul\u00e9s</SelectItem>
+              <SelectItem value="PUBLISHED">Publiés</SelectItem>
+              <SelectItem value="CLOSED">Fermés</SelectItem>
+              <SelectItem value="CANCELLED">Annulés</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -221,7 +221,7 @@ export function CampsTableClient() {
           <div>
             <Button variant="outline" onClick={resetFilters} size="default">
               <X className="mr-2 h-4 w-4" />
-              R\u00e9initialiser
+              Réinitialiser
             </Button>
           </div>
         )}
@@ -270,7 +270,7 @@ export function CampsTableClient() {
           <DialogHeader>
             <DialogTitle>Dupliquer le camp</DialogTitle>
             <DialogDescription>
-              Cr\u00e9ez une copie de "{duplicatingCamp?.name}" avec les m\u00eames dates. Le nouveau camp sera cr\u00e9\u00e9 en mode brouillon.
+              Créez une copie de "{duplicatingCamp?.name}" avec les mêmes dates. Le nouveau camp sera créé en mode brouillon.
             </DialogDescription>
           </DialogHeader>
 
@@ -283,10 +283,10 @@ export function CampsTableClient() {
                   <FormItem>
                     <FormLabel>Nom du nouveau camp *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nom du camp dupliqu\u00e9" {...field} />
+                      <Input placeholder="Nom du camp dupliqué" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Toutes les autres informations seront copi\u00e9es \u00e0 l'identique
+                      Toutes les autres informations seront copiées à l'identique
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

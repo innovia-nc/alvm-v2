@@ -39,14 +39,14 @@ export function RegistrationStatusDialog({
     onSuccess: () => {
       toast.success(
         newStatus === 'CONFIRMED'
-          ? 'Inscription confirm\u00e9e avec succ\u00e8s'
+          ? 'Inscription confirmée avec succès'
           : 'Inscription mise en liste d\'attente'
       );
       utils.registrations.list.invalidate();
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error.message || 'Erreur lors de la mise \u00e0 jour');
+      toast.error(error.message || 'Erreur lors de la mise à jour');
     },
     onSettled: () => {
       setIsLoading(false);
@@ -77,9 +77,9 @@ export function RegistrationStatusDialog({
 
   const getDescription = () => {
     if (newStatus === 'CONFIRMED') {
-      return `\u00cates-vous s\u00fbr de vouloir confirmer l'inscription de ${childName} pour le camp "${campName}" ?`;
+      return `Êtes-vous sûr de vouloir confirmer l'inscription de ${childName} pour le camp "${campName}" ?`;
     }
-    return `\u00cates-vous s\u00fbr de vouloir mettre en liste d'attente l'inscription de ${childName} pour le camp "${campName}" ?`;
+    return `Êtes-vous sûr de vouloir mettre en liste d'attente l'inscription de ${childName} pour le camp "${campName}" ?`;
   };
 
   return (
@@ -100,8 +100,8 @@ export function RegistrationStatusDialog({
               <div>
                 <p className="font-medium mb-1">Important</p>
                 <p className="text-xs">
-                  Une fois confirm\u00e9e, l'inscription sera comptabilis\u00e9e dans la capacit\u00e9 du camp
-                  et pourra \u00eatre factur\u00e9e.
+                  Une fois confirmée, l'inscription sera comptabilisée dans la capacité du camp
+                  et pourra être facturée.
                 </p>
               </div>
             </div>
@@ -115,8 +115,8 @@ export function RegistrationStatusDialog({
               <div>
                 <p className="font-medium mb-1">Liste d'attente</p>
                 <p className="text-xs">
-                  L'inscription sera plac\u00e9e en attente et pourra \u00eatre confirm\u00e9e ult\u00e9rieurement si
-                  des places se lib\u00e8rent.
+                  L'inscription sera placée en attente et pourra être confirmée ultérieurement si
+                  des places se libèrent.
                 </p>
               </div>
             </div>

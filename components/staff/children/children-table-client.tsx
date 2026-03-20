@@ -51,7 +51,7 @@ export function ChildrenTableClient() {
   // Mutation de suppression
   const deleteMutation = trpc.children.delete.useMutation({
     onSuccess: () => {
-      toast.success('Enfant supprim\u00e9 avec succ\u00e8s');
+      toast.success('Enfant supprimé avec succès');
       utils.children.list.invalidate();
       setDeletingItem(null);
       router.refresh();
@@ -63,7 +63,7 @@ export function ChildrenTableClient() {
     },
   });
 
-  // Calculer l'\u00e2ge
+  // Calculer l'âge
   function calculateAge(birthDate: Date): number {
     const today = new Date();
     const birth = new Date(birthDate);
@@ -75,9 +75,9 @@ export function ChildrenTableClient() {
     return age;
   }
 
-  // Filtrer les enfants selon l'\u00e2ge
+  // Filtrer les enfants selon l'âge
   const filteredChildren = (data?.children || []).filter((child) => {
-    // Filtre par \u00e2ge
+    // Filtre par âge
     if (ageFilter === 'all') return true;
 
     const age = calculateAge(child.birthDate);
@@ -125,14 +125,14 @@ export function ChildrenTableClient() {
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
           <Label htmlFor="age-filter" className="mb-2 block">
-            Filtrer par \u00e2ge
+            Filtrer par âge
           </Label>
           <Select value={ageFilter} onValueChange={(val) => setAgeFilter(val as AgeFilter)}>
             <SelectTrigger id="age-filter">
-              <SelectValue placeholder="Tous les \u00e2ges" />
+              <SelectValue placeholder="Tous les âges" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les \u00e2ges</SelectItem>
+              <SelectItem value="all">Tous les âges</SelectItem>
               <SelectItem value="3-5">3-5 ans</SelectItem>
               <SelectItem value="6-8">6-8 ans</SelectItem>
               <SelectItem value="9-11">9-11 ans</SelectItem>
@@ -146,7 +146,7 @@ export function ChildrenTableClient() {
           <div>
             <Button variant="outline" onClick={resetFilters} size="default">
               <X className="mr-2 h-4 w-4" />
-              R\u00e9initialiser
+              Réinitialiser
             </Button>
           </div>
         )}
@@ -170,14 +170,14 @@ export function ChildrenTableClient() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              \u00cates-vous s\u00fbr de vouloir supprimer cet enfant ?
+              Êtes-vous sûr de vouloir supprimer cet enfant ?
               <br />
               <br />
               Nom : <strong>{deletingItem?.firstName} {deletingItem?.lastName}</strong>
               <br />
               <br />
-              Cette action est irr\u00e9versible et supprimera \u00e9galement toutes les inscriptions
-              associ\u00e9es.
+              Cette action est irréversible et supprimera également toutes les inscriptions
+              associées.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

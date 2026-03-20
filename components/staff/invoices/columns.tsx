@@ -41,14 +41,14 @@ export type StaffInvoiceType = {
 export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
   {
     accessorKey: 'invoiceNumber',
-    header: 'N\u00b0 Facture',
+    header: 'N° Facture',
     cell: ({ row }) => {
       return <div className="font-medium">{row.original.invoiceNumber}</div>;
     },
   },
   {
     accessorKey: 'issueDate',
-    header: 'Date \u00e9mission',
+    header: 'Date émission',
     cell: ({ row }) => {
       return (
         <div className="text-sm">
@@ -59,7 +59,7 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
   },
   {
     accessorKey: 'dueDate',
-    header: '\u00c9ch\u00e9ance',
+    header: 'Échéance',
     cell: ({ row }) => {
       const invoice = row.original;
       const now = new Date();
@@ -87,7 +87,7 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
   },
   {
     accessorKey: 'paidAmount',
-    header: 'Pay\u00e9',
+    header: 'Payé',
     cell: ({ row }) => {
       const amount = row.original.paidAmount;
       return (
@@ -142,13 +142,13 @@ function getStatusBadge(status: string) {
     case 'DRAFT':
       return { variant: 'outline' as const, label: 'Devis', icon: FileText, color: 'text-gray-600' };
     case 'SENT':
-      return { variant: 'secondary' as const, label: '\u00c9mise', icon: Clock, color: 'text-yellow-600' };
+      return { variant: 'secondary' as const, label: 'Émise', icon: Clock, color: 'text-yellow-600' };
     case 'PAID':
-      return { variant: 'default' as const, label: 'Pay\u00e9e', icon: CheckCircle, color: 'text-green-600' };
+      return { variant: 'default' as const, label: 'Payée', icon: CheckCircle, color: 'text-green-600' };
     case 'OVERDUE':
       return { variant: 'destructive' as const, label: 'En retard', icon: AlertCircle, color: 'text-red-600' };
     case 'CANCELLED':
-      return { variant: 'outline' as const, label: 'Annul\u00e9e', icon: XCircle, color: 'text-gray-600' };
+      return { variant: 'outline' as const, label: 'Annulée', icon: XCircle, color: 'text-gray-600' };
     case 'CREDITED':
       return { variant: 'secondary' as const, label: 'Créditée', icon: FileText, color: 'text-purple-600' };
     default:
@@ -175,10 +175,10 @@ function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onReco
   const handleDownloadPDF = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!item.pdfUrl) {
-      // Si pas de PDF, on g\u00e9n\u00e8re d'abord
+      // Si pas de PDF, on génère d'abord
       onGeneratePDF?.(item);
     } else {
-      // Si PDF existe, on t\u00e9l\u00e9charge directement
+      // Si PDF existe, on télécharge directement
       window.open(item.pdfUrl, '_blank');
     }
   };
@@ -199,12 +199,12 @@ function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onReco
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/staff/invoices/${item.id}`}>
                   <Eye className="mr-2 h-4 w-4" />
-                  Voir d\u00e9tails
+                  Voir détails
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadPDF}>
                 <Download className="mr-2 h-4 w-4" />
-                T\u00e9l\u00e9charger PDF
+                Télécharger PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onValidate?.(item)}>
                 <Check className="mr-2 h-4 w-4" />
@@ -220,18 +220,18 @@ function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onReco
             </>
           )}
 
-          {/* Actions pour statut SENT (\u00c9mise) */}
+          {/* Actions pour statut SENT (Émise) */}
           {item.status === 'SENT' && (
             <>
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/staff/invoices/${item.id}`}>
                   <Eye className="mr-2 h-4 w-4" />
-                  Voir d\u00e9tails
+                  Voir détails
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadPDF}>
                 <Download className="mr-2 h-4 w-4" />
-                T\u00e9l\u00e9charger PDF
+                Télécharger PDF
               </DropdownMenuItem>
               {remainingAmount > 0 && (
                 <DropdownMenuItem onClick={() => onRecordPayment?.(item)}>
@@ -248,14 +248,14 @@ function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onReco
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/staff/invoices/${item.id}`}>
                   <Eye className="mr-2 h-4 w-4" />
-                  Voir d\u00e9tails
+                  Voir détails
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadPDF}>
                 <Download className="mr-2 h-4 w-4" />
-                T\u00e9l\u00e9charger PDF
+                Télécharger PDF
               </DropdownMenuItem>
-              {/* Pour les factures en retard non annul\u00e9es avec un solde restant */}
+              {/* Pour les factures en retard non annulées avec un solde restant */}
               {item.status === 'OVERDUE' && remainingAmount > 0 && (
                 <DropdownMenuItem onClick={() => onRecordPayment?.(item)}>
                   <CreditCard className="mr-2 h-4 w-4" />

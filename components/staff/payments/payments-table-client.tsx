@@ -24,7 +24,7 @@ export function PaymentsTableClient() {
         isLoading={isLoading}
         pagination={pagination}
         searchKey="reference"
-        searchPlaceholder="Rechercher par facture, parent, m\u00e9thode ou r\u00e9f\u00e9rence..."
+        searchPlaceholder="Rechercher par facture, parent, méthode ou référence..."
       />
     </div>
   );

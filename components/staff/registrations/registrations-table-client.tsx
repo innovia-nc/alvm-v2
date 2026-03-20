@@ -123,9 +123,9 @@ export function RegistrationsTableClient() {
             <SelectContent>
               <SelectItem value="all">Tous les statuts</SelectItem>
               <SelectItem value="PENDING">En attente</SelectItem>
-              <SelectItem value="CONFIRMED">Confirm\u00e9es</SelectItem>
+              <SelectItem value="CONFIRMED">Confirmées</SelectItem>
               <SelectItem value="WAITLIST">Liste d'attente</SelectItem>
-              <SelectItem value="CANCELLED">Annul\u00e9es</SelectItem>
+              <SelectItem value="CANCELLED">Annulées</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -134,7 +134,7 @@ export function RegistrationsTableClient() {
           <div>
             <Button variant="outline" onClick={resetFilters} size="default">
               <X className="mr-2 h-4 w-4" />
-              R\u00e9initialiser
+              Réinitialiser
             </Button>
           </div>
         )}

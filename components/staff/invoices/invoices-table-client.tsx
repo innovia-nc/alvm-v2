@@ -24,7 +24,7 @@ export function InvoicesTableClient() {
         isLoading={isLoading}
         pagination={pagination}
         searchKey="invoiceNumber"
-        searchPlaceholder="Rechercher par num\u00e9ro ou statut..."
+        searchPlaceholder="Rechercher par numéro ou statut..."
       />
     </div>
   );

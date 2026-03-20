@@ -73,7 +73,7 @@ export const staffChildColumns: ColumnDef<StaffChildType>[] = [
     header: 'Nom',
     cell: ({ row }) => {
       const child = row.original;
-      const genderLabel = child.gender === 'MALE' ? 'Gar\u00e7on' : child.gender === 'FEMALE' ? 'Fille' : 'Autre';
+      const genderLabel = child.gender === 'MALE' ? 'Garçon' : child.gender === 'FEMALE' ? 'Fille' : 'Autre';
 
       return (
         <div>
@@ -87,7 +87,7 @@ export const staffChildColumns: ColumnDef<StaffChildType>[] = [
   },
   {
     accessorKey: 'birthDate',
-    header: '\u00c2ge',
+    header: 'Âge',
     cell: ({ row }) => {
       const age = calculateAge(row.original.birthDate);
       return <div className="text-sm">{age} ans</div>;

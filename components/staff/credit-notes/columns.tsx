@@ -52,12 +52,12 @@ export function getStatusBadge(status: string) {
       };
     case 'SENT':
       return {
-        label: '\u00c9mis',
+        label: 'Émis',
         className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       };
     case 'CANCELLED':
       return {
-        label: 'Annul\u00e9',
+        label: 'Annulé',
         className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       };
     default:
@@ -75,7 +75,7 @@ export function getStatusBadge(status: string) {
 export const staffCreditNoteColumns: ColumnDef<StaffCreditNoteType>[] = [
   {
     accessorKey: 'creditNoteNumber',
-    header: 'Num\u00e9ro',
+    header: 'Numéro',
     cell: ({ row }) => {
       return <div className="font-medium">{row.original.creditNoteNumber}</div>;
     },

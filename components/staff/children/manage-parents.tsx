@@ -45,11 +45,11 @@ interface ManageParentsProps {
 // ============================================================================
 
 const relationshipLabels: Record<string, string> = {
-  mother: 'M\u00e8re',
-  father: 'P\u00e8re',
+  mother: 'Mère',
+  father: 'Père',
   guardian: 'Tuteur',
-  step_mother: 'Belle-m\u00e8re',
-  step_father: 'Beau-p\u00e8re',
+  step_mother: 'Belle-mère',
+  step_father: 'Beau-père',
   grandparent: 'Grand-parent',
   other: 'Autre',
 };
@@ -66,7 +66,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [parentToRemove, setParentToRemove] = useState<string | null>(null);
 
-  // Query pour r\u00e9cup\u00e9rer les parents actuels
+  // Query pour récupérer les parents actuels
   const { data: parentsData, isLoading } = trpc.children.getParents.useQuery(
     { childId },
     {
@@ -80,7 +80,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
   // Mutation pour ajouter un parent
   const addParentMutation = trpc.children.addParent.useMutation({
     onSuccess: () => {
-      toast.success('Parent ajout\u00e9 avec succ\u00e8s');
+      toast.success('Parent ajouté avec succès');
       utils.children.getParents.invalidate({ childId });
       utils.children.getById.invalidate({ id: childId });
       router.refresh();
@@ -95,7 +95,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
   // Mutation pour retirer un parent
   const removeParentMutation = trpc.children.removeParent.useMutation({
     onSuccess: () => {
-      toast.success('Parent retir\u00e9 avec succ\u00e8s');
+      toast.success('Parent retiré avec succès');
       utils.children.getParents.invalidate({ childId });
       utils.children.getById.invalidate({ id: childId });
       router.refresh();
@@ -107,16 +107,16 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
     },
   });
 
-  // Mutation pour d\u00e9finir le parent principal
+  // Mutation pour définir le parent principal
   const setPrimaryMutation = trpc.children.setPrimaryParent.useMutation({
     onSuccess: () => {
-      toast.success('Parent principal mis \u00e0 jour');
+      toast.success('Parent principal mis à jour');
       utils.children.getParents.invalidate({ childId });
       utils.children.getById.invalidate({ id: childId });
       router.refresh();
     },
     onError: (error) => {
-      toast.error('Erreur lors de la mise \u00e0 jour du parent principal', {
+      toast.error('Erreur lors de la mise à jour du parent principal', {
         description: error.message,
       });
     },
@@ -132,7 +132,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
     });
   };
 
-  // Handler pour d\u00e9finir comme principal
+  // Handler pour définir comme principal
   const handleSetPrimary = (parentId: string) => {
     setPrimaryMutation.mutate({
       childId,
@@ -159,7 +159,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
     setRemoveDialogOpen(true);
   };
 
-  // IDs des parents d\u00e9j\u00e0 s\u00e9lectionn\u00e9s
+  // IDs des parents déjà sélectionnés
   const selectedParentIds = parents.map((p) => p.parentId);
 
   // Tri : parent principal en premier
@@ -181,8 +181,8 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Vous pouvez associer de 1 \u00e0 3 parents maximum \u00e0 cet enfant.
-          Le parent principal sera utilis\u00e9 par d\u00e9faut pour la facturation et la communication.
+          Vous pouvez associer de 1 à 3 parents maximum à cet enfant.
+          Le parent principal sera utilisé par défaut pour la facturation et la communication.
         </AlertDescription>
       </Alert>
 
@@ -191,9 +191,9 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Parents associ\u00e9s ({parents.length}/3)</CardTitle>
+              <CardTitle>Parents associés ({parents.length}/3)</CardTitle>
               <CardDescription>
-                G\u00e9rez les parents de cet enfant
+                Gérez les parents de cet enfant
               </CardDescription>
             </div>
             {parents.length < 3 && (
@@ -213,7 +213,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
             <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
               <User className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
               <p className="text-sm text-muted-foreground">
-                Aucun parent associ\u00e9. Ajoutez au moins un parent pour continuer.
+                Aucun parent associé. Ajoutez au moins un parent pour continuer.
               </p>
             </div>
           ) : (
@@ -249,7 +249,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
                     </div>
                   </div>
 
-                  {/* Coordonn\u00e9es */}
+                  {/* Coordonnées */}
                   <div className="space-y-2 text-sm mb-4">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Mail className="h-3.5 w-3.5 flex-shrink-0" />
@@ -272,7 +272,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
                         className="gap-2"
                       >
                         <CheckCircle className="h-4 w-4" />
-                        D\u00e9finir comme principal
+                        Définir comme principal
                       </Button>
                     )}
                     <Button
@@ -291,19 +291,19 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
             </div>
           )}
 
-          {/* Informations compl\u00e9mentaires */}
+          {/* Informations complémentaires */}
           {parents.length > 1 && (
             <p className="text-xs text-muted-foreground mt-4 p-3 bg-muted rounded-md">
-              \u2139\ufe0f Cet enfant a {parents.length} parents associ\u00e9s.
+              \ℹ\️ Cet enfant a {parents.length} parents associés.
               {sortedParents[0]?.isPrimary && (
-                <> {sortedParents[0].firstName} {sortedParents[0].lastName} est le parent principal et sera utilis\u00e9 par d\u00e9faut pour la facturation et la communication.</>
+                <> {sortedParents[0].firstName} {sortedParents[0].lastName} est le parent principal et sera utilisé par défaut pour la facturation et la communication.</>
               )}
             </p>
           )}
 
           {parents.length === 1 && (
             <p className="text-xs text-muted-foreground mt-4 p-3 bg-muted rounded-md">
-              \u26a0\ufe0f Cet enfant doit avoir au moins 1 parent. Vous ne pouvez pas retirer le dernier parent.
+              \⚠\️ Cet enfant doit avoir au moins 1 parent. Vous ne pouvez pas retirer le dernier parent.
             </p>
           )}
         </CardContent>
@@ -325,7 +325,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Retirer ce parent ?</AlertDialogTitle>
             <AlertDialogDescription>
-              \u00cates-vous s\u00fbr de vouloir retirer ce parent de cet enfant ?
+              Êtes-vous sûr de vouloir retirer ce parent de cet enfant ?
               Cette action ne supprimera pas le compte parent, mais seulement l'association avec cet enfant.
             </AlertDialogDescription>
           </AlertDialogHeader>

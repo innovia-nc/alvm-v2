@@ -55,31 +55,31 @@ const childFormSchema = z.object({
       })
     )
     .min(1, 'Au moins un parent est requis')
-    .max(3, 'Maximum 3 parents autoris\u00e9s')
+    .max(3, 'Maximum 3 parents autorisés')
     .refine(
       (parents) => {
         const primaryCount = parents.filter((p) => p.isPrimary).length;
         return primaryCount === 1;
       },
-      { message: 'Exactement un parent doit \u00eatre marqu\u00e9 comme principal' }
+      { message: 'Exactement un parent doit être marqué comme principal' }
     ),
   // Informations enfant
   firstName: z
     .string()
-    .min(2, 'Le pr\u00e9nom doit contenir au moins 2 caract\u00e8res')
-    .max(50, 'Le pr\u00e9nom ne peut pas d\u00e9passer 50 caract\u00e8res')
-    .regex(/^[a-zA-Z\u00C0-\u00FF\s-]+$/, 'Caract\u00e8res alphab\u00e9tiques uniquement'),
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-\ÿ\s-]+$/, 'Caractères alphabétiques uniquement'),
   lastName: z
     .string()
-    .min(2, 'Le nom doit contenir au moins 2 caract\u00e8res')
-    .max(50, 'Le nom ne peut pas d\u00e9passer 50 caract\u00e8res')
-    .regex(/^[a-zA-Z\u00C0-\u00FF\s-]+$/, 'Caract\u00e8res alphab\u00e9tiques uniquement'),
+    .min(2, 'Le nom doit contenir au moins 2 caractères')
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-\ÿ\s-]+$/, 'Caractères alphabétiques uniquement'),
   birthDate: z.string().min(1, 'Date de naissance requise'),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER'], {
     message: 'Le genre est requis',
   }),
-  ecole: z.string().max(100, 'Maximum 100 caract\u00e8res'),
-  // Informations m\u00e9dicales
+  ecole: z.string().max(100, 'Maximum 100 caractères'),
+  // Informations médicales
   allergies: z.string(),
   medications: z.string(),
   conditions: z.string(),
@@ -89,7 +89,7 @@ const childFormSchema = z.object({
   emergencyContactName: z.string().max(100).optional().or(z.literal('')),
   emergencyContactPhone: z
     .string()
-    .regex(/^[\d\s\-\(\)\+]*$/, 'Format t\u00e9l\u00e9phone invalide (ex: 28 45 67)')
+    .regex(/^[\d\s\-\(\)\+]*$/, 'Format téléphone invalide (ex: 28 45 67)')
     .optional()
     .or(z.literal('')),
   emergencyContactRelation: z.string().optional().or(z.literal('')),
@@ -141,25 +141,25 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
 
-  // Mutation de cr\u00e9ation
+  // Mutation de création
   const createMutation = trpc.children.create.useMutation({
     onSuccess: () => {
-      toast.success('Enfant cr\u00e9\u00e9 avec succ\u00e8s');
+      toast.success('Enfant créé avec succès');
       utils.children.list.invalidate();
       router.push('/dashboard/staff/children');
       router.refresh();
     },
     onError: (error) => {
-      toast.error('Erreur lors de la cr\u00e9ation', {
+      toast.error('Erreur lors de la création', {
         description: error.message,
       });
     },
   });
 
-  // Mutation de mise \u00e0 jour
+  // Mutation de mise à jour
   const updateMutation = trpc.children.update.useMutation({
     onSuccess: () => {
-      toast.success('Enfant modifi\u00e9 avec succ\u00e8s');
+      toast.success('Enfant modifié avec succès');
       utils.children.list.invalidate();
       if (initialData) {
         utils.children.getById.invalidate({ id: initialData.id });
@@ -174,7 +174,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
     },
   });
 
-  // Pr\u00e9parer les valeurs par d\u00e9faut
+  // Préparer les valeurs par défaut
   const defaultValues: ChildFormValues = mode === 'edit' && initialData
     ? {
         parents: initialData.parents.map((p) => ({
@@ -256,8 +256,8 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
         parents: values.parents,
       });
     } else if (initialData) {
-      // En mode \u00e9dition, on ne modifie que les infos de l'enfant
-      // Les parents se g\u00e8rent via la page d\u00e9di\u00e9e (Sprint 5)
+      // En mode édition, on ne modifie que les infos de l'enfant
+      // Les parents se gèrent via la page dédiée (Sprint 5)
       await updateMutation.mutateAsync({
         id: initialData.id,
         firstName: values.firstName,
@@ -292,11 +292,11 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Section Parents (seulement en mode cr\u00e9ation) */}
+        {/* Section Parents (seulement en mode création) */}
         {mode === 'create' && (
           <Card>
             <CardHeader>
-              <CardTitle>Parents associ\u00e9s</CardTitle>
+              <CardTitle>Parents associés</CardTitle>
             </CardHeader>
             <CardContent>
               <FormField
@@ -304,7 +304,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                 name="parents"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>S\u00e9lection des parents (1 \u00e0 3) *</FormLabel>
+                    <FormLabel>Sélection des parents (1 à 3) *</FormLabel>
                     <FormControl>
                       <ParentMultiSelect
                         value={field.value.map((p) => ({
@@ -331,8 +331,8 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                       />
                     </FormControl>
                     <FormDescription>
-                      S\u00e9lectionnez entre 1 et 3 parents pour cet enfant.
-                      Le parent principal sera utilis\u00e9 par d\u00e9faut pour la facturation et la communication.
+                      Sélectionnez entre 1 et 3 parents pour cet enfant.
+                      Le parent principal sera utilisé par défaut pour la facturation et la communication.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -342,11 +342,11 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
           </Card>
         )}
 
-        {/* Section Parents (lecture seule en mode \u00e9dition) */}
+        {/* Section Parents (lecture seule en mode édition) */}
         {mode === 'edit' && initialData && (
           <Card>
             <CardHeader>
-              <CardTitle>Parents associ\u00e9s</CardTitle>
+              <CardTitle>Parents associés</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -376,11 +376,11 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
               <Alert className="mt-4">
                 <Info className="h-4 w-4" />
                 <AlertDescription className="flex items-center gap-2">
-                  <span>Pour modifier les parents associ\u00e9s, utilisez la page d\u00e9di\u00e9e :</span>
+                  <span>Pour modifier les parents associés, utilisez la page dédiée :</span>
                   <Button asChild variant="link" size="sm" className="h-auto p-0">
                     <Link href={`/dashboard/staff/children/${initialData.id}/parents`}>
                       <Users className="h-4 w-4 mr-1" />
-                      G\u00e9rer les parents
+                      Gérer les parents
                     </Link>
                   </Button>
                 </AlertDescription>
@@ -401,7 +401,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pr\u00e9nom *</FormLabel>
+                    <FormLabel>Prénom *</FormLabel>
                     <FormControl>
                       <Input placeholder="Jean" {...field} />
                     </FormControl>
@@ -452,11 +452,11 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="S\u00e9lectionnez le genre" />
+                          <SelectValue placeholder="Sélectionnez le genre" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="MALE">Gar\u00e7on</SelectItem>
+                        <SelectItem value="MALE">Garçon</SelectItem>
                         <SelectItem value="FEMALE">Fille</SelectItem>
                         <SelectItem value="OTHER">Autre</SelectItem>
                       </SelectContent>
@@ -472,12 +472,12 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
               name="ecole"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>\u00c9cole (optionnel)</FormLabel>
+                  <FormLabel>École (optionnel)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nom de l'\u00e9cole" {...field} />
+                    <Input placeholder="Nom de l'école" {...field} />
                   </FormControl>
                   <FormDescription>
-                    \u00c9cole actuellement fr\u00e9quent\u00e9e
+                    École actuellement fréquentée
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -486,10 +486,10 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
           </CardContent>
         </Card>
 
-        {/* Section Informations m\u00e9dicales */}
+        {/* Section Informations médicales */}
         <Card>
           <CardHeader>
-            <CardTitle>Informations m\u00e9dicales</CardTitle>
+            <CardTitle>Informations médicales</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <FormField
@@ -505,7 +505,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                     />
                   </FormControl>
                   <FormDescription>
-                    S\u00e9parez les allergies par des virgules
+                    Séparez les allergies par des virgules
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -517,7 +517,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
               name="medications"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>M\u00e9dicaments</FormLabel>
+                  <FormLabel>Médicaments</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Ventoline, Insuline..."
@@ -525,7 +525,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                     />
                   </FormControl>
                   <FormDescription>
-                    M\u00e9dicaments pris r\u00e9guli\u00e8rement
+                    Médicaments pris régulièrement
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -537,15 +537,15 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
               name="conditions"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Conditions m\u00e9dicales</FormLabel>
+                  <FormLabel>Conditions médicales</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Asthme, Diab\u00e8te, \u00c9pilepsie..."
+                      placeholder="Asthme, Diabète, Épilepsie..."
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    Conditions m\u00e9dicales importantes \u00e0 conna\u00eetre
+                    Conditions médicales importantes à connaître
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -560,12 +560,12 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                   <FormLabel>Restrictions alimentaires</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="V\u00e9g\u00e9tarien, Sans gluten, Halal..."
+                      placeholder="Végétarien, Sans gluten, Halal..."
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    R\u00e9gimes alimentaires sp\u00e9ciaux
+                    Régimes alimentaires spéciaux
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -577,10 +577,10 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
               name="medicalNotes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes m\u00e9dicales suppl\u00e9mentaires</FormLabel>
+                  <FormLabel>Notes médicales supplémentaires</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Informations compl\u00e9mentaires importantes..."
+                      placeholder="Informations complémentaires importantes..."
                       className="min-h-[100px]"
                       {...field}
                     />
@@ -608,7 +608,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                     <Input placeholder="Marie Dupont" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Personne \u00e0 contacter en cas d'urgence
+                    Personne à contacter en cas d'urgence
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -621,7 +621,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                 name="emergencyContactPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>T\u00e9l\u00e9phone</FormLabel>
+                    <FormLabel>Téléphone</FormLabel>
                     <FormControl>
                       <Input placeholder="28 45 67" {...field} />
                     </FormControl>
@@ -635,9 +635,9 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                 name="emergencyContactRelation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lien de parent\u00e9</FormLabel>
+                    <FormLabel>Lien de parenté</FormLabel>
                     <FormControl>
-                      <Input placeholder="M\u00e8re, P\u00e8re, Grand-m\u00e8re..." {...field} />
+                      <Input placeholder="Mère, Père, Grand-mère..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -652,11 +652,11 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
           <LoadingButton
             type="submit"
             loading={isPending}
-            loadingText={mode === 'create' ? 'Cr\u00e9ation...' : 'Enregistrement...'}
+            loadingText={mode === 'create' ? 'Création...' : 'Enregistrement...'}
             className="flex-1 md:flex-initial"
           >
             <Save className="mr-2 h-4 w-4" />
-            {mode === 'create' ? 'Cr\u00e9er l\'enfant' : 'Enregistrer les modifications'}
+            {mode === 'create' ? 'Créer l\'enfant' : 'Enregistrer les modifications'}
           </LoadingButton>
 
           <Button
