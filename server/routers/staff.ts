@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
-import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
+import { router, staffProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 
 const staffMemberSchema = z.object({
@@ -105,7 +105,7 @@ export const staffRouter = router({
       };
     }),
 
-  create: adminProcedure
+  create: staffProcedure
     .input(z.object({
       firstName: z.string().min(2).max(50),
       lastName: z.string().min(2).max(50),
@@ -184,7 +184,7 @@ export const staffRouter = router({
       };
     }),
 
-  update: adminProcedure
+  update: staffProcedure
     .input(z.object({
       id: z.string().uuid(),
       firstName: z.string().min(2).max(50).optional(),
@@ -241,7 +241,7 @@ export const staffRouter = router({
       };
     }),
 
-  delete: adminProcedure
+  delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

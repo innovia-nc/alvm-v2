@@ -157,8 +157,16 @@ describe('staff router', () => {
       );
     });
 
-    it('should deny STAFF from creating', async () => {
-      await expect(staff.caller.staff.create(createInput)).rejects.toThrow(TRPCError);
+    it('should allow STAFF to create', async () => {
+      staff.mockPrisma.user.findUnique.mockResolvedValue(null);
+      staff.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
+      staff.mockPrisma.user.create.mockResolvedValue({
+        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+      });
+      staff.mockPrisma.account.create.mockResolvedValue({});
+      staff.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
+      const result = await staff.caller.staff.create(createInput);
+      expect(result.id).toBe(USER_ID);
     });
 
     it('should reject password shorter than 8 characters', async () => {
@@ -206,10 +214,13 @@ describe('staff router', () => {
       ).rejects.toThrow('Aucune modification fournie');
     });
 
-    it('should deny STAFF from updating', async () => {
-      await expect(
-        staff.caller.staff.update({ id: STAFF_ID, firstName: 'X' }),
-      ).rejects.toThrow(TRPCError);
+    it('should allow STAFF to update', async () => {
+      staff.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow());
+      staff.mockPrisma.staffMember.update.mockResolvedValue({
+        ...makeStaffRow(), firstName: 'X', user: undefined,
+      });
+      const result = await staff.caller.staff.update({ id: STAFF_ID, firstName: 'X' });
+      expect(result.firstName).toBe('X');
     });
   });
 
@@ -236,8 +247,11 @@ describe('staff router', () => {
       ).rejects.toThrow('Membre du personnel non trouvé');
     });
 
-    it('should deny STAFF from deleting', async () => {
-      await expect(staff.caller.staff.delete({ id: STAFF_ID })).rejects.toThrow(TRPCError);
+    it('should allow STAFF to delete', async () => {
+      staff.mockPrisma.camp.count.mockResolvedValue(0);
+      staff.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 1 });
+      const result = await staff.caller.staff.delete({ id: STAFF_ID });
+      expect(result.success).toBe(true);
     });
 
     it('should deny PARENT from deleting', async () => {

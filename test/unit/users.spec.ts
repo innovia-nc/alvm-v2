@@ -182,10 +182,11 @@ describe('users router', () => {
       ).rejects.toThrow(TRPCError);
     });
 
-    it('should deny STAFF access to resetPassword', async () => {
-      await expect(
-        staff.caller.users.resetPassword({ userId: USER_ID }),
-      ).rejects.toThrow(TRPCError);
+    it('should allow STAFF access to resetPassword', async () => {
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: USER_ID });
+      staff.mockPrisma.account.updateMany.mockResolvedValue({ count: 1 });
+      const result = await staff.caller.users.resetPassword({ userId: USER_ID });
+      expect(result.success).toBe(true);
     });
 
     it('should deny unauthenticated access to create', async () => {

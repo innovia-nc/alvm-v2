@@ -97,6 +97,11 @@ const navigationConfig: Record<string, NavSection[]> = {
           href: '/dashboard/staff/children',
           icon: Users,
         },
+        {
+          title: 'Personnel ALVM',
+          href: '/dashboard/staff/users/staff',
+          icon: Users,
+        },
       ],
     },
     {

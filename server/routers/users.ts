@@ -402,7 +402,7 @@ export const usersRouter = router({
       return { success: true };
     }),
 
-  resetPassword: adminProcedure
+  resetPassword: staffProcedure
     .input(z.object({
       userId: z.string().uuid(),
       newPassword: z.string()
