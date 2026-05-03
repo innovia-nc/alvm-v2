@@ -9,6 +9,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { createPaymentEntries, cancelAccountingEntries } from '@/server/services/accounting.service';
 import { toNum } from '@/server/helpers/decimal';
+import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
@@ -301,8 +302,10 @@ export const paymentsRouter = router({
         }
 
         // 4. Create payment
+        const paymentNumber = await generateDocumentNumber(tx, 'PAYMENT');
         const payment = await tx.payment.create({
           data: {
+            paymentNumber,
             invoiceId: input.invoiceId,
             amount: input.amount,
             paymentDate: new Date(input.paymentDate),

@@ -53,7 +53,13 @@ export function createMockPrisma() {
       return Promise.all(fnOrArray);
     }),
 
-    $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+    $queryRawUnsafe: vi.fn().mockImplementation(async (query: string) => {
+      if (typeof query === 'string' && query.includes('nextval(')) {
+        return [{ nextval: 1 }];
+      }
+      return [];
+    }),
+    $executeRawUnsafe: vi.fn().mockResolvedValue(0),
 
     $connect: vi.fn(),
     $disconnect: vi.fn(),

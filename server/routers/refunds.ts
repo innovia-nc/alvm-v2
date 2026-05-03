@@ -4,6 +4,7 @@ import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
 import type { Prisma, RefundMethod } from '@prisma/client';
 import { createRefundEntries, cancelAccountingEntries } from '@/server/services/accounting.service';
 import { toNum } from '@/server/helpers/decimal';
+import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 
 // ============================================================================
 // SCHEMAS
@@ -215,8 +216,10 @@ export const refundsRouter = router({
           });
         }
 
+        const refundNumber = await generateDocumentNumber(tx, 'REFUND');
         const refund = await tx.refund.create({
           data: {
+            refundNumber,
             paymentId: input.paymentId,
             amount: input.amount,
             refundDate: new Date(input.refundDate),

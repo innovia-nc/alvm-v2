@@ -411,7 +411,7 @@ model Attendance {
 
 model Invoice {
   id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  invoiceNumber       String        @unique @default(dbgenerated()) @map("invoice_number")
+  invoiceNumber       String        @unique @map("invoice_number")
   parentId            String        @map("parent_id") @db.Uuid
   invoiceType         InvoiceType   @default(INVOICE) @map("invoice_type")
   creditedInvoiceId   String?       @map("credited_invoice_id") @db.Uuid
@@ -492,7 +492,7 @@ model PaymentMethod {
 
 model Payment {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  paymentNumber   String   @unique @default(dbgenerated()) @map("payment_number")
+  paymentNumber   String   @unique @map("payment_number")
   invoiceId       String   @map("invoice_id") @db.Uuid
   amount          Decimal  @db.Decimal(10, 2)
   paymentDate     DateTime @default(dbgenerated("CURRENT_DATE")) @map("payment_date") @db.Date
@@ -517,7 +517,7 @@ model Payment {
 
 model Refund {
   id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  refundNumber String       @unique @default(dbgenerated()) @map("refund_number")
+  refundNumber String       @unique @map("refund_number")
   paymentId    String       @map("payment_id") @db.Uuid
   amount       Decimal      @db.Decimal(10, 2)
   refundDate   DateTime     @default(dbgenerated("CURRENT_DATE")) @map("refund_date") @db.Date

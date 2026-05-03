@@ -11,6 +11,7 @@ import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/ser
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
+import { generateInvoiceNumber, generateDocumentNumber } from '@/server/helpers/invoice-number';
 
 type RegStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
 type CampStat = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
@@ -737,8 +738,10 @@ export const registrationsRouter = router({
           const subtotalHt = taxRate > 0 ? creditAmount / (1 + taxRate) : creditAmount;
           const taxAmount = creditAmount - subtotalHt;
 
+          const invoiceNumber = await generateInvoiceNumber(tx, 'CREDIT_NOTE');
           const cn = await tx.invoice.create({
             data: {
+              invoiceNumber,
               parentId: inv.parentId,
               invoiceType: 'CREDIT_NOTE',
               creditedInvoiceId: inv.id,
@@ -784,8 +787,10 @@ export const registrationsRouter = router({
 
           const expiresAt = await getCreditExpiryDate(tx);
 
+          const invoiceNumber = await generateInvoiceNumber(tx, 'CREDIT_NOTE');
           const cn = await tx.invoice.create({
             data: {
+              invoiceNumber,
               parentId: inv.parentId,
               invoiceType: 'CREDIT_NOTE',
               creditedInvoiceId: inv.id,
@@ -858,8 +863,10 @@ export const registrationsRouter = router({
             if (refundable <= 0) continue;
 
             const refundAmount = Math.min(remaining, refundable);
+            const refundNumber = await generateDocumentNumber(tx, 'REFUND');
             const refund = await tx.refund.create({
               data: {
+                refundNumber,
                 paymentId: payment.id,
                 amount: refundAmount,
                 refundDate: new Date(),
