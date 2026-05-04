@@ -42,6 +42,7 @@ const invoiceSchema = z.object({
   totalAmount: z.number(),
   paidAmount: z.number(),
   status: invoiceStatusEnum,
+  version: z.number().int(),
   pdfUrl: z.string().nullable(),
   accountingExportedAt: z.date().nullable(),
   createdAt: z.date(),
@@ -117,6 +118,7 @@ function mapInvoiceWithDetails(inv: any) {
     totalAmount,
     paidAmount,
     status: inv.status as InvStatus,
+    version: inv.version,
     pdfUrl: inv.pdfUrl,
     accountingExportedAt: inv.accountingExportedAt,
     createdAt: inv.createdAt,
@@ -154,6 +156,7 @@ function mapInvoice(inv: any) {
     totalAmount: toNum(inv.totalAmount),
     paidAmount: toNum(inv.paidAmount),
     status: inv.status as InvStatus,
+    version: inv.version,
     pdfUrl: inv.pdfUrl,
     accountingExportedAt: inv.accountingExportedAt,
     createdAt: inv.createdAt,
@@ -401,6 +404,85 @@ export const invoicesRouter = router({
         }
 
         return created;
+      });
+
+      return mapInvoice(invoice);
+    }),
+
+  update: staffProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      version: z.number().int().min(0),
+      lines: z.array(z.object({
+        registrationId: z.string().uuid().nullable(),
+        description: z.string().min(3),
+        quantity: z.number().int().min(1),
+        unitPrice: z.number().min(0),
+      })).min(1, 'Au moins une ligne requise'),
+    }))
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.invoice.findFirst({
+        where: { id: input.id, deletedAt: null },
+        select: { id: true, status: true, taxRate: true, version: true },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+      }
+      if (existing.status !== 'DRAFT') {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Seules les factures en brouillon peuvent être modifiées',
+        });
+      }
+
+      const subtotalHt = input.lines.reduce(
+        (sum, line) => sum + line.quantity * line.unitPrice,
+        0,
+      );
+      const taxRate = existing.taxRate ? toNum(existing.taxRate) : 0;
+      const taxAmount = subtotalHt * taxRate;
+      const totalAmount = subtotalHt + taxAmount;
+
+      const invoice = await ctx.prisma.$transaction(async (tx) => {
+        // Optimistic lock + recompute totals
+        const result = await tx.invoice.updateMany({
+          where: { id: input.id, version: input.version, status: 'DRAFT' },
+          data: {
+            subtotalHt,
+            taxAmount,
+            totalAmount,
+            version: { increment: 1 },
+          },
+        });
+
+        if (result.count === 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'La facture a été modifiée par un autre utilisateur. Rechargez et réessayez.',
+          });
+        }
+
+        // Replace lines: soft-delete existing then insert new
+        await tx.invoiceLine.updateMany({
+          where: { invoiceId: input.id, deletedAt: null },
+          data: { deletedAt: new Date() },
+        });
+
+        for (const line of input.lines) {
+          await tx.invoiceLine.create({
+            data: {
+              invoiceId: input.id,
+              registrationId: line.registrationId,
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              totalPrice: line.quantity * line.unitPrice,
+            },
+          });
+        }
+
+        return tx.invoice.findUniqueOrThrow({ where: { id: input.id } });
       });
 
       return mapInvoice(invoice);

@@ -42,6 +42,8 @@ import {
   Clock,
   XCircle,
   AlertTriangle,
+  Pencil,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
@@ -59,6 +61,7 @@ type Invoice = {
   paidAmount: number;
   remainingAmount: number;
   status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
+  version: number;
   pdfUrl: string | null;
   parent: {
     firstName: string;
@@ -131,6 +134,17 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
     },
   });
 
+  const validateInvoiceMutation = trpc.invoices.validate.useMutation({
+    onSuccess: () => {
+      toast.success('Facture validée — elle est maintenant émise');
+      utils.invoices.getById.invalidate({ id: invoice.id });
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erreur lors de la validation de la facture');
+    },
+  });
+
   const deleteInvoiceMutation = trpc.invoices.delete.useMutation({
     onSuccess: () => {
       toast.success('Facture supprimée avec succès');
@@ -162,6 +176,11 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
     deleteInvoiceMutation.mutate({ id: invoice.id });
   };
 
+  const handleValidate = () => {
+    validateInvoiceMutation.mutate({ id: invoice.id });
+  };
+
+  const isDraft = invoice.status === 'DRAFT';
   const StatusIcon = statusConfig[invoice.status].icon;
 
   return (
@@ -182,7 +201,48 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                 Client: {invoice.parent.firstName} {invoice.parent.lastName}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {isDraft && (
+                <>
+                  <Link href={`${basePath}/invoices/${invoice.id}/edit`}>
+                    <Button variant="outline" size="sm">
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Modifier
+                    </Button>
+                  </Link>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={validateInvoiceMutation.isPending}
+                      >
+                        {validateInvoiceMutation.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="mr-2 h-4 w-4" />
+                        )}
+                        Valider la facture
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Valider la facture ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Une fois validée, la facture passera en statut "Émise" et ne pourra plus être modifiée.
+                          Les écritures comptables seront générées.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleValidate}>
+                          Valider
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
               <Button
                 variant="outline"
                 size="sm"

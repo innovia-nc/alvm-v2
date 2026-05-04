@@ -43,6 +43,7 @@ function makeInvoiceRow(overrides: Record<string, any> = {}) {
     totalAmount: 10000,
     paidAmount: 0,
     status: 'DRAFT',
+    version: 0,
     pdfUrl: null,
     accountingExportedAt: null,
     invoiceType: 'INVOICE',
@@ -646,6 +647,182 @@ describe('invoices router', () => {
   // =========================================================================
   // validate
   // =========================================================================
+
+  // =========================================================================
+  // update
+  // =========================================================================
+
+  describe('update', () => {
+    const baseInput = () => ({
+      id: INVOICE_ID,
+      version: 0,
+      lines: [
+        {
+          registrationId: null,
+          description: 'Camp ete - Enfant',
+          quantity: 5,
+          unitPrice: 2000,
+        },
+      ],
+    });
+
+    describe('access control', () => {
+      it('rejects unauthenticated users', async () => {
+        const { caller: anonCaller } = createTestCaller(null);
+        await expect(
+          anonCaller.invoices.update(baseInput()),
+        ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+      });
+
+      it('rejects PARENT role', async () => {
+        const { caller: parentCaller } = createTestCaller(PARENT_USER);
+        await expect(
+          parentCaller.invoices.update(baseInput()),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      });
+
+      it('allows STAFF role', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', taxRate: 0.11 }),
+        );
+        mockPrisma.invoice.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.invoiceLine.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.invoiceLine.create.mockResolvedValue({});
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', version: 1 }),
+        );
+
+        const result = await caller.invoices.update(baseInput());
+        expect(result.status).toBe('DRAFT');
+      });
+    });
+
+    describe('business logic', () => {
+      beforeEach(() => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+      });
+
+      it('throws NOT_FOUND when invoice does not exist', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+        await expect(caller.invoices.update(baseInput())).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
+      });
+
+      it('throws PRECONDITION_FAILED when invoice is not DRAFT', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeRawInvoice({ status: 'SENT' }),
+        );
+
+        await expect(caller.invoices.update(baseInput())).rejects.toMatchObject({
+          code: 'PRECONDITION_FAILED',
+        });
+      });
+
+      it('throws CONFLICT on stale version', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', version: 3, taxRate: 0.11 }),
+        );
+        mockPrisma.invoice.updateMany.mockResolvedValue({ count: 0 });
+
+        await expect(
+          caller.invoices.update({ ...baseInput(), version: 0 }),
+        ).rejects.toMatchObject({ code: 'CONFLICT' });
+      });
+
+      it('recomputes totals using stored tax rate', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', taxRate: 0.11 }),
+        );
+        mockPrisma.invoice.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.invoiceLine.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.invoiceLine.create.mockResolvedValue({});
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', version: 1 }),
+        );
+
+        await caller.invoices.update({
+          id: INVOICE_ID,
+          version: 0,
+          lines: [
+            {
+              registrationId: null,
+              description: 'Inscription Camp Ete',
+              quantity: 3,
+              unitPrice: 1000,
+            },
+            {
+              registrationId: null,
+              description: 'Supplement repas',
+              quantity: 2,
+              unitPrice: 500,
+            },
+          ],
+        });
+
+        // subtotalHt = 3*1000 + 2*500 = 4000
+        // taxAmount = 4000 * 0.11 = 440
+        // totalAmount = 4440
+        const updateCall = mockPrisma.invoice.updateMany.mock.calls[0][0];
+        expect(updateCall.where).toMatchObject({
+          id: INVOICE_ID,
+          version: 0,
+          status: 'DRAFT',
+        });
+        expect(updateCall.data.subtotalHt).toBe(4000);
+        expect(updateCall.data.taxAmount).toBeCloseTo(440, 5);
+        expect(updateCall.data.totalAmount).toBeCloseTo(4440, 5);
+        expect(updateCall.data.version).toEqual({ increment: 1 });
+      });
+
+      it('soft-deletes existing lines and creates new ones', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', taxRate: 0 }),
+        );
+        mockPrisma.invoice.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.invoiceLine.updateMany.mockResolvedValue({ count: 2 });
+        mockPrisma.invoiceLine.create.mockResolvedValue({});
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', version: 1 }),
+        );
+
+        await caller.invoices.update({
+          id: INVOICE_ID,
+          version: 0,
+          lines: [
+            {
+              registrationId: REG_ID,
+              description: 'Inscription Camp',
+              quantity: 1,
+              unitPrice: 5000,
+            },
+          ],
+        });
+
+        expect(mockPrisma.invoiceLine.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { invoiceId: INVOICE_ID, deletedAt: null },
+            data: expect.objectContaining({
+              deletedAt: expect.any(Date),
+            }),
+          }),
+        );
+        expect(mockPrisma.invoiceLine.create).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.invoiceLine.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            invoiceId: INVOICE_ID,
+            registrationId: REG_ID,
+            description: 'Inscription Camp',
+            quantity: 1,
+            unitPrice: 5000,
+            totalPrice: 5000,
+          }),
+        });
+      });
+    });
+  });
 
   describe('validate', () => {
     describe('access control', () => {
