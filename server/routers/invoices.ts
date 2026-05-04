@@ -626,7 +626,7 @@ export const invoicesRouter = router({
       const footerMention = settings.find((s) => s.key === 'invoice_footer')?.value || undefined;
 
       const { generateInvoicePDF } = await import('@/lib/pdf/invoice-pdf');
-      const { uploadToStorage } = await import('@/lib/storage/supabase-storage');
+      const { uploadToStorage } = await import('@/lib/storage/blob-storage');
 
       const pdfBuffer = await generateInvoicePDF({
         invoiceNumber: invoice.invoiceNumber,
@@ -649,22 +649,19 @@ export const invoicesRouter = router({
         logoUrl: logoUrl ?? undefined,
       });
 
-      const filename = `${invoice.invoiceNumber}-${invoice.id}.pdf`;
-      const path = `invoices/${filename}`;
+      const pathname = `invoices/${invoice.invoiceNumber}-${invoice.id}.pdf`;
 
-      const { publicUrl } = await uploadToStorage(pdfBuffer, {
-        bucket: 'documents',
-        path,
+      const { url } = await uploadToStorage(pdfBuffer, {
+        pathname,
         contentType: 'application/pdf',
-        upsert: true,
       });
 
       await ctx.prisma.invoice.update({
         where: { id: invoice.id },
-        data: { pdfUrl: publicUrl },
+        data: { pdfUrl: url },
       });
 
-      return { success: true, pdfUrl: publicUrl };
+      return { success: true, pdfUrl: url };
     }),
 
   sendEmail: staffProcedure
