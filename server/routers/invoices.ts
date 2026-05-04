@@ -617,13 +617,26 @@ export const invoicesRouter = router({
         where: {
           OR: [
             { category: 'organization', key: 'logo_url' },
-            { category: 'organization', key: 'invoice_footer' },
+            { category: 'documents', key: 'invoice_footer' },
           ],
         },
-        select: { key: true, value: true },
+        select: { category: true, key: true, value: true },
       });
-      const logoUrl = settings.find((s) => s.key === 'logo_url')?.value || undefined;
-      const footerMention = settings.find((s) => s.key === 'invoice_footer')?.value || undefined;
+      const parseStringSetting = (raw: string | null | undefined): string | undefined => {
+        if (!raw) return undefined;
+        try {
+          const parsed = JSON.parse(raw);
+          return typeof parsed === 'string' ? parsed : undefined;
+        } catch {
+          return raw;
+        }
+      };
+      const logoUrl = parseStringSetting(
+        settings.find((s) => s.category === 'organization' && s.key === 'logo_url')?.value,
+      );
+      const footerMention = parseStringSetting(
+        settings.find((s) => s.category === 'documents' && s.key === 'invoice_footer')?.value,
+      );
 
       const { generateInvoicePDF } = await import('@/lib/pdf/invoice-pdf');
       const { uploadToStorage } = await import('@/lib/storage/blob-storage');
