@@ -90,8 +90,10 @@ type DocumentsFormValues = z.infer<typeof documentsSchema>;
 /**
  * Transforme les settings du backend en objet pour le formulaire
  */
-function settingsToFormData<T>(settings: Array<{ key: string; value: unknown }>): T {
-  return settings.reduce((acc, setting) => {
+function settingsToFormData<T>(
+  settings: Array<{ key: string; value: unknown }>,
+): Partial<T> {
+  return settings.reduce<Partial<T>>((acc, setting) => {
     // Parse JSON if string, otherwise use value as-is
     let parsedValue = setting.value;
     if (typeof setting.value === 'string') {
@@ -103,7 +105,7 @@ function settingsToFormData<T>(settings: Array<{ key: string; value: unknown }>)
     }
     acc[setting.key as keyof T] = parsedValue as T[keyof T];
     return acc;
-  }, {} as T);
+  }, {});
 }
 
 /**
