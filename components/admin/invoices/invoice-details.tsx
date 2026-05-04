@@ -266,7 +266,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                 )}
                 {invoice.taxAmount !== undefined && (
                   <p className="text-sm">
-                    <span className="text-muted-foreground">Taxes ({invoice.taxRate}%): </span>
+                    <span className="text-muted-foreground">Taxes ({(invoice.taxRate ?? 0) * 100}%): </span>
                     <span className="font-semibold">{invoice.taxAmount.toLocaleString('fr-FR')} XPF</span>
                   </p>
                 )}
@@ -329,7 +329,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
               {invoice.taxAmount !== undefined && (
                 <TableRow>
                   <TableCell colSpan={3} className="text-right">
-                    Taxes ({invoice.taxRate}%)
+                    Taxes ({(invoice.taxRate ?? 0) * 100}%)
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {invoice.taxAmount.toLocaleString('fr-FR')} XPF
