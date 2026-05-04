@@ -195,14 +195,14 @@ export default function AdminSettingsPage() {
   const organizationForm = useForm<OrganizationFormValues>({
     resolver: zodResolver(organizationSchema),
     defaultValues: {
-      name: '',
-      short_name: '',
-      address: '',
-      city: '',
-      postal_code: '',
-      country: '',
+      name: 'Mikado',
+      short_name: 'Mikado',
+      address: 'Nouméa',
+      city: 'Nouméa',
+      postal_code: '98800',
+      country: 'Nouvelle-Calédonie',
       phone: '',
-      email: '',
+      email: 'contact@alvm.nc',
     },
     mode: 'onBlur',
   });
@@ -223,9 +223,9 @@ export default function AdminSettingsPage() {
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
     defaultValues: {
-      from_name: '',
-      from_email: '',
-      reply_to: '',
+      from_name: 'Mikado',
+      from_email: 'noreply@alvm.nc',
+      reply_to: 'contact@alvm.nc',
     },
     mode: 'onBlur',
   });
@@ -233,10 +233,10 @@ export default function AdminSettingsPage() {
   const accountingForm = useForm<AccountingFormValues>({
     resolver: zodResolver(accountingSchema),
     defaultValues: {
-      fec_journal_code: '',
-      fec_sales_account: '',
-      fec_customers_account: '',
-      fec_company_code: '',
+      fec_journal_code: 'VE',
+      fec_sales_account: '706000',
+      fec_customers_account: '411000',
+      fec_company_code: 'MKD',
     },
     mode: 'onBlur',
   });
@@ -244,24 +244,35 @@ export default function AdminSettingsPage() {
   const documentsForm = useForm<DocumentsFormValues>({
     resolver: zodResolver(documentsSchema),
     defaultValues: {
-      child_form_footer: '',
-      invoice_footer: '',
+      child_form_footer: 'Document à conserver',
+      invoice_footer: 'Facture à régler dans les 30 jours',
     },
     mode: 'onBlur',
   });
 
   // ========== POPULATE FORMS WHEN DATA LOADS ==========
+  // Les reset() mergent les valeurs BDD au-dessus des défauts pour ne pas
+  // afficher de champs vides quand une clé n'a pas encore été persistée.
   useEffect(() => {
     if (organizationSettings) {
       const data = settingsToFormData<OrganizationFormValues>(organizationSettings);
-      organizationForm.reset(data);
+      organizationForm.reset({
+        name: 'Mikado',
+        short_name: 'Mikado',
+        address: 'Nouméa',
+        city: 'Nouméa',
+        postal_code: '98800',
+        country: 'Nouvelle-Calédonie',
+        phone: '',
+        email: 'contact@alvm.nc',
+        ...data,
+      });
     }
   }, [organizationSettings, organizationForm]);
 
   useEffect(() => {
     if (pricingSettings) {
       const data = settingsToFormData<PricingFormValues>(pricingSettings);
-      // Merger avec les défauts pour ne pas perdre les valeurs des clés absentes en BDD
       pricingForm.reset({
         currency: 'XPF',
         currency_symbol: 'XPF',
@@ -277,21 +288,36 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (emailSettings) {
       const data = settingsToFormData<EmailFormValues>(emailSettings);
-      emailForm.reset(data);
+      emailForm.reset({
+        from_name: 'Mikado',
+        from_email: 'noreply@alvm.nc',
+        reply_to: 'contact@alvm.nc',
+        ...data,
+      });
     }
   }, [emailSettings, emailForm]);
 
   useEffect(() => {
     if (accountingSettings) {
       const data = settingsToFormData<AccountingFormValues>(accountingSettings);
-      accountingForm.reset(data);
+      accountingForm.reset({
+        fec_journal_code: 'VE',
+        fec_sales_account: '706000',
+        fec_customers_account: '411000',
+        fec_company_code: 'MKD',
+        ...data,
+      });
     }
   }, [accountingSettings, accountingForm]);
 
   useEffect(() => {
     if (documentsSettings) {
       const data = settingsToFormData<DocumentsFormValues>(documentsSettings);
-      documentsForm.reset(data);
+      documentsForm.reset({
+        child_form_footer: 'Document à conserver',
+        invoice_footer: 'Facture à régler dans les 30 jours',
+        ...data,
+      });
     }
   }, [documentsSettings, documentsForm]);
 

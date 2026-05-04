@@ -194,19 +194,36 @@ async function main() {
   // =========================================================================
   console.log('⚙️  Creating application settings...');
   const settings = [
+    // organization
     { category: 'organization', key: 'name', value: '"Mikado"', description: "Nom de l'organisation" },
+    { category: 'organization', key: 'short_name', value: '"Mikado"', description: 'Nom court (factures, emails)' },
+    { category: 'organization', key: 'address', value: '"Nouméa"', description: "Adresse de l'organisation" },
+    { category: 'organization', key: 'city', value: '"Nouméa"', description: 'Ville' },
+    { category: 'organization', key: 'postal_code', value: '"98800"', description: 'Code postal' },
+    { category: 'organization', key: 'country', value: '"Nouvelle-Calédonie"', description: 'Pays' },
+    { category: 'organization', key: 'phone', value: '""', description: "Téléphone de l'organisation" },
+    { category: 'organization', key: 'email', value: '"contact@alvm.nc"', description: "Email de contact de l'organisation" },
     { category: 'organization', key: 'logo_url', value: null, description: "URL du logo de l'organisation" },
+    // documents
     { category: 'documents', key: 'invoice_footer', value: '"Facture à régler dans les 30 jours"', description: 'Mention en bas des factures' },
     { category: 'documents', key: 'child_form_footer', value: '"Document à conserver"', description: 'Mention en bas des fiches enfant' },
+    // pricing
+    { category: 'pricing', key: 'currency', value: '"XPF"', description: 'Devise (code ISO)' },
+    { category: 'pricing', key: 'currency_symbol', value: '"XPF"', description: 'Symbole de devise affiché' },
     { category: 'pricing', key: 'default_camp_price', value: '5000', description: 'Prix par défaut par jour de camp (en XPF)' },
     { category: 'pricing', key: 'tax_rate', value: '11', description: 'Taux de TGC en pourcentage' },
     { category: 'pricing', key: 'payment_terms_days', value: '30', description: 'Délai de paiement par défaut (jours)' },
     { category: 'pricing', key: 'credit_expiry_days', value: '365', description: 'Durée de validité des avoirs (jours)' },
     { category: 'pricing', key: 'payment_method_inactive_days', value: '30', description: 'Inactivité avant désactivation méthode de paiement (jours)' },
-    { category: 'email', key: 'email_from', value: '"noreply@alvm.nc"', description: "Adresse email d'envoi par défaut" },
-    { category: 'email', key: 'email_reply_to', value: '"contact@alvm.nc"', description: 'Adresse email de réponse' },
-    { category: 'accounting', key: 'accounting_prefix', value: '"MKD"', description: 'Préfixe pour les numéros de facturation' },
-    { category: 'accounting', key: 'accounting_year', value: '2025', description: 'Année comptable en cours' },
+    // email — clés alignées avec le formulaire admin
+    { category: 'email', key: 'from_name', value: '"Mikado"', description: "Nom d'expéditeur des emails" },
+    { category: 'email', key: 'from_email', value: '"noreply@alvm.nc"', description: "Adresse email d'envoi" },
+    { category: 'email', key: 'reply_to', value: '"contact@alvm.nc"', description: "Adresse email de réponse" },
+    // accounting (FEC) — clés alignées avec le formulaire admin
+    { category: 'accounting', key: 'fec_journal_code', value: '"VE"', description: "Code journal des ventes (FEC)" },
+    { category: 'accounting', key: 'fec_sales_account', value: '"706000"', description: "Compte de ventes par défaut (FEC)" },
+    { category: 'accounting', key: 'fec_customers_account', value: '"411000"', description: "Compte clients (FEC)" },
+    { category: 'accounting', key: 'fec_company_code', value: '"MKD"', description: "Code société (FEC)" },
   ];
 
   for (const s of settings) {
@@ -216,7 +233,7 @@ async function main() {
       create: s,
     });
   }
-  console.log('   ✓ 9 settings');
+  console.log(`   ✓ ${settings.length} settings`);
 
   // =========================================================================
   // 6. Camp types
