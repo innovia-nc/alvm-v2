@@ -217,10 +217,10 @@ describe('staff router', () => {
     it('should allow STAFF to update', async () => {
       staff.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow());
       staff.mockPrisma.staffMember.update.mockResolvedValue({
-        ...makeStaffRow(), firstName: 'X', user: undefined,
+        ...makeStaffRow(), firstName: 'Xx', user: undefined,
       });
-      const result = await staff.caller.staff.update({ id: STAFF_ID, firstName: 'X' });
-      expect(result.firstName).toBe('X');
+      const result = await staff.caller.staff.update({ id: STAFF_ID, firstName: 'Xx' });
+      expect(result.firstName).toBe('Xx');
     });
   });
 

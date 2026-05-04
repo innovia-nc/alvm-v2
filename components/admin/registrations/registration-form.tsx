@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Check, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 const registrationFormSchema = z.object({
   parentId: z.string().uuid('Sélectionnez un parent'),
@@ -42,6 +43,7 @@ type RegistrationFormValues = z.infer<typeof registrationFormSchema>;
 
 export function RegistrationForm() {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCamp, setSelectedCamp] = useState<any>(null);
   const [childSearch, setChildSearch] = useState('');
@@ -69,7 +71,7 @@ export function RegistrationForm() {
   const createRegistrationMutation = trpc.registrations.createByStaff.useMutation({
     onSuccess: () => {
       toast.success('Inscription créée avec succès');
-      router.push('/dashboard/admin/registrations');
+      router.push(`${basePath}/registrations`);
       router.refresh();
     },
     onError: (error) => {

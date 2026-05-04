@@ -4,7 +4,6 @@ import {
   router,
   protectedProcedure,
   staffProcedure,
-  adminProcedure,
 } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate } from '@/server/helpers/settings';
@@ -475,7 +474,7 @@ export const invoicesRouter = router({
       return mapInvoice(invoice);
     }),
 
-  updateStatus: adminProcedure
+  updateStatus: staffProcedure
     .input(z.object({
       id: z.string().uuid(),
       status: z.enum(['SENT', 'PAID', 'OVERDUE', 'CANCELLED']),
@@ -537,7 +536,7 @@ export const invoicesRouter = router({
       return mapInvoice(invoice);
     }),
 
-  delete: adminProcedure
+  delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -582,7 +581,7 @@ export const invoicesRouter = router({
       });
     }),
 
-  generatePDF: adminProcedure
+  generatePDF: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean(), pdfUrl: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -593,7 +592,7 @@ export const invoicesRouter = router({
       });
     }),
 
-  sendEmail: adminProcedure
+  sendEmail: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

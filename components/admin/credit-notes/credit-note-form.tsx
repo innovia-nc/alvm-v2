@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 // ============================================================================
 // SCHEMA
@@ -60,8 +61,10 @@ interface CreditNoteFormProps {
   redirectPath?: string;
 }
 
-export function CreditNoteForm({ redirectPath = '/dashboard/admin/credit-notes' }: CreditNoteFormProps) {
+export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
+  const finalRedirectPath = redirectPath ?? `${basePath}/credit-notes`;
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
   // Récupérer toutes les factures (pour le select)
@@ -102,7 +105,7 @@ export function CreditNoteForm({ redirectPath = '/dashboard/admin/credit-notes' 
   const createMutation = trpc.creditNotes.create.useMutation({
     onSuccess: () => {
       toast.success('Avoir créé avec succès');
-      router.push(redirectPath);
+      router.push(finalRedirectPath);
       router.refresh();
     },
     onError: (error) => {
@@ -384,7 +387,7 @@ export function CreditNoteForm({ redirectPath = '/dashboard/admin/credit-notes' 
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push(redirectPath)}
+            onClick={() => router.push(finalRedirectPath)}
             disabled={createMutation.isPending}
           >
             Annuler

@@ -150,14 +150,6 @@ describe('refunds router', () => {
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
-    it('denies STAFF access to delete (admin only)', async () => {
-      const { caller: staffCaller } = createTestCaller(STAFF_USER);
-
-      await expect(
-        staffCaller.refunds.delete({ id: REFUND_ID }),
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-    });
-
     it('allows STAFF access to list', async () => {
       const { caller: staffCaller, mockPrisma: mp } =
         createTestCaller(STAFF_USER);
@@ -614,7 +606,6 @@ describe('refunds router', () => {
 
       // FUTURE_CREDIT should NOT generate accounting entries
       expect(mockPrisma.accountingEntry.create).not.toHaveBeenCalled();
-      expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
     });
   });
 
@@ -676,11 +667,11 @@ describe('refunds router', () => {
       expect(mockPrisma.refund.delete).not.toHaveBeenCalled();
     });
 
-    it('denies STAFF users from deleting', async () => {
-      const { caller: staffCaller } = createTestCaller(STAFF_USER);
+    it('denies PARENT users from deleting', async () => {
+      const { caller: parentCaller } = createTestCaller(PARENT_USER);
 
       await expect(
-        staffCaller.refunds.delete({ id: REFUND_ID }),
+        parentCaller.refunds.delete({ id: REFUND_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
   });

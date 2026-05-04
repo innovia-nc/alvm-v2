@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
+import { router, staffProcedure } from '@/server/trpc/init';
 import type { Prisma, RefundMethod } from '@prisma/client';
 import { createRefundEntries, cancelAccountingEntries } from '@/server/services/accounting.service';
 import { toNum } from '@/server/helpers/decimal';
@@ -248,7 +248,7 @@ export const refundsRouter = router({
       });
     }),
 
-  delete: adminProcedure
+  delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

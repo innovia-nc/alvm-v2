@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { CheckCircle, XCircle, Trash2, MoreVertical, Loader2 } from 'lucide-react';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 interface CreditNote {
   id: string;
@@ -36,6 +37,7 @@ interface CreditNoteActionsProps {
 
 export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<'SENT' | 'CANCELLED' | null>(null);
@@ -55,7 +57,7 @@ export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
   const deleteMutation = trpc.creditNotes.delete.useMutation({
     onSuccess: () => {
       toast.success('Avoir supprimé avec succès');
-      router.push('/dashboard/admin/credit-notes');
+      router.push(`${basePath}/credit-notes`);
       router.refresh();
     },
     onError: (error) => {

@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 // ============================================================================
 // TYPES
@@ -70,6 +71,9 @@ type ParentEditFormData = z.infer<typeof parentEditSchema>;
 
 export function ParentEditForm({ parent }: ParentEditFormProps) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
+  const parentsPath =
+    basePath === '/dashboard/admin' ? '/dashboard/admin/users/parents' : `${basePath}/parents`;
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
@@ -107,7 +111,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
       });
 
       toast.success('Parent modifié avec succès');
-      router.push(`/dashboard/admin/users/parents/${parent.id}`);
+      router.push(`${parentsPath}/${parent.id}`);
       router.refresh();
     } catch (err: any) {
       const errorMessage = err.message || 'Une erreur est survenue';
@@ -264,7 +268,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
 
         <ButtonGroup align="right">
           <Button type="button" variant="outline" asChild>
-            <Link href={`/dashboard/admin/users/parents/${parent.id}`}>
+            <Link href={`${parentsPath}/${parent.id}`}>
               <X className="mr-2 h-4 w-4" />
               Annuler
             </Link>

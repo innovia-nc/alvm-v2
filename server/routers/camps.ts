@@ -4,8 +4,7 @@ import {
   router,
   publicProcedure,
   protectedProcedure,
-  animatorProcedure,
-  adminProcedure,
+  staffProcedure,
 } from '@/server/trpc/init';
 import type { Prisma, CampStatus } from '@prisma/client';
 import { computeDaysCount } from '@/server/helpers/date';
@@ -190,7 +189,7 @@ export const campsRouter = router({
       };
     }),
 
-  create: animatorProcedure
+  create: staffProcedure
     .input(z.object({
       name: z.string().min(3).max(200),
       description: z.string().min(10),
@@ -240,7 +239,7 @@ export const campsRouter = router({
       return mapCamp(camp);
     }),
 
-  update: animatorProcedure
+  update: staffProcedure
     .input(z.object({
       id: z.string().uuid(),
       name: z.string().min(3).max(200).optional(),
@@ -301,7 +300,7 @@ export const campsRouter = router({
       return mapCamp(camp);
     }),
 
-  delete: adminProcedure
+  delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -341,7 +340,7 @@ export const campsRouter = router({
       });
     }),
 
-  duplicate: animatorProcedure
+  duplicate: staffProcedure
     .input(z.object({
       id: z.string().uuid(),
       name: z.string().min(3).max(200),

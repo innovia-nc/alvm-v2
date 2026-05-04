@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
-import { router, protectedProcedure, staffProcedure, adminProcedure } from '@/server/trpc/init';
+import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 
 const parentSchema = z.object({
@@ -343,7 +343,7 @@ export const parentsRouter = router({
       return mapParent(result);
     }),
 
-  delete: adminProcedure
+  delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

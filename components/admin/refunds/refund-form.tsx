@@ -28,6 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 const refundFormSchema = z.object({
   paymentId: z.string().uuid('Sélectionnez un paiement'),
@@ -44,6 +45,7 @@ type RefundFormValues = z.infer<typeof refundFormSchema>;
 export function RefundForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
@@ -58,7 +60,7 @@ export function RefundForm() {
   const createRefundMutation = trpc.refunds.create.useMutation({
     onSuccess: () => {
       toast.success('Remboursement enregistré avec succès');
-      router.push('/dashboard/admin/refunds');
+      router.push(`${basePath}/refunds`);
       router.refresh();
     },
     onError: (error) => {

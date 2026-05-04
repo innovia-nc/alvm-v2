@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PaymentMethodSelect } from '@/components/shared/payment-method-select';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 const paymentFormSchema = z.object({
   invoiceId: z.string().uuid('Sélectionnez une facture'),
@@ -44,6 +45,7 @@ type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 export function PaymentForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
@@ -59,7 +61,7 @@ export function PaymentForm() {
   const createPaymentMutation = trpc.payments.create.useMutation({
     onSuccess: () => {
       toast.success('Paiement enregistré avec succès');
-      router.push('/dashboard/admin/payments');
+      router.push(`${basePath}/payments`);
       router.refresh();
     },
     onError: (error) => {

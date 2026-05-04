@@ -27,6 +27,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 // ============================================================================
 // TYPES
@@ -96,6 +97,7 @@ export function RegistrationEditForm({
   registration,
 }: RegistrationEditFormProps) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<RegistrationEditFormData>({
@@ -117,7 +119,7 @@ export function RegistrationEditForm({
       });
 
       toast.success('Inscription modifiée avec succès');
-      router.push(`/dashboard/admin/registrations/${registration.id}`);
+      router.push(`${basePath}/registrations/${registration.id}`);
       router.refresh();
     } catch (err: any) {
       const errorMessage = err.message || 'Une erreur est survenue';
@@ -219,7 +221,7 @@ export function RegistrationEditForm({
           </Button>
 
           <Button type="button" variant="outline" asChild>
-            <Link href={`/dashboard/admin/registrations/${registration.id}`}>
+            <Link href={`${basePath}/registrations/${registration.id}`}>
               <X className="mr-2 h-4 w-4" />
               Annuler
             </Link>

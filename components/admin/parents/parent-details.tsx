@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +56,9 @@ interface ParentDetailsProps {
 
 export function ParentDetails({ parent }: ParentDetailsProps) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
+  const parentsPath =
+    basePath === '/dashboard/admin' ? '/dashboard/admin/users/parents' : `${basePath}/parents`;
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const deleteMutation = trpc.parents.delete.useMutation();
@@ -63,7 +67,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
     try {
       await deleteMutation.mutateAsync({ id: parent.id });
       toast.success('Parent supprimé avec succès');
-      router.push('/dashboard/admin/users/parents');
+      router.push(parentsPath);
       router.refresh();
     } catch (err: any) {
       const errorMessage = err.message || 'Erreur lors de la suppression';
@@ -76,7 +80,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
       {/* Actions */}
       <div className="flex gap-4">
         <Button asChild>
-          <Link href={`/dashboard/admin/users/parents/${parent.id}/edit`}>
+          <Link href={`${parentsPath}/${parent.id}/edit`}>
             <Pencil className="mr-2 h-4 w-4" />
             Modifier
           </Link>
@@ -202,7 +206,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
                     </p>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/admin/children/${child.id}`}>
+                    <Link href={`${basePath}/children/${child.id}`}>
                       Voir détails
                     </Link>
                   </Button>

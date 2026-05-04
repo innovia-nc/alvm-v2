@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 type Registration = {
   id: string;
@@ -71,12 +72,13 @@ const statusVariants: Record<Registration['status'], 'default' | 'secondary' | '
 
 export function RegistrationDetails({ registration }: { registration: Registration }) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const deleteRegistrationMutation = trpc.registrations.delete.useMutation({
     onSuccess: () => {
       toast.success('Inscription supprimée avec succès');
-      router.push('/dashboard/admin/registrations');
+      router.push(`${basePath}/registrations`);
       router.refresh();
     },
     onError: (error) => {
@@ -159,7 +161,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
                 <p className="font-medium">{registration.camp.pricePerDay.toLocaleString()} XPF</p>
               </div>
             </div>
-            <Link href={`/dashboard/admin/camps/${registration.camp.id}`}>
+            <Link href={`${basePath}/camps/${registration.camp.id}`}>
               <Button variant="outline" size="sm">
                 <FileText className="mr-2 h-4 w-4" />
                 Voir le camp
@@ -273,7 +275,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
             <CardTitle>Facture</CardTitle>
           </CardHeader>
           <CardContent>
-            <Link href={`/dashboard/admin/invoices/${registration.invoiceId}`}>
+            <Link href={`${basePath}/invoices/${registration.invoiceId}`}>
               <Button variant="outline" size="sm">
                 <FileText className="mr-2 h-4 w-4" />
                 Voir la facture
@@ -289,7 +291,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
           Retour
         </Button>
         <Button variant="outline" asChild>
-          <Link href={`/dashboard/admin/registrations/${registration.id}/edit`}>
+          <Link href={`${basePath}/registrations/${registration.id}/edit`}>
             <Edit className="mr-2 h-4 w-4" />
             Modifier
           </Link>

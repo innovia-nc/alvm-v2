@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 type Refund = {
   id: string;
@@ -58,12 +59,13 @@ const refundMethodLabels: Record<Refund['refundMethod'], string> = {
 
 export function RefundDetails({ refund }: { refund: Refund }) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const deleteRefundMutation = trpc.refunds.delete.useMutation({
     onSuccess: () => {
       toast.success('Remboursement supprimé avec succès');
-      router.push('/dashboard/admin/refunds');
+      router.push(`${basePath}/refunds`);
       router.refresh();
     },
     onError: (error) => {
@@ -158,7 +160,7 @@ export function RefundDetails({ refund }: { refund: Refund }) {
                 <p className="font-medium">{refund.payment.paymentMethodName || 'Non spécifiée'}</p>
               </div>
             </div>
-            <Link href={`/dashboard/admin/payments/${refund.payment.id}`}>
+            <Link href={`${basePath}/payments/${refund.payment.id}`}>
               <Button variant="outline" size="sm">
                 <FileText className="mr-2 h-4 w-4" />
                 Voir le paiement
@@ -190,7 +192,7 @@ export function RefundDetails({ refund }: { refund: Refund }) {
                 </p>
               </div>
             </div>
-            <Link href={`/dashboard/admin/invoices/${refund.payment.invoice.id}`}>
+            <Link href={`${basePath}/invoices/${refund.payment.invoice.id}`}>
               <Button variant="outline" size="sm">
                 <FileText className="mr-2 h-4 w-4" />
                 Voir la facture

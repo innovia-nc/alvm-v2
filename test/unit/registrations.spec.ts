@@ -51,6 +51,9 @@ function makeRegistrationRow(overrides: Record<string, unknown> = {}) {
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+    camp: {
+      campType: { accountingCode: '706000' },
+    },
     ...overrides,
   };
 }
@@ -1167,7 +1170,7 @@ describe('registrations.cancelWithAccounting', () => {
             creditNoteId: 'd1a00000-0000-4000-a000-000000000099',
             amountOriginal: 7500,
             amountRemaining: 7500,
-            notes: 'Credit automatique suite a annulation',
+            notes: 'Crédit automatique suite à annulation',
           }),
         }),
       );

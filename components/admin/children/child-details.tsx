@@ -20,6 +20,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,6 +91,7 @@ function calculateAge(birthDate: Date): number {
 
 export function ChildDetails({ child }: ChildDetailsProps) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const deleteMutation = trpc.children.delete.useMutation();
@@ -98,7 +100,7 @@ export function ChildDetails({ child }: ChildDetailsProps) {
     try {
       await deleteMutation.mutateAsync({ id: child.id });
       toast.success('Enfant supprimé avec succès');
-      router.push('/dashboard/admin/children');
+      router.push(`${basePath}/children`);
       router.refresh();
     } catch (err: any) {
       const errorMessage = err.message || 'Erreur lors de la suppression';
@@ -119,7 +121,7 @@ export function ChildDetails({ child }: ChildDetailsProps) {
       {/* Actions */}
       <div className="flex gap-4">
         <Button asChild>
-          <Link href={`/dashboard/admin/children/${child.id}/edit`}>
+          <Link href={`${basePath}/children/${child.id}/edit`}>
             <Pencil className="mr-2 h-4 w-4" />
             Modifier
           </Link>
@@ -328,7 +330,7 @@ export function ChildDetails({ child }: ChildDetailsProps) {
       {/* Documents */}
       <ChildDocumentsSection
         childId={child.id}
-        userRole="ADMIN"
+        userRole={basePath === '/dashboard/parent' ? 'PARENT' : basePath === '/dashboard/staff' ? 'STAFF' : 'ADMIN'}
       />
 
       {/* Delete confirmation dialog */}

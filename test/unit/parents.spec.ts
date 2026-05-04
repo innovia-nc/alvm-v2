@@ -812,10 +812,14 @@ describe('parents router', () => {
       ).rejects.toThrow(TRPCError);
     });
 
-    it('should deny STAFF access (adminProcedure)', async () => {
-      await expect(
-        staff.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow(TRPCError);
+    it('should allow STAFF to soft-delete parent without active registrations', async () => {
+      staff.mockPrisma.registration.count.mockResolvedValue(0);
+      staff.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
+      staff.mockPrisma.childParent.findMany.mockResolvedValue([]);
+      staff.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });
+
+      const result = await staff.caller.parents.delete({ id: PARENT_ID });
+      expect(result.success).toBe(true);
     });
 
     it('should deny unauthenticated access', async () => {

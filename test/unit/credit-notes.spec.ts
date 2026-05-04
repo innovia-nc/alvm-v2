@@ -272,9 +272,14 @@ describe('creditNotes router', () => {
     ).rejects.toThrow('Seuls les avoirs en brouillon peuvent être supprimés');
   });
 
-  it('should deny STAFF from deleting credit notes', async () => {
-    await expect(
-      staff.caller.creditNotes.delete({ id: creditNoteId }),
-    ).rejects.toThrow(TRPCError);
+  it('should allow STAFF to delete credit notes', async () => {
+    staff.mockPrisma.invoice.findFirst.mockResolvedValue({
+      ...fakeCreditNote,
+      status: 'DRAFT',
+    });
+    staff.mockPrisma.invoice.update.mockResolvedValue({});
+
+    const result = await staff.caller.creditNotes.delete({ id: creditNoteId });
+    expect(result.success).toBe(true);
   });
 });

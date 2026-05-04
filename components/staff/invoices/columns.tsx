@@ -160,7 +160,7 @@ function getStatusBadge(status: string) {
 // ACTIONS COMPONENT
 // ============================================================================
 
-interface StaffInvoiceActionsProps {
+export interface StaffInvoiceActionsProps {
   item: StaffInvoiceType;
   onDelete?: (item: StaffInvoiceType) => void;
   onGeneratePDF?: (item: StaffInvoiceType) => void;
@@ -169,7 +169,7 @@ interface StaffInvoiceActionsProps {
   pdfUrl?: string | null;
 }
 
-function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onRecordPayment }: StaffInvoiceActionsProps) {
+export function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onRecordPayment }: StaffInvoiceActionsProps) {
   const remainingAmount = item.remainingAmount;
 
   const handleDownloadPDF = (e: React.MouseEvent) => {

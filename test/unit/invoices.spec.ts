@@ -704,6 +704,10 @@ describe('invoices router', () => {
         mockPrisma.invoice.update.mockResolvedValue(
           makeRawInvoice({ status: 'SENT' }),
         );
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
+          ...makeRawInvoice({ status: 'SENT' }),
+          lines: [],
+        });
 
         const result = await caller.invoices.validate({ id: INVOICE_ID });
 
@@ -733,13 +737,6 @@ describe('invoices router', () => {
         const { caller: parentCaller } = createTestCaller(PARENT_USER);
         await expect(
           parentCaller.invoices.updateStatus({ id: INVOICE_ID, status: 'PAID', version: 0 }),
-        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-      });
-
-      it('rejects STAFF role (admin-only)', async () => {
-        const { caller: staffCaller } = createTestCaller(STAFF_USER);
-        await expect(
-          staffCaller.invoices.updateStatus({ id: INVOICE_ID, status: 'PAID', version: 0 }),
         ).rejects.toMatchObject({ code: 'FORBIDDEN' });
       });
 
@@ -931,12 +928,6 @@ describe('invoices router', () => {
         ).rejects.toMatchObject({ code: 'FORBIDDEN' });
       });
 
-      it('rejects STAFF role (admin-only)', async () => {
-        const { caller: staffCaller } = createTestCaller(STAFF_USER);
-        await expect(
-          staffCaller.invoices.delete({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-      });
     });
 
     describe('business logic', () => {
@@ -1019,10 +1010,10 @@ describe('invoices router', () => {
   // =========================================================================
 
   describe('generatePDF', () => {
-    it('rejects non-ADMIN users', async () => {
-      const { caller: staffCaller } = createTestCaller(STAFF_USER);
+    it('rejects PARENT users', async () => {
+      const { caller: parentCaller } = createTestCaller(PARENT_USER);
       await expect(
-        staffCaller.invoices.generatePDF({ id: INVOICE_ID }),
+        parentCaller.invoices.generatePDF({ id: INVOICE_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
@@ -1040,10 +1031,10 @@ describe('invoices router', () => {
   // =========================================================================
 
   describe('sendEmail', () => {
-    it('rejects non-ADMIN users', async () => {
-      const { caller: staffCaller } = createTestCaller(STAFF_USER);
+    it('rejects PARENT users', async () => {
+      const { caller: parentCaller } = createTestCaller(PARENT_USER);
       await expect(
-        staffCaller.invoices.sendEmail({ id: INVOICE_ID }),
+        parentCaller.invoices.sendEmail({ id: INVOICE_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 

@@ -406,9 +406,15 @@ describe('camps.create', () => {
       await expect(caller.camps.create(createInput)).rejects.toThrow(TRPCError);
     });
 
-    it('should reject STAFF without ANIMATOR role', async () => {
-      const { caller } = createTestCaller(STAFF_USER);
-      await expect(caller.camps.create(createInput)).rejects.toThrow(TRPCError);
+    it('should allow STAFF users', async () => {
+      const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      mockPrisma.campType.findFirst.mockResolvedValue(makeCampType());
+      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
+        createdBy: STAFF_USER.id,
+      }));
+
+      const result = await caller.camps.create(createInput);
+      expect(result.id).toBe(CAMP_ID);
     });
 
     it('should allow ANIMATOR users', async () => {
@@ -551,9 +557,13 @@ describe('camps.update', () => {
       await expect(caller.camps.update(updateInput)).rejects.toThrow(TRPCError);
     });
 
-    it('should reject STAFF without ANIMATOR role', async () => {
-      const { caller } = createTestCaller(STAFF_USER);
-      await expect(caller.camps.update(updateInput)).rejects.toThrow(TRPCError);
+    it('should reject STAFF who is not the creator and not ADMIN', async () => {
+      const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
+        createdBy: 'd1a00000-0000-4000-a000-000000000099',
+      }));
+
+      await expect(caller.camps.update(updateInput)).rejects.toThrow('Vous ne pouvez pas modifier ce camp');
     });
 
     it('should reject ANIMATOR who is not the creator and not ADMIN', async () => {
@@ -712,9 +722,13 @@ describe('camps.delete', () => {
       await expect(caller.camps.delete({ id: CAMP_ID })).rejects.toThrow(TRPCError);
     });
 
-    it('should reject STAFF users (even ANIMATOR)', async () => {
-      const { caller } = createTestCaller(ANIMATOR_USER);
-      await expect(caller.camps.delete({ id: CAMP_ID })).rejects.toThrow(TRPCError);
+    it('should allow STAFF users', async () => {
+      const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      mockPrisma.registration.count.mockResolvedValue(0);
+      mockPrisma.camp.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await caller.camps.delete({ id: CAMP_ID });
+      expect(result.success).toBe(true);
     });
 
     it('should allow ADMIN users', async () => {
@@ -844,9 +858,18 @@ describe('camps.duplicate', () => {
       await expect(caller.camps.duplicate(duplicateInput)).rejects.toThrow(TRPCError);
     });
 
-    it('should reject STAFF without ANIMATOR role', async () => {
-      const { caller } = createTestCaller(STAFF_USER);
-      await expect(caller.camps.duplicate(duplicateInput)).rejects.toThrow(TRPCError);
+    it('should allow STAFF users', async () => {
+      const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      const sourceCamp = makeCampRow();
+      mockPrisma.camp.findFirst.mockResolvedValue(sourceCamp);
+      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
+        id: CAMP_ID_2,
+        name: 'Camp Ete 2026 - Copie',
+        status: 'DRAFT',
+      }));
+
+      const result = await caller.camps.duplicate(duplicateInput);
+      expect(result.id).toBe(CAMP_ID_2);
     });
 
     it('should allow ANIMATOR users', async () => {

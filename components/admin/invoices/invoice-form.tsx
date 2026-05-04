@@ -29,6 +29,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Trash2, FileText, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 const invoiceFormSchema = z.object({
   parentId: z.string().uuid('Sélectionnez un parent'),
@@ -49,6 +50,7 @@ type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 
 export function InvoiceForm() {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRegistrationIds, setSelectedRegistrationIds] = useState<string[]>([]);
 
@@ -61,7 +63,7 @@ export function InvoiceForm() {
   const createInvoiceMutation = trpc.invoices.create.useMutation({
     onSuccess: () => {
       toast.success('Facture créée avec succès');
-      router.push('/dashboard/admin/invoices');
+      router.push(`${basePath}/invoices`);
       router.refresh();
     },
     onError: (error) => {

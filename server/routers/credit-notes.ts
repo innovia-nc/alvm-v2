@@ -4,7 +4,6 @@ import {
   router,
   protectedProcedure,
   staffProcedure,
-  adminProcedure,
 } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/server/helpers/settings';
@@ -412,7 +411,7 @@ export const creditNotesRouter = router({
       });
     }),
 
-  delete: adminProcedure
+  delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

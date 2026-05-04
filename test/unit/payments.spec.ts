@@ -137,9 +137,6 @@ describe('payments router', () => {
       await expect(parent.caller.payments.delete({ id: PAYMENT_ID })).rejects.toThrow(TRPCError);
     });
 
-    it('should deny STAFF access to delete', async () => {
-      await expect(staff.caller.payments.delete({ id: PAYMENT_ID })).rejects.toThrow(TRPCError);
-    });
 
     it('should deny unauthenticated access to statistics', async () => {
       const { caller } = createTestCaller(null);

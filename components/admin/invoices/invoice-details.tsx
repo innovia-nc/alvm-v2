@@ -44,6 +44,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 type Invoice = {
   id: string;
@@ -93,6 +94,7 @@ const statusConfig = {
 
 export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
@@ -132,7 +134,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
   const deleteInvoiceMutation = trpc.invoices.delete.useMutation({
     onSuccess: () => {
       toast.success('Facture supprimée avec succès');
-      router.push('/dashboard/admin/invoices');
+      router.push(`${basePath}/invoices`);
       router.refresh();
     },
     onError: (error) => {
@@ -374,7 +376,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                       {payment.amount.toLocaleString()} XPF
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/dashboard/admin/payments/${payment.id}`}>
+                      <Link href={`${basePath}/payments/${payment.id}`}>
                         <Button variant="ghost" size="sm">
                           Voir
                         </Button>
@@ -391,7 +393,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
       {/* Bouton d'ajout de paiement si montant restant */}
       {invoice.remainingAmount > 0 && invoice.status !== 'CANCELLED' && invoice.status !== 'DRAFT' && (
         <div className="flex justify-end">
-          <Link href={`/dashboard/admin/payments/new?invoiceId=${invoice.id}`}>
+          <Link href={`${basePath}/payments/new?invoiceId=${invoice.id}`}>
             <Button>
               Enregistrer un paiement
             </Button>

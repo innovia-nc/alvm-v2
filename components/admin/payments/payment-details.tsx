@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 type Payment = {
   id: string;
@@ -55,12 +56,13 @@ type Payment = {
 
 export function PaymentDetails({ payment }: { payment: Payment }) {
   const router = useRouter();
+  const basePath = useDashboardBasePath();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const deletePaymentMutation = trpc.payments.delete.useMutation({
     onSuccess: () => {
       toast.success('Paiement supprimé avec succès');
-      router.push('/dashboard/admin/payments');
+      router.push(`${basePath}/payments`);
       router.refresh();
     },
     onError: (error) => {
@@ -147,7 +149,7 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
                 <p className="text-sm text-muted-foreground">{payment.invoice.parent.email}</p>
               </div>
             </div>
-            <Link href={`/dashboard/admin/invoices/${payment.invoice.id}`}>
+            <Link href={`${basePath}/invoices/${payment.invoice.id}`}>
               <Button variant="outline" size="sm">
                 <FileText className="mr-2 h-4 w-4" />
                 Voir la facture
@@ -186,7 +188,7 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
                 <p className="text-sm text-muted-foreground">Numéro d'avoir</p>
                 <p className="font-semibold">{payment.creditNote.creditNoteNumber}</p>
               </div>
-              <Link href={`/dashboard/admin/credit-notes/${payment.creditNote.id}`}>
+              <Link href={`${basePath}/credit-notes/${payment.creditNote.id}`}>
                 <Button variant="outline" size="sm">
                   <FileText className="mr-2 h-4 w-4" />
                   Voir l'avoir
