@@ -585,11 +585,86 @@ export const invoicesRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean(), pdfUrl: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: PDF generation will be implemented in Phase 3 (storage migration)
-      throw new TRPCError({
-        code: 'NOT_IMPLEMENTED' as any,
-        message: 'La génération PDF sera implémentée lors de la migration du stockage',
+      const invoice = await ctx.prisma.invoice.findFirst({
+        where: { id: input.id, deletedAt: null },
+        include: {
+          parent: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              address: true,
+              city: true,
+              postalCode: true,
+            },
+          },
+          lines: {
+            where: { deletedAt: null },
+            select: {
+              description: true,
+              quantity: true,
+              unitPrice: true,
+              totalPrice: true,
+            },
+          },
+        },
       });
+      if (!invoice) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+      }
+
+      const settings = await ctx.prisma.appSetting.findMany({
+        where: {
+          OR: [
+            { category: 'organization', key: 'logo_url' },
+            { category: 'organization', key: 'invoice_footer' },
+          ],
+        },
+        select: { key: true, value: true },
+      });
+      const logoUrl = settings.find((s) => s.key === 'logo_url')?.value || undefined;
+      const footerMention = settings.find((s) => s.key === 'invoice_footer')?.value || undefined;
+
+      const { generateInvoicePDF } = await import('@/lib/pdf/invoice-pdf');
+      const { uploadToStorage } = await import('@/lib/storage/supabase-storage');
+
+      const pdfBuffer = await generateInvoicePDF({
+        invoiceNumber: invoice.invoiceNumber,
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        status: invoice.status as 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED',
+        parent: invoice.parent,
+        lines: invoice.lines.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: toNum(l.unitPrice),
+          totalPrice: toNum(l.totalPrice),
+        })),
+        subtotalHt: toNum(invoice.subtotalHt),
+        taxAmount: toNum(invoice.taxAmount),
+        taxRate: toNum(invoice.taxRate) * 100,
+        totalAmount: toNum(invoice.totalAmount),
+        paidAmount: toNum(invoice.paidAmount),
+        footerMention: footerMention ?? undefined,
+        logoUrl: logoUrl ?? undefined,
+      });
+
+      const filename = `${invoice.invoiceNumber}-${invoice.id}.pdf`;
+      const path = `invoices/${filename}`;
+
+      const { publicUrl } = await uploadToStorage(pdfBuffer, {
+        bucket: 'documents',
+        path,
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+
+      await ctx.prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { pdfUrl: publicUrl },
+      });
+
+      return { success: true, pdfUrl: publicUrl };
     }),
 
   sendEmail: staffProcedure

@@ -1017,12 +1017,12 @@ describe('invoices router', () => {
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
-    it('throws NOT_IMPLEMENTED for ADMIN users', async () => {
+    it('throws NOT_FOUND when invoice is missing', async () => {
       ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
 
       await expect(
         caller.invoices.generatePDF({ id: INVOICE_ID }),
-      ).rejects.toThrow(TRPCError);
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
   });
 
