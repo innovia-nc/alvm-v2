@@ -108,9 +108,12 @@ export function PaymentForm() {
     );
   }
 
-  // Filtrer les factures qui ont un reste à payer
+  // Seules les factures émises ou en retard avec un reste à payer peuvent recevoir un paiement
+  // (exclut DRAFT/devis, PAID, CANCELLED, CREDITED)
   const unpaidInvoices = invoicesData?.invoices.filter(
-    (inv) => inv.remainingAmount > 0 && inv.status !== 'CANCELLED'
+    (inv) =>
+      (inv.status === 'SENT' || inv.status === 'OVERDUE') &&
+      inv.remainingAmount > 0,
   ) || [];
 
   return (
