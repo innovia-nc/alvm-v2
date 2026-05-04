@@ -27,7 +27,13 @@ export function deriveClientAux(parentId: string): string {
  * Generates the next accounting entry number for a given journal code.
  * Format: {journalCode} + YYYYMMDD + 4-digit sequence
  */
+let accountingSeqEnsured = false;
+
 async function nextEntryNum(tx: TxClient, journalCode: string): Promise<string> {
+  if (!accountingSeqEnsured) {
+    await tx.$executeRawUnsafe('CREATE SEQUENCE IF NOT EXISTS accounting_entry_seq');
+    accountingSeqEnsured = true;
+  }
   const result: [{ entry_num: string }] = await tx.$queryRawUnsafe(
     `SELECT $1 || TO_CHAR(NOW(), 'YYYYMMDD') || LPAD(nextval('accounting_entry_seq')::TEXT, 4, '0') as entry_num`,
     journalCode,
