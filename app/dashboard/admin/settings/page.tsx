@@ -210,9 +210,9 @@ export default function AdminSettingsPage() {
   const pricingForm = useForm<PricingFormValues>({
     resolver: zodResolver(pricingSchema),
     defaultValues: {
-      currency: '',
-      currency_symbol: '',
-      tax_rate: 0,
+      currency: 'XPF',
+      currency_symbol: 'XPF',
+      tax_rate: 11,
       payment_terms_days: 30,
       credit_expiry_days: 365,
       payment_method_inactive_days: 30,
@@ -261,7 +261,16 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (pricingSettings) {
       const data = settingsToFormData<PricingFormValues>(pricingSettings);
-      pricingForm.reset(data);
+      // Merger avec les défauts pour ne pas perdre les valeurs des clés absentes en BDD
+      pricingForm.reset({
+        currency: 'XPF',
+        currency_symbol: 'XPF',
+        tax_rate: 11,
+        payment_terms_days: 30,
+        credit_expiry_days: 365,
+        payment_method_inactive_days: 30,
+        ...data,
+      });
     }
   }, [pricingSettings, pricingForm]);
 
