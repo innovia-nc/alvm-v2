@@ -1,4 +1,5 @@
 import { put, del } from '@vercel/blob';
+import type { Readable } from 'node:stream';
 
 export interface UploadOptions {
   pathname: string;
@@ -6,8 +7,10 @@ export interface UploadOptions {
   access?: 'public';
 }
 
+type UploadData = Buffer | Blob | File | Readable | ReadableStream;
+
 export async function uploadToStorage(
-  data: Buffer | Uint8Array | Blob | ArrayBuffer | string,
+  data: UploadData,
   options: UploadOptions,
 ): Promise<{ pathname: string; url: string }> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
