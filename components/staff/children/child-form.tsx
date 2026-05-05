@@ -103,6 +103,7 @@ type ChildFormValues = z.infer<typeof childFormSchema>;
 
 interface ChildFormProps {
   mode: 'create' | 'edit';
+  basePath?: string;
   initialData?: {
     id: string;
     firstName: string;
@@ -137,7 +138,7 @@ interface ChildFormProps {
 // COMPOSANT FORMULAIRE
 // ============================================================================
 
-export function ChildForm({ mode, initialData }: ChildFormProps) {
+export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/children' }: ChildFormProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -146,7 +147,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
     onSuccess: () => {
       toast.success('Enfant créé avec succès');
       utils.children.list.invalidate();
-      router.push('/dashboard/staff/children');
+      router.push(basePath);
       router.refresh();
     },
     onError: (error) => {
@@ -164,7 +165,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
       if (initialData) {
         utils.children.getById.invalidate({ id: initialData.id });
       }
-      router.push('/dashboard/staff/children');
+      router.push(basePath);
       router.refresh();
     },
     onError: (error) => {
@@ -378,7 +379,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
                 <AlertDescription className="flex items-center gap-2">
                   <span>Pour modifier les parents associés, utilisez la page dédiée :</span>
                   <Button asChild variant="link" size="sm" className="h-auto p-0">
-                    <Link href={`/dashboard/staff/children/${initialData.id}/parents`}>
+                    <Link href={`${basePath}/${initialData.id}/parents`}>
                       <Users className="h-4 w-4 mr-1" />
                       Gérer les parents
                     </Link>
@@ -662,7 +663,7 @@ export function ChildForm({ mode, initialData }: ChildFormProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push('/dashboard/staff/children')}
+            onClick={() => router.push(basePath)}
             disabled={isPending}
           >
             Annuler

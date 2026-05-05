@@ -25,6 +25,7 @@ export type AdminPaymentType = {
   reference: string | null;
   notes: string | null;
   invoice: {
+    id: string;
     invoiceNumber: string;
   };
   parent: {
@@ -57,7 +58,7 @@ export const adminPaymentColumns: ColumnDef<AdminPaymentType>[] = [
       const payment = row.original;
       return (
         <Link
-          href={`/dashboard/admin/invoices/${payment.invoice.invoiceNumber}`}
+          href={`/dashboard/admin/invoices/${payment.invoice.id}`}
           className="text-blue-600 hover:underline font-medium"
         >
           {payment.invoice.invoiceNumber}

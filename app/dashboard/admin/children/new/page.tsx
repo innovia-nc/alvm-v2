@@ -14,7 +14,7 @@ export default async function NewChildPage() {
 
       {/* Formulaire */}
       <div className="max-w-2xl">
-        <ChildForm mode="create" />
+        <ChildForm mode="create" basePath="/dashboard/admin/children" />
       </div>
     </div>
   );

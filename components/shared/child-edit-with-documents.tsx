@@ -53,15 +53,22 @@ interface ChildEditWithDocumentsProps {
 // COMPONENT
 // ============================================================================
 
+const CHILDREN_BASE_PATH: Record<'PARENT' | 'STAFF' | 'ADMIN', string> = {
+  PARENT: '/dashboard/parent/children',
+  STAFF: '/dashboard/staff/children',
+  ADMIN: '/dashboard/admin/children',
+};
+
 export function ChildEditWithDocuments({
   child,
   userRole,
 }: ChildEditWithDocumentsProps) {
+  const basePath = CHILDREN_BASE_PATH[userRole];
   return (
     <div className="space-y-8">
       {/* Formulaire d'édition */}
       <div className="max-w-2xl">
-        <ChildForm mode="edit" initialData={child as any} />
+        <ChildForm mode="edit" initialData={child as any} basePath={basePath} />
       </div>
 
       {/* Section documents (en pleine largeur) */}

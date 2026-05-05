@@ -24,6 +24,7 @@ export type AdminRefundType = {
   reason: string | null;
   payment: {
     invoice: {
+      id: string;
       invoiceNumber: string;
       parent: {
         firstName: string;
@@ -54,10 +55,11 @@ export const adminRefundColumns: ColumnDef<AdminRefundType>[] = [
     accessorKey: 'invoice',
     header: 'Facture',
     cell: ({ row }) => {
-      const invoiceNumber = row.original.payment.invoice.invoiceNumber;
+      const invoice = row.original.payment.invoice;
+      const invoiceNumber = invoice.invoiceNumber;
       return (
         <Link
-          href={`/dashboard/admin/invoices/${invoiceNumber}`}
+          href={`/dashboard/admin/invoices/${invoice.id}`}
           className="text-blue-600 hover:underline font-medium"
         >
           {invoiceNumber}
