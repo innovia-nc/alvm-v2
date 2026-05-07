@@ -268,7 +268,7 @@ export const campsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
       }
 
-      if (existing.createdBy !== ctx.user.id && ctx.user.role !== 'ADMIN') {
+      if (existing.createdBy !== ctx.user.id && ctx.user.role !== 'ADMIN' && ctx.user.role !== 'STAFF') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Vous ne pouvez pas modifier ce camp' });
       }
 
