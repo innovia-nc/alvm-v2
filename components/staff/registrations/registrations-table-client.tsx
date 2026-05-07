@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
@@ -21,11 +22,27 @@ import { Label } from '@/components/ui/label';
 import { X } from 'lucide-react';
 import { RegistrationStatusDialog } from './registration-status-dialog';
 import { CancelRegistrationDialog } from './cancel-registration-dialog';
+import { toast } from 'sonner';
 
 type StatusFilter = 'all' | 'PENDING' | 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
 export function RegistrationsTableClient() {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const utils = trpc.useUtils();
+  
+  // MUTATION CRÉER FACTURE
+  const createInvoiceMutation = trpc.invoices.createFromRegistration.useMutation({
+    onSuccess: (invoice) => {
+      toast.success('Facture créée avec succès');
+      utils.registrations.list.invalidate();
+      router.push(`/dashboard/staff/invoices/${invoice.id}`);
+      router.refresh();
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Erreur lors de la création de la facture');
+    },
+  });
 
   // States pour les 2 dialogs
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -63,6 +80,12 @@ export function RegistrationsTableClient() {
         cell: ({ row }: any) => (
           <StaffRegistrationActions
             item={row.original}
+            onCreateInvoice={(item: StaffRegistrationType) => {
+              createInvoiceMutation.mutate({
+                registrationId: item.id,
+                status: 'SENT'
+              });
+            }}
             onConfirm={(item: StaffRegistrationType) =>
               setConfirmDialog({
                 open: true,
