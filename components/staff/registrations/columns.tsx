@@ -16,6 +16,7 @@ import {
   AlertCircle,
   MoreVertical,
   Eye,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -150,6 +151,23 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
       );
     },
   },
+    {
+    accessorKey: 'invoiceId',
+    header: 'Facture',
+    cell: ({ row }) => {
+      const invoiceId = row.original.invoiceId;
+      return invoiceId ? (
+        <Link href={`/dashboard/staff/invoices/${invoiceId}`}>
+          <Button variant="link" size="sm" className="h-auto p-0">
+            <FileText className="mr-1 h-3 w-3" />
+            Voir
+          </Button>
+        </Link>
+      ) : (
+        <span className="text-xs text-muted-foreground">Aucune</span>
+      );
+    },
+  },
   {
     accessorKey: 'createdAt',
     header: 'Date',
@@ -168,6 +186,7 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
       return (
         <StaffRegistrationActions
           item={row.original}
+          onCreateInvoice={() => {}}
           onConfirm={() => {}}
           onWaitlist={() => {}}
           onCancel={() => {}}
@@ -183,6 +202,7 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
 
 interface StaffRegistrationActionsProps {
   item: StaffRegistrationType;
+  onCreateInvoice?: (item: StaffRegistrationType) => void;
   onConfirm?: (item: StaffRegistrationType) => void;
   onWaitlist?: (item: StaffRegistrationType) => void;
   onCancel?: (item: StaffRegistrationType) => void;
@@ -190,6 +210,7 @@ interface StaffRegistrationActionsProps {
 
 export function StaffRegistrationActions({
   item,
+  onCreateInvoice,
   onConfirm,
   onWaitlist,
   onCancel,
@@ -199,6 +220,8 @@ export function StaffRegistrationActions({
   const isConfirmed = item.status === 'CONFIRMED';
   const isWaitlist = item.status === 'WAITLIST';
 
+  const canCreateInvoice = !item.invoiceId && isConfirmed;
+  
   // Le staff peut avoir des actions supplémentaires sur les waitlist
   const hasActions = isPending || isConfirmed || isWaitlist;
 
@@ -234,6 +257,7 @@ export function StaffRegistrationActions({
 
             {/* Actions pour CONFIRMÉE */}
             {isConfirmed && (
+              <>
               <DropdownMenuItem
                 onClick={() => onCancel?.(item)}
                 className="text-red-600 focus:text-red-600"
@@ -241,8 +265,14 @@ export function StaffRegistrationActions({
                 <XCircle className="mr-2 h-4 w-4" />
                 Annuler
               </DropdownMenuItem>
+              {canCreateInvoice && (
+              <DropdownMenuItem onClick={() => onCreateInvoice?.(item)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Créer facture
+              </DropdownMenuItem>
             )}
-
+            </>
+          )}
             {/* Actions pour LISTE D'ATTENTE */}
             {isWaitlist && (
               <>
