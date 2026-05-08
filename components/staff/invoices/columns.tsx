@@ -32,7 +32,7 @@ export type StaffInvoiceType = {
     paymentDate: Date;
     amount: number;
   }>;
-  parents: Array<{
+  parent?: {
     id: string;
     parentId: string;
     firstName: string;
@@ -41,15 +41,15 @@ export type StaffInvoiceType = {
     phone: string;
     isPrimary: boolean;
     relationship: 'mother' | 'father' | 'guardian' | 'step_mother' | 'step_father' | 'grandparent' | 'other' | null;
-  }>;
+  } | null;
 };
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-function getPrimaryParent(child: StaffInvoiceType) {
-  return child.parents.find(p => p.isPrimary) || child.parents[0];
+function getPrimaryParent(invoice: StaffInvoiceType) {
+  return invoice.parent;
 }
 
 // ============================================================================
@@ -61,8 +61,8 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
     accessorKey: 'parents',
     header: 'Parent',
     cell: ({ row }) => {
-      const child = row.original;
-      const primaryParent = getPrimaryParent(child);
+      const invoice = row.original;
+      const primaryParent = getPrimaryParent(invoice);
 
       return (
         <div>
