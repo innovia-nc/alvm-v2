@@ -32,13 +32,59 @@ export type StaffInvoiceType = {
     paymentDate: Date;
     amount: number;
   }>;
+  parents: Array<{
+    id: string;
+    parentId: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    isPrimary: boolean;
+    relationship: 'mother' | 'father' | 'guardian' | 'step_mother' | 'step_father' | 'grandparent' | 'other' | null;
+  }>;
 };
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function getPrimaryParent(child: StaffInvoiceType) {
+  return child.parents.find(p => p.isPrimary) || child.parents[0];
+}
 
 // ============================================================================
 // COLUMN DEFINITIONS
 // ============================================================================
 
 export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
+  {
+    accessorKey: 'parents',
+    header: 'Parent',
+    cell: ({ row }) => {
+      const child = row.original;
+      const primaryParent = getPrimaryParent(child);
+
+      return (
+        <div>
+          {primaryParent ? (
+            <>
+              <div className="font-medium text-sm">
+                {primaryParent.firstName} {primaryParent.lastName}
+              </div>
+              <div className="text-xs text-muted-foreground">{primaryParent.phone}</div>
+              {child.parents.length > 1 && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  +{child.parents.length - 1} autre{child.parents.length > 2 ? 's' : ''}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground text-sm">Aucun parent</span>
+          )}
+        </div>
+      );
+    },
+  },
   {
     accessorKey: 'invoiceNumber',
     header: 'N° Facture',
