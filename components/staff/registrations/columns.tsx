@@ -84,6 +84,24 @@ function getStatusBadge(status: string) {
   }
 }
 
+function getStatusBadgeInvoice(statusInvoices: string) {
+  switch (statusInvoices) {
+    case 'DRAFT':
+      return { variant: 'outline' as const, label: 'Devis', icon: FileText };
+    case 'SENT':
+      return { variant: 'secondary' as const, label: 'Émise', icon: Clock };
+    case 'PAID':
+      return { variant: 'default' as const, label: 'Payée', icon: CheckCircle };
+    case 'OVERDUE':
+      return { variant: 'destructive' as const, label: 'En retard', icon: AlertCircle };
+    case 'CANCELLED':
+      return { variant: 'outline' as const, label: 'Annulée', icon: XCircle };
+    case 'CREDITED':
+      return { variant: 'secondary' as const, label: 'Créditée', icon: FileText };
+    default:
+      return { variant: 'secondary' as const, label: statusInvoices, icon: AlertCircle };
+  }
+}
 // ============================================================================
 // COLUMN DEFINITIONS
 // ============================================================================
@@ -156,13 +174,23 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
     header: 'Facture',
     cell: ({ row }) => {
       const invoiceId = row.original.invoiceId;
+      const statusInvoices = row.original.status;
+      const statusInfo = getStatusBadgeInvoice(statusInvoices);
+      const StatusIcon = statusInfo.icon;
       return invoiceId ? (
-        <Link href={`/dashboard/staff/invoices/${invoiceId}`}>
-          <Button variant="link" size="sm" className="h-auto p-0">
-            <FileText className="mr-1 h-3 w-3" />
-            Voir
-          </Button>
-        </Link>
+        <div className="flex flex-col items-start gap-1">
+          <Badge variant={statusInfo.variant}>
+            <StatusIcon className="mr-1 h-3 w-3" />
+            {statusInfo.label}
+          </Badge>
+
+          <Link href={`/dashboard/staff/invoices/${invoiceId}`}>
+            <Button variant="link" size="sm" className="h-auto p-0">
+              <FileText className="mr-1 h-3 w-3" />
+              Voir
+            </Button>
+          </Link>
+        </div>
       ) : (
         <span className="text-xs text-muted-foreground">Aucune</span>
       );
