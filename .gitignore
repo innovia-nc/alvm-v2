@@ -3,6 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
+# package manager — projet en pnpm uniquement (cf. CLAUDE.md §3.1)
+package-lock.json
+yarn.lock
+
 # next.js
 .next/
 out/
@@ -40,3 +44,9 @@ Thumbs.db
 
 # test
 coverage/
+
+# binaires de documentation (héberger sur Drive/Notion, pas dans git)
+docs/**/*.docx
+docs/**/*.doc
+docs/**/*.xlsx
+docs/**/*.pdf

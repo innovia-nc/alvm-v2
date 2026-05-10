@@ -84,7 +84,7 @@ function makeRegistrationWithIncludes(overrides: Record<string, unknown> = {}) {
       email: 'marie@test.com',
       phone: '0601020304',
     },
-    invoiceLines: [],
+    invoiceLines: [] as Array<{ invoiceId: string; invoice: { status: string } }>,
   };
 }
 
@@ -291,7 +291,7 @@ describe('registrations.list', () => {
     it('should extract invoiceId from first invoice line', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
       const reg = makeRegistrationWithIncludes();
-      reg.invoiceLines = [{ invoiceId: INVOICE_ID }];
+      reg.invoiceLines = [{ invoiceId: INVOICE_ID, invoice: { status: 'SENT' } }];
       mockPrisma.registration.findMany.mockResolvedValue([reg]);
       mockPrisma.registration.count.mockResolvedValue(1);
 

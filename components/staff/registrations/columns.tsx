@@ -16,8 +16,11 @@ import {
   AlertCircle,
   MoreVertical,
   Eye,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
+
+type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
 // ============================================================================
 // TYPES
@@ -42,6 +45,7 @@ export type StaffRegistrationType = {
   };
   totalAmount: number;
   invoiceId: string | null;
+  invoiceStatus: InvoiceStatus | null;
 };
 
 // ============================================================================
@@ -80,6 +84,23 @@ function getStatusBadge(status: string) {
         icon: AlertCircle,
         className: '',
       };
+  }
+}
+
+function getInvoiceStatusBadge(status: InvoiceStatus) {
+  switch (status) {
+    case 'DRAFT':
+      return { variant: 'outline' as const, label: 'Brouillon', icon: FileText };
+    case 'SENT':
+      return { variant: 'secondary' as const, label: 'Émise', icon: Clock };
+    case 'PAID':
+      return { variant: 'default' as const, label: 'Payée', icon: CheckCircle };
+    case 'OVERDUE':
+      return { variant: 'destructive' as const, label: 'En retard', icon: AlertCircle };
+    case 'CANCELLED':
+      return { variant: 'outline' as const, label: 'Annulée', icon: XCircle };
+    case 'CREDITED':
+      return { variant: 'secondary' as const, label: 'Créditée', icon: FileText };
   }
 }
 
@@ -151,6 +172,34 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
     },
   },
   {
+    accessorKey: 'invoiceId',
+    header: 'Facture',
+    cell: ({ row }) => {
+      const { invoiceId, invoiceStatus } = row.original;
+
+      if (!invoiceId || !invoiceStatus) {
+        return <span className="text-xs text-muted-foreground">Aucune</span>;
+      }
+
+      const statusInfo = getInvoiceStatusBadge(invoiceStatus);
+      const StatusIcon = statusInfo.icon;
+
+      return (
+        <div className="flex flex-col items-start gap-1">
+          <Badge variant={statusInfo.variant}>
+            <StatusIcon className="mr-1 h-3 w-3" />
+            {statusInfo.label}
+          </Badge>
+          <Link href={`/dashboard/staff/invoices/${invoiceId}`}>
+            <Button variant="link" size="sm" className="h-auto p-0 text-xs">
+              Voir la facture
+            </Button>
+          </Link>
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: 'createdAt',
     header: 'Date',
     cell: ({ row }) => {
@@ -171,6 +220,7 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
           onConfirm={() => {}}
           onWaitlist={() => {}}
           onCancel={() => {}}
+          onCreateInvoice={() => {}}
         />
       );
     },
@@ -186,6 +236,7 @@ interface StaffRegistrationActionsProps {
   onConfirm?: (item: StaffRegistrationType) => void;
   onWaitlist?: (item: StaffRegistrationType) => void;
   onCancel?: (item: StaffRegistrationType) => void;
+  onCreateInvoice?: (item: StaffRegistrationType) => void;
 }
 
 export function StaffRegistrationActions({
@@ -193,11 +244,13 @@ export function StaffRegistrationActions({
   onConfirm,
   onWaitlist,
   onCancel,
+  onCreateInvoice,
 }: StaffRegistrationActionsProps) {
   // Logique des actions basée sur le statut
   const isPending = item.status === 'PENDING';
   const isConfirmed = item.status === 'CONFIRMED';
   const isWaitlist = item.status === 'WAITLIST';
+  const canCreateInvoice = isConfirmed && !item.invoiceId;
 
   // Le staff peut avoir des actions supplémentaires sur les waitlist
   const hasActions = isPending || isConfirmed || isWaitlist;
@@ -234,13 +287,21 @@ export function StaffRegistrationActions({
 
             {/* Actions pour CONFIRMÉE */}
             {isConfirmed && (
-              <DropdownMenuItem
-                onClick={() => onCancel?.(item)}
-                className="text-red-600 focus:text-red-600"
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                Annuler
-              </DropdownMenuItem>
+              <>
+                {canCreateInvoice && (
+                  <DropdownMenuItem onClick={() => onCreateInvoice?.(item)}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Créer facture
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => onCancel?.(item)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Annuler
+                </DropdownMenuItem>
+              </>
             )}
 
             {/* Actions pour LISTE D'ATTENTE */}
