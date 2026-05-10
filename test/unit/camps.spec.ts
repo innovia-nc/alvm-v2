@@ -557,13 +557,15 @@ describe('camps.update', () => {
       await expect(caller.camps.update(updateInput)).rejects.toThrow(TRPCError);
     });
 
-    it('should reject STAFF who is not the creator and not ADMIN', async () => {
+    it('should allow STAFF to update any camp regardless of creator', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
         createdBy: 'd1a00000-0000-4000-a000-000000000099',
       }));
+      mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
-      await expect(caller.camps.update(updateInput)).rejects.toThrow('Vous ne pouvez pas modifier ce camp');
+      const result = await caller.camps.update(updateInput);
+      expect(result.name).toBe('Camp Modifie');
     });
 
     it('should reject ANIMATOR who is not the creator and not ADMIN', async () => {
