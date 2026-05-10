@@ -54,6 +54,7 @@ function makeInvoiceRow(overrides: Record<string, any> = {}) {
       firstName: 'Jean',
       lastName: 'Dupont',
       email: 'jean@test.com',
+      phone: '0601020304',
       address: '1 rue de la Paix',
       city: 'Noumea',
       postalCode: '98800',

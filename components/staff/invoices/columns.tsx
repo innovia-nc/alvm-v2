@@ -27,6 +27,12 @@ export type StaffInvoiceType = {
   paidAmount: number;
   remainingAmount: number;
   pdfUrl?: string | null;
+  parent: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
   payments?: Array<{
     id: string;
     paymentDate: Date;
@@ -44,6 +50,23 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
     header: 'N° Facture',
     cell: ({ row }) => {
       return <div className="font-medium">{row.original.invoiceNumber}</div>;
+    },
+  },
+  {
+    accessorKey: 'parent',
+    header: 'Parent',
+    cell: ({ row }) => {
+      const { parent } = row.original;
+      return (
+        <div>
+          <div className="font-medium text-sm">
+            {parent.firstName} {parent.lastName}
+          </div>
+          {parent.phone && (
+            <div className="text-xs text-muted-foreground">{parent.phone}</div>
+          )}
+        </div>
+      );
     },
   },
   {
