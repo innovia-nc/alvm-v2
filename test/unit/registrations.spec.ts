@@ -300,6 +300,28 @@ describe('registrations.list', () => {
       expect(result.registrations[0].invoiceId).toBe(INVOICE_ID);
     });
 
+    it('should expose invoiceStatus from the linked invoice', async () => {
+      const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      const reg = makeRegistrationWithIncludes();
+      reg.invoiceLines = [{ invoiceId: INVOICE_ID, invoice: { status: 'PAID' } }];
+      mockPrisma.registration.findMany.mockResolvedValue([reg]);
+      mockPrisma.registration.count.mockResolvedValue(1);
+
+      const result = await caller.registrations.list(defaultInput);
+
+      expect(result.registrations[0].invoiceStatus).toBe('PAID');
+    });
+
+    it('should return invoiceStatus null when no invoice is linked', async () => {
+      const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      mockPrisma.registration.findMany.mockResolvedValue([makeRegistrationWithIncludes()]);
+      mockPrisma.registration.count.mockResolvedValue(1);
+
+      const result = await caller.registrations.list(defaultInput);
+
+      expect(result.registrations[0].invoiceStatus).toBeNull();
+    });
+
     it('should compute daysCount = 0 when camp dates are null', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
       const reg = makeRegistrationWithIncludes();
