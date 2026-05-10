@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, AlertTriangle, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // ============================================================================
@@ -202,6 +202,10 @@ export function StaffChildActions({ item, onDelete }: StaffChildActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/children/${item.id}`)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Voir détails
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/children/${item.id}/edit`)}>
             <Pencil className="mr-2 h-4 w-4" />
             Modifier
