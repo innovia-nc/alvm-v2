@@ -27,6 +27,19 @@ export type StaffInvoiceType = {
   paidAmount: number;
   remainingAmount: number;
   pdfUrl?: string | null;
+  parent: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    id?: string;
+    parentId?: string;
+    phone?: string;
+    isPrimary?: boolean;
+    relationship?: string | null;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+  };
   payments?: Array<{
     id: string;
     paymentDate: Date;
