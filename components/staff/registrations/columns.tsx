@@ -43,6 +43,7 @@ export type StaffRegistrationType = {
   };
   totalAmount: number;
   invoiceId: string | null;
+  invoiceStatus?: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED' | null;
 };
 
 // ============================================================================
@@ -84,8 +85,8 @@ function getStatusBadge(status: string) {
   }
 }
 
-function getStatusBadgeInvoice(statusInvoices: string) {
-  switch (statusInvoices) {
+function getStatusBadgeInvoice(status: string) {
+  switch (status) {
     case 'DRAFT':
       return { variant: 'outline' as const, label: 'Devis', icon: FileText };
     case 'SENT':
@@ -99,7 +100,7 @@ function getStatusBadgeInvoice(statusInvoices: string) {
     case 'CREDITED':
       return { variant: 'secondary' as const, label: 'Créditée', icon: FileText };
     default:
-      return { variant: 'secondary' as const, label: statusInvoices, icon: AlertCircle };
+      return { variant: 'secondary' as const, label: status, icon: AlertCircle };
   }
 }
 // ============================================================================
@@ -173,10 +174,13 @@ export const staffRegistrationColumns: ColumnDef<StaffRegistrationType>[] = [
     accessorKey: 'invoiceId',
     header: 'Facture',
     cell: ({ row }) => {
+      const item = row.original;
       const invoiceId = row.original.invoiceId;
-      const statusInvoices = row.original.status;
-      const statusInfo = getStatusBadgeInvoice(statusInvoices);
+
+      const statusInv = item.invoiceStatus || 'DRAFT';
+      const statusInfo = getStatusBadgeInvoice(statusInv);
       const StatusIcon = statusInfo.icon;
+
       return invoiceId ? (
         <div className="flex flex-col items-start gap-1">
           <Badge variant={statusInfo.variant}>
