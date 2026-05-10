@@ -510,7 +510,7 @@ export const invoicesRouter = router({
       const invoice = await ctx.prisma.$transaction(async (tx) => {
         const updated = await tx.invoice.update({
           where: { id: input.id },
-          data: { status: 'SENT' },
+          data: { status: 'SENT', pdfUrl: null },
         });
 
         // Fetch invoice with lines and camp type accounting code

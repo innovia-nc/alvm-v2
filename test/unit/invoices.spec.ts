@@ -892,7 +892,7 @@ describe('invoices router', () => {
         expect(result.status).toBe('SENT');
         expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
           where: { id: INVOICE_ID },
-          data: { status: 'SENT' },
+          data: { status: 'SENT', pdfUrl: null },
         });
       });
     });
