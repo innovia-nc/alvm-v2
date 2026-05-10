@@ -58,7 +58,7 @@ function getPrimaryParent(invoice: StaffInvoiceType) {
 
 export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
   {
-    accessorKey: 'parents',
+    accessorKey: 'parent',
     header: 'Parent',
     cell: ({ row }) => {
       const invoice = row.original;
@@ -72,11 +72,6 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
                 {primaryParent.firstName} {primaryParent.lastName}
               </div>
               <div className="text-xs text-muted-foreground">{primaryParent.phone}</div>
-              {child.parents.length > 1 && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  +{child.parents.length - 1} autre{child.parents.length > 2 ? 's' : ''}
-                </div>
-              )}
             </>
           ) : (
             <span className="text-muted-foreground text-sm">Aucun parent</span>
