@@ -42,7 +42,7 @@ export async function GET(req: NextRequest,
     return new NextResponse(stream as any, {
         headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="fiche-${child.lastName}.pdf"`,
+        'Content-Disposition': `attachment; filename="fiche-${child.firstName}${child.lastName}.pdf"`,
     },
 });
 }
