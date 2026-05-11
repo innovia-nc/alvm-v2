@@ -4,8 +4,9 @@ import React from 'react';
 import { prisma } from '@/server/db';
 import { ChildProfilePDF } from '@/lib/pdf/child-profile-pdf';
 
-export async function GET(req: NextRequest, { params }: { params: { childId: string } },) {
-    const { childId } = await Promise.resolve(params);
+export async function GET(req: NextRequest,
+    { params }: { params: Promise<{ childId: string }> },) {
+    const { childId } = await params;
 
     const child = await prisma.child.findUnique({
     where: { id: childId },
