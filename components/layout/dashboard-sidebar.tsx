@@ -105,7 +105,7 @@ const navigationConfig: Record<string, NavSection[]> = {
       ],
     },
     {
-      title: 'Gestion des camps',
+      title: 'Gestion des ACM',
       items: [
         {
           title: 'Camps',
@@ -177,7 +177,7 @@ const navigationConfig: Record<string, NavSection[]> = {
       ],
     },
     {
-      title: 'Gestion des camps',
+      title: 'Gestion des ACM',
       items: [
         {
           title: 'Camps',
