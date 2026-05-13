@@ -176,7 +176,9 @@ model Parent {
   userId     String    @id @map("user_id") @db.Uuid
   firstName  String    @map("first_name")
   lastName   String    @map("last_name")
-  phone      String
+  mobilePhone String
+  homePhone  String?
+  workPhone  String?
   email      String
   address    String
   city       String

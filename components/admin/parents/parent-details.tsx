@@ -31,8 +31,8 @@ interface Parent {
   lastName: string;
   email: string;
   mobilePhone: string;
-  homePhone: string;
-  workPhone: string;
+  homePhone?: string | null;
+  workPhone?: string | null;
   address?: string | null;
   city?: string | null;
   postalCode?: string | null;
