@@ -45,8 +45,15 @@ interface InvoiceData {
   paidAmount: number;
   footerMention?: string;
   logoUrl?: string;
+  payments?: PaymentLine[];
 }
 
+interface PaymentLine {
+  id: string;
+  paymentDate: Date | string;
+  paymentMethod: string;
+  amount: number;
+}
 // ============================================================================
 // STYLES
 // ============================================================================
@@ -134,6 +141,27 @@ const styles = StyleSheet.create({
   col4: {
     width: '15%',
     textAlign: 'right',
+  },
+  paymentSection: {
+    marginTop: 25,
+  },
+  paymentTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+    textTransform: 'uppercase',
+  },
+  colDate: {
+    width: '35%',
+  },
+  colMethod: {
+    width: '35%',
+  },
+  colAmount: {
+    width: '30%',
+    textAlign: 'right',
+    fontWeight: 'bold',
   },
   totalSection: {
     marginTop: 20,
@@ -288,6 +316,29 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
             <Text>{formatCurrency(remainingAmount)}</Text>
           </View>
         </View>
+
+        {/* Section Paiements */}
+        {data.payments && data.payments.length > 0 && (
+                  <View style={styles.paymentSection}>
+                    <Text style={styles.paymentTitle}>Détail des paiements reçus</Text>
+                    
+                    {/* Header du sous-tableau */}
+                    <View style={styles.tableHeader}>
+                      <Text style={styles.colDate}>Date</Text>
+                      <Text style={styles.colMethod}>Méthode</Text>
+                      <Text style={styles.colAmount}>Montant</Text>
+                    </View>
+
+                    {/* Lignes de paiements */}
+                    {data.payments.map((p, index) => (
+                      <View key={p.id || index} style={styles.tableRow}>
+                        <Text style={styles.colDate}>{formatDate(new Date(p.paymentDate))}</Text>
+                        <Text style={styles.colMethod}>{p.paymentMethod}</Text>
+                        <Text style={styles.colAmount}>{formatCurrency(p.amount)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
         {/* Footer avec mention personnalisée */}
         {data.footerMention && (
