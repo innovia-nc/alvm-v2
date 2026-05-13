@@ -365,12 +365,12 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
               </View>
 
               <Text style={styles.parentDetail}>
-                📞 Téléphone : {parent.phone}
+                Téléphone : {parent.phone}
               </Text>
 
               {parent.email && (
                 <Text style={styles.parentDetail}>
-                  ✉ Email : {parent.email}
+                Email : {parent.email}
                 </Text>
               )}
             </View>
@@ -380,7 +380,7 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
         {/* Informations médicales */}
         <View style={styles.section}>
           <View style={styles.medicalSection}>
-            <Text style={styles.medicalTitle}>⚕ INFORMATIONS MÉDICALES</Text>
+            <Text style={styles.medicalTitle}>INFORMATIONS MÉDICALES</Text>
 
             {/* Allergies */}
             {child.medicalInfo.allergies && child.medicalInfo.allergies.length > 0 ? (
