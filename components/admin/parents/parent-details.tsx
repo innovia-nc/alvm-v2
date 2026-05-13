@@ -30,7 +30,9 @@ interface Parent {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  mobilePhone: string;
+  homePhone: string;
+  workPhone: string;
   address?: string | null;
   city?: string | null;
   postalCode?: string | null;
@@ -123,14 +125,32 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
               </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground mt-1" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Téléphone</p>
-                <p className="text-base">{parent.phone}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Téléphone Mobile</p>
+                  <p className="text-base">{parent.mobilePhone}</p>
+                </div>
               </div>
-            </div>
 
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Téléphone Domicile</p>
+                  <p className="text-base">{parent.homePhone}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Téléphone Professionnel</p>
+                  <p className="text-base">{parent.workPhone}</p>
+                </div>
+              </div>
+            
+            </div>
             {parent.employeur && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Employeur</p>
