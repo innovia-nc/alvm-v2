@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Eye, Pencil, User, Mail, Phone } from 'lucide-react';
+import { MoreHorizontal, Eye, Pencil, User, Mail, Phone, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // ============================================================================
@@ -108,9 +108,10 @@ export const staffParentColumns: ColumnDef<StaffParentType>[] = [
 
 interface StaffParentActionsProps {
   item: StaffParentType;
+  onDelete?: (item: StaffParentType) => void;
 }
 
-function StaffParentActions({ item }: StaffParentActionsProps) {
+export function StaffParentActions({ item, onDelete }: StaffParentActionsProps) {
   const router = useRouter();
 
   return (
@@ -130,6 +131,13 @@ function StaffParentActions({ item }: StaffParentActionsProps) {
           <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/parents/${item.id}/edit`)}>
             <Pencil className="mr-2 h-4 w-4" />
             Modifier
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onDelete?.(item)}
+            className="text-red-600"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
