@@ -36,6 +36,8 @@ interface Parent {
   lastName: string;
   email: string;
   phone: string;
+  homePhone?: string | null;
+  workPhone?: string | null;
   address?: string | null;
   city?: string | null;
   postalCode?: string | null;
@@ -56,6 +58,8 @@ const parentEditSchema = z.object({
   lastName: z.string().min(1, 'Nom requis'),
   email: z.string().email('Email invalide'),
   phone: z.string().min(1, 'Téléphone requis'),
+  homePhone: z.string().optional(),
+  workPhone: z.string().optional(),
   address: z.string().default(''),
   city: z.string().default(''),
   postalCode: z.string().default(''),
@@ -83,6 +87,8 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
       lastName: parent.lastName,
       email: parent.email,
       phone: parent.phone,
+      homePhone: parent.homePhone || '',
+      workPhone: parent.workPhone || '',
       address: parent.address || '',
       city: parent.city || '',
       postalCode: parent.postalCode || '',
@@ -103,6 +109,8 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
         lastName: data.lastName,
         email: data.email,
         phone: data.phone,
+        homePhone: data.homePhone,
+        workPhone: data.workPhone,
         address: data.address,
         city: data.city,
         postalCode: data.postalCode,
@@ -180,9 +188,37 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Téléphone</FormLabel>
+                <FormLabel>Téléphone Mobile</FormLabel>
                 <FormControl>
                   <Input type="tel" placeholder="+687 12 34 56" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="homePhone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Téléphone Domicile</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="Optionnel" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="workPhone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Téléphone Professionnel</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="Optionnel" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
