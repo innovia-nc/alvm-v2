@@ -30,7 +30,7 @@ interface Parent {
   firstName: string;
   lastName: string;
   email: string;
-  mobilePhone: string;
+  phone: string;
   homePhone?: string | null;
   workPhone?: string | null;
   address?: string | null;
@@ -130,7 +130,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
                 <Phone className="h-4 w-4 text-muted-foreground mt-1" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Téléphone Mobile</p>
-                  <p className="text-base">{parent.mobilePhone}</p>
+                  <p className="text-base">{parent.phone}</p>
                 </div>
               </div>
 
