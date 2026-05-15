@@ -10,6 +10,8 @@ const parentSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   phone: z.string(),
+  homePhone: z.string().nullable(),
+  workPhone: z.string().nullable(),
   email: z.string().email(),
   address: z.string().nullable(),
   city: z.string().nullable(),
@@ -36,6 +38,8 @@ function mapParent(p: {
   firstName: string;
   lastName: string;
   phone: string;
+  homePhone: string | null;
+  workPhone: string | null;
   email: string;
   address: string;
   city: string;
@@ -51,6 +55,8 @@ function mapParent(p: {
     firstName: p.firstName,
     lastName: p.lastName,
     phone: p.phone,
+    homePhone: p.homePhone ?? null,
+    workPhone: p.workPhone ?? null,
     email: p.email,
     address: p.address || null,
     city: p.city || null,
@@ -170,6 +176,8 @@ export const parentsRouter = router({
       firstName: z.string().min(2).max(50).optional(),
       lastName: z.string().min(2).max(50).optional(),
       phone: z.string().min(6).optional(),
+      homePhone: z.string().optional().nullable(),
+      workPhone: z.string().optional().nullable(),
       email: z.string().email().optional(),
       address: z.string().optional(),
       city: z.string().optional(),
@@ -187,6 +195,8 @@ export const parentsRouter = router({
       if (input.firstName !== undefined) data.firstName = input.firstName;
       if (input.lastName !== undefined) data.lastName = input.lastName;
       if (input.phone !== undefined) data.phone = input.phone;
+      if (input.homePhone !== undefined) data.homePhone = input.homePhone;
+      if (input.workPhone !== undefined) data.workPhone = input.workPhone;
       if (input.email !== undefined) data.email = input.email;
       if (input.address !== undefined) data.address = input.address;
       if (input.city !== undefined) data.city = input.city;
@@ -222,6 +232,8 @@ export const parentsRouter = router({
       lastName: z.string().min(2).max(50),
       email: z.string().email(),
       phone: z.string().min(6),
+      homePhone: z.string().optional().or(z.literal('')),
+      workPhone: z.string().optional().or(z.literal('')),
       address: z.string().optional().or(z.literal('')),
       city: z.string().optional().or(z.literal('')),
       postalCode: z.string().optional().or(z.literal('')),
@@ -275,6 +287,8 @@ export const parentsRouter = router({
             lastName: input.lastName,
             email: input.email,
             phone: input.phone,
+            homePhone: input.homePhone || null,
+            workPhone: input.workPhone || null,
             address: input.address || '',
             city: input.city || '',
             postalCode: input.postalCode || '',
@@ -293,6 +307,8 @@ export const parentsRouter = router({
       firstName: z.string().min(2).max(50).optional(),
       lastName: z.string().min(2).max(50).optional(),
       phone: z.string().min(6).optional(),
+      homePhone: z.string().optional().nullable(),
+      workPhone: z.string().optional().nullable(),
       email: z.string().email().optional(),
       address: z.string().optional(),
       city: z.string().optional(),
@@ -315,6 +331,8 @@ export const parentsRouter = router({
       if (updates.firstName !== undefined) data.firstName = updates.firstName;
       if (updates.lastName !== undefined) data.lastName = updates.lastName;
       if (updates.phone !== undefined) data.phone = updates.phone;
+      if (input.homePhone !== undefined) data.homePhone = input.homePhone;
+      if (input.workPhone !== undefined) data.workPhone = input.workPhone;
       if (updates.address !== undefined) data.address = updates.address;
       if (updates.city !== undefined) data.city = updates.city;
       if (updates.postalCode !== undefined) data.postalCode = updates.postalCode;
