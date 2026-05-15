@@ -111,7 +111,7 @@ export function StaffActions({ member, onResetPassword, onDelete }: StaffActions
             onClick={() => router.push(`/dashboard/staff/users/staff/${member.id}/edit`)}
           >
             <Pencil className="mr-2 h-4 w-4" />
-            Modifier
+            Modifiiieeer
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/users/staff/${member.id}`)}>
             <User className="mr-2 h-4 w-4" />
