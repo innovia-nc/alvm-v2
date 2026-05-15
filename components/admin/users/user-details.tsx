@@ -3,6 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StaffDocumentsSection } from '@/components/shared/staff-documents-section';
+
 import {
     Pencil,
     Trash2,
@@ -176,6 +178,12 @@ return (
         </div>
     </CardContent>
     </Card>
+
+    {/* Documents */}
+    <StaffDocumentsSection
+        staffId={user.id}
+        userRole={basePath === '/dashboard/parent' ? 'PARENT' : basePath === '/dashboard/staff' ? 'STAFF' : 'ADMIN'}
+    />
 
       {/* Dialogue de confirmation de suppression */}
     <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
