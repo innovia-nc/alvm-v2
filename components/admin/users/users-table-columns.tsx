@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Key } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Key, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // ============================================================================
@@ -81,6 +81,11 @@ function UserActions({ userId, userRole, onResetPassword, onDelete }: UserAction
           <Pencil className="mr-2 h-4 w-4" />
           Modifier
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/users/staff/${userId}`)}>
+          <User className="mr-2 h-4 w-4" />
+          Voir détails
+        </DropdownMenuItem>
+
         <DropdownMenuItem onClick={handleResetPassword}>
           <Key className="mr-2 h-4 w-4" />
           Réinitialiser mot de passe
