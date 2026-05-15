@@ -9,6 +9,7 @@ import { router, publicProcedure, createCallerFactory } from './init';
 import { settingsRouter } from '@/server/routers/settings';
 import { campTypesRouter } from '@/server/routers/camp-types';
 import { paymentMethodsRouter } from '@/server/routers/payment-methods';
+import { staffDocumentsRouter } from '@/server/routers/staff-documents';
 import { staffRouter } from '@/server/routers/staff';
 import { authRouter } from '@/server/routers/auth';
 import { usersRouter } from '@/server/routers/users';
@@ -35,6 +36,7 @@ export const appRouter = router({
   campTypes: campTypesRouter,
   paymentMethods: paymentMethodsRouter,
   staff: staffRouter,
+  staffDocuments: staffDocumentsRouter,
 
   // --- Lot 2 : auth, users, parents, childDocuments ---
   auth: authRouter,

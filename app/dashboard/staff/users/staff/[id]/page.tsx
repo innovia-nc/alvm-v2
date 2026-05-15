@@ -25,7 +25,6 @@ export default async function StaffUserDetailPage({
         <div className="space-y-8">
         <PageHeader
             title="Détails du personnel ALVM"
-            description={`${user.name ?? ''} ${user.email}`.trim()}
         />
 
         <UsersDetails user={user} />
