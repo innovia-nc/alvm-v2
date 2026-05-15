@@ -165,18 +165,6 @@ return (
             </div>
         </div>
 
-        {/* Email Vérifié */}
-        <div>
-            <p className="text-sm font-medium text-muted-foreground">Email vérifié</p>
-            <p className="text-base">
-            {user.emailVerified ? (
-                <span className="text-green-600">Oui</span>
-            ) : (
-                <span className="text-orange-600">Non</span>
-            )}
-            </p>
-        </div>
-
         {/* Date de création */}
         <div>
             <p className="text-sm font-medium text-muted-foreground">Compte créé le</p>
