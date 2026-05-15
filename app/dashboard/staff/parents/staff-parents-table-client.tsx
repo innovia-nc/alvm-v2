@@ -1,10 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
-import { staffParentColumns } from './columns';
+import { staffParentColumns, type StaffParentType, StaffParentActions } from './columns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -14,8 +27,11 @@ import {
 } from '@/components/ui/select';
 
 export function StaffParentsTableClient() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('active');
+  const [deletingParent, setDeletingParent] = useState<StaffParentType | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
@@ -28,6 +44,44 @@ export function StaffParentsTableClient() {
     status,
   });
 
+    const deleteMutation = trpc.parents.delete.useMutation({
+    onSuccess: () => {
+      toast.success('Parent supprimé avec succès');
+      setDeletingParent(null);
+      router.refresh();
+    },
+    onError: (err) => {
+      setError(err.message || 'Impossible de supprimer ce parent');
+      setDeletingParent(null);
+    },
+  });
+
+    async function handleDelete() {
+    if (!deletingParent) return;
+
+    try {
+      setError(null);
+      await deleteMutation.mutateAsync({ id: deletingParent.id });
+    } catch (err: any) {
+      // Erreur déjà gérée par onError
+    }
+  }
+
+    // Enrichir les colonnes avec le callback de suppression
+    const columnsWithActions = staffParentColumns.map((col) => {
+      if (col.id === 'actions') {
+        return {
+          ...col,
+          cell: ({ row }: any) => (
+            <StaffParentActions
+              item={row.original}
+              onDelete={setDeletingParent}
+            />
+          ),
+        };
+      }
+      return col;
+    });
   return (
     <div className="space-y-4">
       {/* Filtre de statut */}
@@ -52,7 +106,7 @@ export function StaffParentsTableClient() {
       </div>
 
       <DataTableServer
-        columns={staffParentColumns}
+        columns={columnsWithActions}
         data={data?.parents || []}
         totalCount={data?.total || 0}
         isLoading={isLoading}
@@ -61,6 +115,45 @@ export function StaffParentsTableClient() {
         searchPlaceholder="Rechercher par nom, email ou téléphone..."
         onSearchChange={(value) => setSearch(value)}
       />
+
+      {/* Dialog de confirmation de suppression */}
+      <AlertDialog
+        open={!!deletingParent}
+        onOpenChange={(open) => !open && setDeletingParent(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer le parent{' '}
+              <strong>
+                {deletingParent?.firstName} {deletingParent?.lastName}
+              </strong>{' '}
+              ?
+              <br />
+              <br />
+              Cette action est irréversible. Tous les enfants, inscriptions et
+              factures associés seront également supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
