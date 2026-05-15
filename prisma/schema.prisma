@@ -109,7 +109,8 @@ model User {
   staffMember   StaffMember?
 
   createdCamps               Camp[]              @relation("CampCreator")
-  uploadedDocuments          ChildDocument[]     @relation("DocumentUploader")
+  uploadedChildDocuments          ChildDocument[]     @relation("DocumentUploader")
+  uploadedStaffDocuments          StaffDocument[]     @relation("DocumentUploader")
   updatedSettings            AppSetting[]        @relation("SettingUpdater")
   recordedAttendances        Attendance[]        @relation("AttendanceRecorder")
   recordedPayments           Payment[]           @relation("PaymentRecorder")
@@ -209,8 +210,29 @@ model StaffMember {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents StaffDocument[]
 
   @@map("staff_members")
+}
+
+model StaffDocument {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staffId          String    @map("staff_id") @db.Uuid
+  filename         String
+  originalFilename String    @map("original_filename")
+  fileUrl          String    @map("file_url")
+  mimeType         String    @map("mime_type")
+  fileSize         Int       @map("file_size")
+  description      String?
+  uploadedBy       String    @map("uploaded_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz()
+
+  staff    StaffMember @relation(fields: [staffId], references: [userId], onDelete: Cascade)
+  uploader User  @relation("DocumentUploader", fields: [uploadedBy], references: [id])
+
+  @@map("staff_documents")
 }
 
 // ============================================================================
