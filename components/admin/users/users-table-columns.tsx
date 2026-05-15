@@ -81,11 +81,6 @@ function UserActions({ userId, userRole, onResetPassword, onDelete }: UserAction
           <Pencil className="mr-2 h-4 w-4" />
           Modifier
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/users/staff/${userId}`)}>
-          <User className="mr-2 h-4 w-4" />
-          Voir détails
-        </DropdownMenuItem>
-
         <DropdownMenuItem onClick={handleResetPassword}>
           <Key className="mr-2 h-4 w-4" />
           Réinitialiser mot de passe
