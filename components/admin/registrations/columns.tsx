@@ -54,6 +54,8 @@ export type AdminRegistrationType = {
   };
   totalAmount: number;
   invoiceId: string | null;
+  invoiceNumber: string | null;
+  invoiceStatus: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED' | null;
 };
 
 // ============================================================================
@@ -69,6 +71,26 @@ function calculateAge(birthDate: Date): number {
     age--;
   }
   return age;
+}
+
+function getInvoiceStatusBadge(status: string | null) {
+  if (!status) return null;
+  switch (status) {
+    case 'DRAFT':
+      return { label: 'Devis', className: 'bg-gray-100 text-gray-800 border-gray-200' };
+    case 'SENT':
+      return { label: 'Émise', className: 'bg-blue-100 text-blue-800 border-blue-200' };
+    case 'PAID':
+      return { label: 'Payée', className: 'bg-green-100 text-green-800 border-green-200' };
+    case 'OVERDUE':
+      return { label: 'En retard', className: 'bg-red-100 text-red-800 border-red-200' };
+    case 'CANCELLED':
+      return { label: 'Annulée', className: 'bg-red-100 text-red-800 border-red-200' };
+    case 'CREDITED':
+      return { label: 'Créditée', className: 'bg-purple-100 text-purple-800 border-purple-200' };
+    default:
+      return { label: status, className: '' };
+  }
 }
 
 function getStatusBadge(status: string) {
@@ -186,16 +208,29 @@ export const adminRegistrationColumns: ColumnDef<AdminRegistrationType>[] = [
     accessorKey: 'invoiceId',
     header: 'Facture',
     cell: ({ row }) => {
-      const invoiceId = row.original.invoiceId;
-      return invoiceId ? (
-        <Link href={`/dashboard/admin/invoices/${invoiceId}`}>
-          <Button variant="link" size="sm" className="h-auto p-0">
-            <FileText className="mr-1 h-3 w-3" />
-            Voir
-          </Button>
-        </Link>
-      ) : (
-        <span className="text-xs text-muted-foreground">Aucune</span>
+      const { invoiceId, invoiceNumber, invoiceStatus } = row.original;
+      if (!invoiceId) {
+        return (
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Non facturée
+          </Badge>
+        );
+      }
+      const statusInfo = getInvoiceStatusBadge(invoiceStatus);
+      return (
+        <div className="flex flex-col gap-1">
+          <Link href={`/dashboard/admin/invoices/${invoiceId}`}>
+            <Button variant="link" size="sm" className="h-auto p-0 text-xs">
+              <FileText className="mr-1 h-3 w-3" />
+              {invoiceNumber ?? 'Voir'}
+            </Button>
+          </Link>
+          {statusInfo && (
+            <Badge variant="outline" className={`${statusInfo.className} text-xs w-fit`}>
+              {statusInfo.label}
+            </Badge>
+          )}
+        </div>
       );
     },
   },

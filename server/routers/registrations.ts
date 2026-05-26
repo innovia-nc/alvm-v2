@@ -60,6 +60,7 @@ const registrationWithDetailsSchema = registrationSchema.extend({
   }),
   totalAmount: z.number(),
   invoiceId: z.string().uuid().nullable(),
+  invoiceNumber: z.string().nullable(),
   invoiceStatus: z.enum(['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED', 'CREDITED']).nullable(),
 });
 
@@ -96,7 +97,7 @@ const registrationInclude = {
     where: { deletedAt: null, invoice: { deletedAt: null } },
     select: {
       invoiceId: true,
-      invoice: { select: { status: true } },
+      invoice: { select: { status: true, invoiceNumber: true } },
     },
     take: 1,
   },
@@ -140,6 +141,7 @@ function mapRegistrationWithDetails(r: any) {
     },
     totalAmount: daysCount * pricePerDay,
     invoiceId: r.invoiceLines?.[0]?.invoiceId ?? null,
+    invoiceNumber: r.invoiceLines?.[0]?.invoice?.invoiceNumber ?? null,
     invoiceStatus: r.invoiceLines?.[0]?.invoice?.status ?? null,
   };
 }

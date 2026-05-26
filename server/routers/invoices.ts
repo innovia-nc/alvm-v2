@@ -182,7 +182,7 @@ export const invoicesRouter = router({
       parentId: z.string().uuid().optional(),
       status: invoiceStatusEnum.optional(),
       search: z.string().optional(),
-      sortBy: z.enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount']).default('issueDate'),
+      sortBy: z.enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent']).default('issueDate'),
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }))
     .output(z.object({
@@ -215,11 +215,19 @@ export const invoicesRouter = router({
         ];
       }
 
+      const orderBy: Prisma.InvoiceOrderByWithRelationInput | Prisma.InvoiceOrderByWithRelationInput[] =
+        sortBy === 'parent'
+          ? [
+              { parent: { lastName: sortOrder } },
+              { parent: { firstName: sortOrder } },
+            ]
+          : { [sortBy]: sortOrder };
+
       const [invoices, total] = await Promise.all([
         ctx.prisma.invoice.findMany({
           where,
           include: invoiceInclude,
-          orderBy: { [sortBy]: sortOrder },
+          orderBy,
           take: limit,
           skip: offset,
         }),

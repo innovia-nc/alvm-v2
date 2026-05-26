@@ -40,13 +40,6 @@ export type AdminInvoiceType = {
 
 export const adminInvoiceColumns: ColumnDef<AdminInvoiceType>[] = [
   {
-    accessorKey: 'invoiceNumber',
-    header: 'Numéro',
-    cell: ({ row }) => {
-      return <div className="font-medium">{row.original.invoiceNumber}</div>;
-    },
-  },
-  {
     accessorKey: 'parent',
     header: 'Parent',
     cell: ({ row }) => {
@@ -54,11 +47,18 @@ export const adminInvoiceColumns: ColumnDef<AdminInvoiceType>[] = [
       return (
         <div>
           <div className="font-medium">
-            {parent.firstName} {parent.lastName}
+            {parent.lastName.toUpperCase()} {parent.firstName}
           </div>
           <div className="text-xs text-muted-foreground">{parent.email}</div>
         </div>
       );
+    },
+  },
+  {
+    accessorKey: 'invoiceNumber',
+    header: 'N° Facture',
+    cell: ({ row }) => {
+      return <div className="font-medium">{row.original.invoiceNumber}</div>;
     },
   },
   {

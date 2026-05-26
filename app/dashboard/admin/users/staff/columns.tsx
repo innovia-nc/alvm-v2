@@ -125,7 +125,7 @@ export function StaffActions({ member, onResetPassword, onDelete }: StaffActions
             <Pencil className="mr-2 h-4 w-4" />
             Modifier
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push(`/dashboard/staff/users/staff/${member.id}`)}>
+          <DropdownMenuItem onClick={() => router.push(`/dashboard/admin/users/staff/${member.id}`)}>
             <User className="mr-2 h-4 w-4" />
             Voir détails
           </DropdownMenuItem>

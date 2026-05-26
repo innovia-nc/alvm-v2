@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Eye, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // ============================================================================
@@ -212,6 +212,10 @@ export function AdminChildActions({ item, onDelete }: AdminChildActionsProps) {
           <DropdownMenuItem onClick={() => router.push(`/dashboard/admin/children/${item.id}`)}>
             <Eye className="mr-2 h-4 w-4" />
             Voir détails
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => window.open(`/api/generate/child-profile/${item.id}`, '_blank')}>
+            <FileText className="mr-2 h-4 w-4" />
+            Voir / imprimer la fiche
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push(`/dashboard/admin/children/${item.id}/edit`)}>
             <Pencil className="mr-2 h-4 w-4" />
