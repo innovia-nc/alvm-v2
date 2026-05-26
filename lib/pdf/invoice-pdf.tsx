@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
+import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -28,7 +29,7 @@ interface InvoiceData {
   invoiceNumber: string;
   issueDate: Date;
   dueDate: Date;
-  status?: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED'; // Ajout du statut
+  status?: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
   parent: {
     firstName: string;
     lastName: string;
@@ -43,6 +44,7 @@ interface InvoiceData {
   taxRate: number;
   totalAmount: number;
   paidAmount: number;
+  org: OrgInfo;
   footerMention?: string;
   logoUrl?: string;
 }
@@ -200,9 +202,19 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.title}>{documentType}</Text>
-            <Text style={styles.companyInfo}>Association de Loisirs et Vacances Multiples</Text>
-            <Text style={styles.companyInfo}>Nouméa, Nouvelle-Calédonie</Text>
-            <Text style={styles.companyInfo}>Email: contact@mikado.nc</Text>
+            <Text style={styles.companyInfo}>{data.org.name}</Text>
+            {data.org.address && (
+              <Text style={styles.companyInfo}>{data.org.address}</Text>
+            )}
+            {(data.org.postalCode || data.org.city) && (
+              <Text style={styles.companyInfo}>
+                {[data.org.postalCode, data.org.city].filter(Boolean).join(' ')}
+                {data.org.country ? `, ${data.org.country}` : ''}
+              </Text>
+            )}
+            {data.org.email && (
+              <Text style={styles.companyInfo}>Email: {data.org.email}</Text>
+            )}
           </View>
           {data.logoUrl && (
             <View style={styles.headerRight}>
@@ -289,12 +301,12 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
           </View>
         </View>
 
-        {/* Footer avec mention personnalisée */}
-        {data.footerMention && (
-          <View style={styles.footer}>
-            <Text>{data.footerMention}</Text>
-          </View>
-        )}
+        {/* Footer partagé */}
+        <PDFFooter
+          org={data.org}
+          mention={data.footerMention}
+          generatedAt={new Date()}
+        />
       </Page>
     </Document>
   );

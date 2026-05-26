@@ -48,6 +48,9 @@ const organizationSchema = z.object({
   country: z.string().min(1, 'Pays requis'),
   phone: z.string().min(1, 'Téléphone requis'),
   email: z.string().email('Email invalide'),
+  ridet: z.string().optional(),
+  ape: z.string().optional(),
+  legal_form: z.string().optional(),
 });
 
 const pricingSchema = z.object({
@@ -75,6 +78,9 @@ const accountingSchema = z.object({
 const documentsSchema = z.object({
   child_form_footer: z.string(),
   invoice_footer: z.string(),
+  credit_note_footer: z.string().optional(),
+  attendance_footer: z.string().optional(),
+  staff_profile_footer: z.string().optional(),
 });
 
 type OrganizationFormValues = z.infer<typeof organizationSchema>;
@@ -205,6 +211,9 @@ export default function AdminSettingsPage() {
       country: '',
       phone: '',
       email: '',
+      ridet: '',
+      ape: '',
+      legal_form: '',
     },
     mode: 'onBlur',
   });
@@ -248,6 +257,9 @@ export default function AdminSettingsPage() {
     defaultValues: {
       child_form_footer: 'Document à conserver',
       invoice_footer: 'Facture à régler dans les 30 jours',
+      credit_note_footer: '',
+      attendance_footer: '',
+      staff_profile_footer: '',
     },
     mode: 'onBlur',
   });
@@ -267,6 +279,9 @@ export default function AdminSettingsPage() {
         country: '',
         phone: '',
         email: '',
+        ridet: '',
+        ape: '',
+        legal_form: '',
         ...data,
       });
     }
@@ -318,6 +333,9 @@ export default function AdminSettingsPage() {
       documentsForm.reset({
         child_form_footer: 'Document à conserver',
         invoice_footer: 'Facture à régler dans les 30 jours',
+        credit_note_footer: '',
+        attendance_footer: '',
+        staff_profile_footer: '',
         ...data,
       });
     }
@@ -430,7 +448,11 @@ export default function AdminSettingsPage() {
                       <FormItem>
                         <FormLabel>Nom de l&apos;organisation</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={updateMutation.isPending} />
+                          <Input
+                            {...field}
+                            placeholder="Renseignez votre nom d'organisation"
+                            disabled={updateMutation.isPending}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -447,6 +469,7 @@ export default function AdminSettingsPage() {
                           <Input
                             {...field}
                             value={field.value || ''}
+                            placeholder="Ex: ALVM"
                             disabled={updateMutation.isPending}
                           />
                         </FormControl>
@@ -543,6 +566,68 @@ export default function AdminSettingsPage() {
                           <Input
                             {...field}
                             type="email"
+                            disabled={updateMutation.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <FormField
+                    control={organizationForm.control}
+                    name="ridet"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>RIDET</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="ex: 1234567.001"
+                            disabled={updateMutation.isPending}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Identifiant légal NC (optionnel mais recommandé)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={organizationForm.control}
+                    name="ape"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Code APE</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="ex: 9329Z"
+                            disabled={updateMutation.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={organizationForm.control}
+                    name="legal_form"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Forme juridique</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="ex: Association loi 1901"
                             disabled={updateMutation.isPending}
                           />
                         </FormControl>
@@ -989,6 +1074,75 @@ export default function AdminSettingsPage() {
                       <FormDescription>
                         Cette mention apparaîtra en bas de chaque facture générée en PDF.
                         Vous pouvez y inclure les modalités de paiement, mentions légales, etc.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={documentsForm.control}
+                  name="credit_note_footer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mention de bas de page (Avoir PDF)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          value={field.value || ''}
+                          rows={3}
+                          placeholder="Ex: Cet avoir sera déduit du solde de votre compte."
+                          disabled={updateMutation.isPending}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Cette mention apparaîtra en bas de chaque avoir PDF.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={documentsForm.control}
+                  name="attendance_footer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mention de bas de page (Liste de présence PDF)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          value={field.value || ''}
+                          rows={3}
+                          placeholder="Ex: Document interne ALVM — à conserver dans le dossier ACM."
+                          disabled={updateMutation.isPending}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Cette mention apparaîtra en bas de chaque liste de présence PDF.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={documentsForm.control}
+                  name="staff_profile_footer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mention de bas de page (Fiche personnel PDF)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          value={field.value || ''}
+                          rows={3}
+                          placeholder="Ex: Document confidentiel — usage strictement interne ALVM."
+                          disabled={updateMutation.isPending}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Cette mention apparaîtra en bas de chaque fiche personnel PDF.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

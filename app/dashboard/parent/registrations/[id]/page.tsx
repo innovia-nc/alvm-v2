@@ -36,12 +36,12 @@ export async function generateMetadata({
 
   if (!registration) {
     return {
-      title: 'Inscription non trouvée | Mikado',
+      title: 'Inscription non trouvée | ALVM',
     };
   }
 
   return {
-    title: `Inscription - ${registration.camp.name} | Mikado`,
+    title: `Inscription - ${registration.camp.name} | ALVM`,
     description: `Détails de l'inscription de ${registration.child.firstName} ${registration.child.lastName}`,
   };
 }

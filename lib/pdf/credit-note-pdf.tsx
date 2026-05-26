@@ -11,6 +11,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer';
+import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -38,6 +39,8 @@ interface CreditNoteData {
   lines: CreditNoteLine[];
   totalAmount: number;
   reason: string;
+  org: OrgInfo;
+  footerMention?: string;
 }
 
 // ============================================================================
@@ -250,12 +253,12 @@ export const CreditNotePDF: React.FC<{ data: CreditNoteData }> = ({ data }) => {
           </View>
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text>
-            Cet avoir sera déduit du solde de votre compte ou donnera lieu à un remboursement.
-          </Text>
-        </View>
+        {/* Footer partagé */}
+        <PDFFooter
+          org={data.org}
+          mention={data.footerMention}
+          generatedAt={new Date()}
+        />
       </Page>
     </Document>
   );

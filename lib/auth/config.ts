@@ -26,7 +26,7 @@ const signInSchema = z.object({
 });
 
 /**
- * NextAuth.js v5 Configuration for Mikado (monolith)
+ * NextAuth.js v5 Configuration for ALVM (monolith)
  *
  * Credentials provider verifies directly against Prisma DB.
  * No more HTTP call to a separate backend.

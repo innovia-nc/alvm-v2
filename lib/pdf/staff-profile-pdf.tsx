@@ -7,6 +7,7 @@ import {
     StyleSheet,
     Image,
 } from '@react-pdf/renderer';
+import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -30,10 +31,8 @@ type StaffProfileData = {
             email: string;
         };
     };
-    organization: {
-        name: string;
-        logoUrl?: string | null;
-    };
+    org: OrgInfo;
+    logoUrl?: string | null;
     footerMention?: string;
 };
 
@@ -140,7 +139,7 @@ const styles = StyleSheet.create({
 // ============================================================================
 
 export const StaffProfilePDF: React.FC<{ data: StaffProfileData }> = ({ data }) => {
-    const { staff, organization, footerMention } = data;
+    const { staff, org, logoUrl, footerMention } = data;
 
     const formatDate = (d: Date | string | null) => {
         if (!d) return '—';
@@ -162,10 +161,10 @@ export const StaffProfilePDF: React.FC<{ data: StaffProfileData }> = ({ data }) 
                 <View style={styles.header}>
                     <View style={styles.headerText}>
                         <Text style={styles.title}>FICHE PERSONNEL</Text>
-                        <Text style={styles.subtitle}>{organization.name}</Text>
+                        <Text style={styles.subtitle}>{org.name}</Text>
                     </View>
-                    {organization.logoUrl && (
-                        <Image style={styles.logo} src={organization.logoUrl} />
+                    {logoUrl && (
+                        <Image style={styles.logo} src={logoUrl} />
                     )}
                 </View>
 
@@ -221,11 +220,12 @@ export const StaffProfilePDF: React.FC<{ data: StaffProfileData }> = ({ data }) 
                     </Text>
                 </View>
 
-                {/* Footer automatique */}
-                <View style={styles.footer}>
-                    <Text>{footerMention ?? `Document généré par ${organization.name}`}</Text>
-                    <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`} />
-                </View>
+                {/* Footer partagé */}
+                <PDFFooter
+                    org={org}
+                    mention={footerMention}
+                    generatedAt={new Date()}
+                />
             </Page>
         </Document>
     );

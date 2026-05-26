@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Connexion | Mikado',
-  description: 'Connectez-vous à votre compte Mikado',
+  title: 'Connexion | ALVM',
+  description: 'Connectez-vous à votre compte ALVM',
 };
 
 export default function SignInPage() {

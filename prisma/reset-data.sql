@@ -1,5 +1,5 @@
 -- ============================================================================
--- Mikado — Script de purge des données
+-- ALVM — Script de purge des données
 -- Conserve : compte admin (admin@alvm.nc), app_settings, payment_methods, camp_types
 -- ============================================================================
 

@@ -701,16 +701,15 @@ export const invoicesRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
       }
 
-      const settings = await ctx.prisma.appSetting.findMany({
-        where: {
-          OR: [
-            { category: 'organization', key: 'logo_url' },
-            { category: 'documents', key: 'invoice_footer' },
-          ],
-        },
-        select: { category: true, key: true, value: true },
+      const { getPdfSettings } = await import('@/server/helpers/pdf-settings.helper');
+      const pdfSettings = await getPdfSettings(ctx.prisma);
+
+      const logoSetting = await ctx.prisma.appSetting.findUnique({
+        where: { category_key: { category: 'organization', key: 'logo_url' } },
+        select: { value: true },
       });
-      const parseStringSetting = (raw: string | null | undefined): string | undefined => {
+      const logoUrl: string | undefined = (() => {
+        const raw = logoSetting?.value;
         if (!raw) return undefined;
         try {
           const parsed = JSON.parse(raw);
@@ -718,13 +717,7 @@ export const invoicesRouter = router({
         } catch {
           return raw;
         }
-      };
-      const logoUrl = parseStringSetting(
-        settings.find((s) => s.category === 'organization' && s.key === 'logo_url')?.value,
-      );
-      const footerMention = parseStringSetting(
-        settings.find((s) => s.category === 'documents' && s.key === 'invoice_footer')?.value,
-      );
+      })();
 
       const { generateInvoicePDF } = await import('@/lib/pdf/invoice-pdf');
       const { uploadToStorage } = await import('@/lib/storage/blob-storage');
@@ -746,8 +739,9 @@ export const invoicesRouter = router({
         taxRate: toNum(invoice.taxRate) * 100,
         totalAmount: toNum(invoice.totalAmount),
         paidAmount: toNum(invoice.paidAmount),
-        footerMention: footerMention ?? undefined,
-        logoUrl: logoUrl ?? undefined,
+        org: pdfSettings.org,
+        footerMention: pdfSettings.mentions.invoice || undefined,
+        logoUrl,
       });
 
       const pathname = `invoices/${invoice.invoiceNumber}-${invoice.id}.pdf`;

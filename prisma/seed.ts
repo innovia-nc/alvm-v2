@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting Mikado database seed...\n');
+  console.log('🌱 Starting ALVM database seed...\n');
 
   // =========================================================================
   // 1. Admin user with credentials
@@ -15,7 +15,7 @@ async function main() {
     update: { role: 'ADMIN' },
     create: {
       email: 'admin@alvm.nc',
-      name: 'Admin Mikado',
+      name: 'Admin ALVM',
       role: 'ADMIN',
       emailVerified: new Date(),
     },
@@ -195,8 +195,8 @@ async function main() {
   console.log('⚙️  Creating application settings...');
   const settings = [
     // organization
-    { category: 'organization', key: 'name', value: '"Mikado"', description: "Nom de l'organisation" },
-    { category: 'organization', key: 'short_name', value: '"Mikado"', description: 'Nom court (factures, emails)' },
+    { category: 'organization', key: 'name', value: '"ALVM"', description: "Nom de l'organisation" },
+    { category: 'organization', key: 'short_name', value: '"ALVM"', description: 'Nom court (factures, emails)' },
     { category: 'organization', key: 'address', value: '"Nouméa"', description: "Adresse de l'organisation" },
     { category: 'organization', key: 'city', value: '"Nouméa"', description: 'Ville' },
     { category: 'organization', key: 'postal_code', value: '"98800"', description: 'Code postal' },
@@ -216,14 +216,14 @@ async function main() {
     { category: 'pricing', key: 'credit_expiry_days', value: '365', description: 'Durée de validité des avoirs (jours)' },
     { category: 'pricing', key: 'payment_method_inactive_days', value: '30', description: 'Inactivité avant désactivation méthode de paiement (jours)' },
     // email — clés alignées avec le formulaire admin
-    { category: 'email', key: 'from_name', value: '"Mikado"', description: "Nom d'expéditeur des emails" },
+    { category: 'email', key: 'from_name', value: '"ALVM"', description: "Nom d'expéditeur des emails" },
     { category: 'email', key: 'from_email', value: '"noreply@alvm.nc"', description: "Adresse email d'envoi" },
     { category: 'email', key: 'reply_to', value: '"contact@alvm.nc"', description: "Adresse email de réponse" },
     // accounting (FEC) — clés alignées avec le formulaire admin
     { category: 'accounting', key: 'fec_journal_code', value: '"VE"', description: "Code journal des ventes (FEC)" },
     { category: 'accounting', key: 'fec_sales_account', value: '"706000"', description: "Compte de ventes par défaut (FEC)" },
     { category: 'accounting', key: 'fec_customers_account', value: '"411000"', description: "Compte clients (FEC)" },
-    { category: 'accounting', key: 'fec_company_code', value: '"MKD"', description: "Code société (FEC)" },
+    { category: 'accounting', key: 'fec_company_code', value: '"ALVM"', description: "Code société (FEC)" },
   ];
 
   for (const s of settings) {

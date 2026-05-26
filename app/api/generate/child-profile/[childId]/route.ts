@@ -3,16 +3,20 @@ import { renderToStream } from '@react-pdf/renderer';
 import React from 'react';
 import { prisma } from '@/server/db';
 import { ChildProfilePDF } from '@/lib/pdf/child-profile-pdf';
+import { getPdfSettings } from '@/server/helpers/pdf-settings.helper';
 
-export async function GET(req: NextRequest,
-    { params }: { params: Promise<{ childId: string }> },) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ childId: string }> },
+) {
     const { childId } = await params;
 
     const child = await prisma.child.findUnique({
-    where: { id: childId },
-    include: {
-        parentLinks: { include: { parent: true } }, registrations: { include: { camp: true } },
-    },
+        where: { id: childId },
+        include: {
+            parentLinks: { include: { parent: true } },
+            registrations: { include: { camp: true } },
+        },
     });
 
     if (!child) return new NextResponse('Non trouvé', { status: 404 });
@@ -27,10 +31,13 @@ export async function GET(req: NextRequest,
         relationship: pl.relationship ?? null,
     }));
 
+    const settings = await getPdfSettings(prisma);
+
     const pdfData = {
         child,
         parents,
-        organization: { name: 'ALVM', address: '' },
+        org: settings.org,
+        footerMention: settings.mentions.childProfile || undefined,
     };
 
     const element = React.createElement(ChildProfilePDF as any, {
@@ -41,8 +48,8 @@ export async function GET(req: NextRequest,
 
     return new NextResponse(stream as any, {
         headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="fiche-${child.firstName}-${child.lastName}.pdf"`,
-    },
-});
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="fiche-${child.firstName}-${child.lastName}.pdf"`,
+        },
+    });
 }

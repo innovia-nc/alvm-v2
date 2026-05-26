@@ -38,12 +38,12 @@ export async function generateMetadata({
 
   if (!invoice) {
     return {
-      title: 'Facture non trouvée | Mikado',
+      title: 'Facture non trouvée | ALVM',
     };
   }
 
   return {
-    title: `Facture ${invoice.invoiceNumber} | Mikado`,
+    title: `Facture ${invoice.invoiceNumber} | ALVM`,
     description: `Facture émise le ${formatDate(invoice.issueDate)}`,
   };
 }

@@ -5,8 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Réinitialisation du mot de passe | Mikado',
-  description: 'Réinitialisez votre mot de passe Mikado',
+  title: 'Réinitialisation du mot de passe | ALVM',
+  description: 'Réinitialisez votre mot de passe ALVM',
 };
 
 /**

@@ -17,6 +17,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
+import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -54,10 +55,8 @@ interface ChildProfileData {
     emergencyContactRelation: string | null;
   };
   parents: ChildParent[];
-  organization: {
-    name: string;
-    logoUrl?: string | null;
-  };
+  org: OrgInfo;
+  logoUrl?: string | null;
   footerMention?: string;
 }
 
@@ -233,7 +232,7 @@ const styles = StyleSheet.create({
 // ============================================================================
 
 export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) => {
-  const { child, parents, organization, footerMention } = data;
+  const { child, parents, org, logoUrl, footerMention } = data;
 
   // Formatage de la date de naissance
   const formatDate = (date: Date) => {
@@ -299,10 +298,10 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.title}>FICHE ENFANT</Text>
-            <Text style={styles.subtitle}>{organization.name}</Text>
+            <Text style={styles.subtitle}>{org.name}</Text>
           </View>
-          {organization.logoUrl && (
-            <Image style={styles.logo} src={organization.logoUrl} />
+          {logoUrl && (
+            <Image style={styles.logo} src={logoUrl} />
           )}
         </View>
 
@@ -510,12 +509,12 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
           </Text>
         </View>
 
-        {/* Footer avec mention obligatoire */}
-        {footerMention && (
-          <View style={styles.footer}>
-            <Text>{footerMention}</Text>
-          </View>
-        )}
+        {/* Footer partagé */}
+        <PDFFooter
+          org={org}
+          mention={footerMention}
+          generatedAt={new Date()}
+        />
       </Page>
     </Document>
   );

@@ -33,12 +33,12 @@ export async function generateMetadata({
 
   if (!camp) {
     return {
-      title: 'Camp non trouvé | Mikado',
+      title: 'Camp non trouvé | ALVM',
     };
   }
 
   return {
-    title: `${camp.name} | Mikado`,
+    title: `${camp.name} | ALVM`,
     description: camp.description,
   };
 }

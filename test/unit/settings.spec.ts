@@ -16,7 +16,7 @@ describe('settings router', () => {
     id: 'b0000000-0000-4000-a000-000000000001',
     category: 'organization',
     key: 'name',
-    value: '"Mikado"',
+    value: '"ALVM"',
     description: null,
     updatedBy: null,
     createdAt: new Date('2025-01-01'),
@@ -90,7 +90,7 @@ describe('settings router', () => {
     const result = await admin.caller.settings.update({
       category: 'organization',
       key: 'name',
-      value: 'Mikado',
+      value: 'ALVM',
     });
     expect(result.key).toBe('name');
     expect(admin.mockPrisma.appSetting.upsert).toHaveBeenCalledOnce();
@@ -109,11 +109,11 @@ describe('settings router', () => {
 
   it('should return settings as nested map', async () => {
     staff.mockPrisma.appSetting.findMany.mockResolvedValue([
-      { category: 'organization', key: 'name', value: '"Mikado"' },
+      { category: 'organization', key: 'name', value: '"ALVM"' },
       { category: 'pricing', key: 'currency', value: '"XPF"' },
     ]);
     const result = await staff.caller.settings.getAsMap();
-    expect(result.organization?.name).toBe('"Mikado"');
+    expect(result.organization?.name).toBe('"ALVM"');
     expect(result.pricing?.currency).toBe('"XPF"');
   });
 

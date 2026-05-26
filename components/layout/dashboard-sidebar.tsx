@@ -258,7 +258,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-primary">Mikado</span>
+            <span className="text-xl font-bold text-primary">ALVM</span>
           </Link>
         )}
 
