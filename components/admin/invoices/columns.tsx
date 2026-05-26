@@ -1,7 +1,6 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,8 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Download, Trash2, Check, CreditCard, Mail } from 'lucide-react';
+import { MoreHorizontal, Eye, Download, Trash2, Check, CreditCard, Mail } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -102,11 +102,7 @@ export const adminInvoiceColumns: ColumnDef<AdminInvoiceType>[] = [
   {
     accessorKey: 'status',
     header: 'Statut',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      const statusInfo = getStatusBadge(status);
-      return <Badge className={statusInfo.className}>{statusInfo.label}</Badge>;
-    },
+    cell: ({ row }) => <StatusBadge type="invoice" status={row.original.status} />,
   },
   {
     id: 'actions',
@@ -116,50 +112,6 @@ export const adminInvoiceColumns: ColumnDef<AdminInvoiceType>[] = [
     },
   },
 ];
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return {
-        label: 'Devis', // Changé de 'Brouillon' à 'Devis'
-        className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-      };
-    case 'SENT':
-      return {
-        label: 'Émise',
-        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      };
-    case 'PAID':
-      return {
-        label: 'Payée',
-        className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      };
-    case 'OVERDUE':
-      return {
-        label: 'En retard',
-        className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Annulée',
-        className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      };
-    case 'CREDITED':
-      return {
-        label: 'Créditée',
-        className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      };
-    default:
-      return {
-        label: status,
-        className: '',
-      };
-  }
-}
 
 // ============================================================================
 // ACTIONS COMPONENT
@@ -193,7 +145,8 @@ export function AdminInvoiceActions({ item, onDelete, onGeneratePDF, onSendEmail
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
-            <MoreVertical className="h-4 w-4" />
+            <span className="sr-only">Menu d&apos;actions</span>
+            <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -220,7 +173,7 @@ export function AdminInvoiceActions({ item, onDelete, onGeneratePDF, onSendEmail
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onDelete?.(item)}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Supprimer

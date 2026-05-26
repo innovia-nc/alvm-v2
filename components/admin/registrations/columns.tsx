@@ -12,10 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   MoreHorizontal,
   Eye,
   FileText,
@@ -24,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -71,61 +68,6 @@ function calculateAge(birthDate: Date): number {
     age--;
   }
   return age;
-}
-
-function getInvoiceStatusBadge(status: string | null) {
-  if (!status) return null;
-  switch (status) {
-    case 'DRAFT':
-      return { label: 'Devis', className: 'bg-gray-100 text-gray-800 border-gray-200' };
-    case 'SENT':
-      return { label: 'Émise', className: 'bg-blue-100 text-blue-800 border-blue-200' };
-    case 'PAID':
-      return { label: 'Payée', className: 'bg-green-100 text-green-800 border-green-200' };
-    case 'OVERDUE':
-      return { label: 'En retard', className: 'bg-red-100 text-red-800 border-red-200' };
-    case 'CANCELLED':
-      return { label: 'Annulée', className: 'bg-red-100 text-red-800 border-red-200' };
-    case 'CREDITED':
-      return { label: 'Créditée', className: 'bg-purple-100 text-purple-800 border-purple-200' };
-    default:
-      return { label: status, className: '' };
-  }
-}
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'PENDING':
-      return {
-        label: 'En attente',
-        icon: Clock,
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      };
-    case 'CONFIRMED':
-      return {
-        label: 'Confirmée',
-        icon: CheckCircle,
-        className: 'bg-green-100 text-green-800 border-green-200',
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Annulée',
-        icon: XCircle,
-        className: 'bg-red-100 text-red-800 border-red-200',
-      };
-    case 'WAITLIST':
-      return {
-        label: "Liste d'attente",
-        icon: AlertCircle,
-        className: 'bg-orange-100 text-orange-800 border-orange-200',
-      };
-    default:
-      return {
-        label: status,
-        icon: AlertCircle,
-        className: '',
-      };
-  }
 }
 
 // ============================================================================
@@ -193,16 +135,7 @@ export const adminRegistrationColumns: ColumnDef<AdminRegistrationType>[] = [
   {
     accessorKey: 'status',
     header: 'Statut',
-    cell: ({ row }) => {
-      const statusInfo = getStatusBadge(row.original.status);
-      const StatusIcon = statusInfo.icon;
-      return (
-        <Badge variant="outline" className={statusInfo.className}>
-          <StatusIcon className="mr-1 h-3 w-3" />
-          {statusInfo.label}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => <StatusBadge type="registration" status={row.original.status} />,
   },
   {
     accessorKey: 'invoiceId',
@@ -216,19 +149,18 @@ export const adminRegistrationColumns: ColumnDef<AdminRegistrationType>[] = [
           </Badge>
         );
       }
-      const statusInfo = getInvoiceStatusBadge(invoiceStatus);
       return (
         <div className="flex flex-col gap-1">
-          <Link href={`/dashboard/admin/invoices/${invoiceId}`}>
-            <Button variant="link" size="sm" className="h-auto p-0 text-xs">
+          <Button variant="link" size="sm" asChild className="h-auto p-0 text-xs">
+            <Link href={`/dashboard/admin/invoices/${invoiceId}`}>
               <FileText className="mr-1 h-3 w-3" />
               {invoiceNumber ?? 'Voir'}
-            </Button>
-          </Link>
-          {statusInfo && (
-            <Badge variant="outline" className={`${statusInfo.className} text-xs w-fit`}>
-              {statusInfo.label}
-            </Badge>
+            </Link>
+          </Button>
+          {invoiceStatus && (
+            <div className="w-fit">
+              <StatusBadge type="invoice" status={invoiceStatus} showIcon={false} />
+            </div>
           )}
         </div>
       );
@@ -278,6 +210,7 @@ export function AdminRegistrationActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
+            <span className="sr-only">Menu d&apos;actions</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -306,7 +239,7 @@ export function AdminRegistrationActions({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onDelete?.(item)}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Supprimer

@@ -1,6 +1,5 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -16,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
@@ -37,23 +37,11 @@ interface AttendanceGridProps {
   isPending: boolean;
 }
 
-const STATUS_CONFIG: Record<AttendanceStatus, { label: string; className: string }> = {
-  PRESENT: {
-    label: 'Présent',
-    className: 'bg-green-100 text-green-800 border-green-200',
-  },
-  ABSENT: {
-    label: 'Absent',
-    className: 'bg-red-100 text-red-800 border-red-200',
-  },
-  LATE: {
-    label: 'En retard',
-    className: 'bg-orange-100 text-orange-800 border-orange-200',
-  },
-  EXCUSED: {
-    label: 'Excusé',
-    className: 'bg-gray-100 text-gray-800 border-gray-200',
-  },
+const STATUS_LABELS: Record<AttendanceStatus, string> = {
+  PRESENT: 'Présent',
+  ABSENT: 'Absent',
+  LATE: 'En retard',
+  EXCUSED: 'Excusé',
 };
 
 export function AttendanceGrid({
@@ -81,12 +69,7 @@ export function AttendanceGrid({
               <TableCell>
                 <div className="flex items-center gap-2">
                   {child.status ? (
-                    <Badge
-                      variant="outline"
-                      className={STATUS_CONFIG[child.status].className}
-                    >
-                      {STATUS_CONFIG[child.status].label}
-                    </Badge>
+                    <StatusBadge type="attendance" status={child.status} />
                   ) : null}
                   <Select
                     value={child.status ?? ''}
@@ -102,9 +85,9 @@ export function AttendanceGrid({
                       <SelectValue placeholder="— Choisir —" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                      {(Object.keys(STATUS_LABELS) as AttendanceStatus[]).map((key) => (
                         <SelectItem key={key} value={key}>
-                          {config.label}
+                          {STATUS_LABELS[key]}
                         </SelectItem>
                       ))}
                     </SelectContent>

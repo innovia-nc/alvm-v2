@@ -1,7 +1,6 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,10 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   MoreHorizontal,
   Eye,
   FileText,
@@ -24,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 export type CampRegistrationType = {
   id: string;
@@ -63,41 +59,6 @@ function calculateAge(birthDate: Date): number {
   return age;
 }
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'PENDING':
-      return {
-        label: 'En attente',
-        icon: Clock,
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      };
-    case 'CONFIRMED':
-      return {
-        label: 'Confirmée',
-        icon: CheckCircle,
-        className: 'bg-green-100 text-green-800 border-green-200',
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Annulée',
-        icon: XCircle,
-        className: 'bg-red-100 text-red-800 border-red-200',
-      };
-    case 'WAITLIST':
-      return {
-        label: "Liste d'attente",
-        icon: AlertCircle,
-        className: 'bg-orange-100 text-orange-800 border-orange-200',
-      };
-    default:
-      return {
-        label: status,
-        icon: AlertCircle,
-        className: '',
-      };
-  }
-}
-
 interface CampRegistrationActionsProps {
   item: CampRegistrationType;
   registrationsPath: string;
@@ -124,6 +85,7 @@ export function CampRegistrationActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
+            <span className="sr-only">Menu d&apos;actions</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -150,7 +112,7 @@ export function CampRegistrationActions({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onDelete?.(item)}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Supprimer
@@ -235,16 +197,7 @@ export function createCampRegistrationColumns(
     {
       accessorKey: 'status',
       header: 'Statut',
-      cell: ({ row }) => {
-        const statusInfo = getStatusBadge(row.original.status);
-        const StatusIcon = statusInfo.icon;
-        return (
-          <Badge variant="outline" className={statusInfo.className}>
-            <StatusIcon className="mr-1 h-3 w-3" />
-            {statusInfo.label}
-          </Badge>
-        );
-      },
+      cell: ({ row }) => <StatusBadge type="registration" status={row.original.status} />,
     },
     {
       accessorKey: 'createdAt',

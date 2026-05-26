@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Eye, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 // ============================================================================
@@ -56,14 +56,12 @@ export const adminRefundColumns: ColumnDef<AdminRefundType>[] = [
     header: 'Facture',
     cell: ({ row }) => {
       const invoice = row.original.payment.invoice;
-      const invoiceNumber = invoice.invoiceNumber;
       return (
-        <Link
-          href={`/dashboard/admin/invoices/${invoice.id}`}
-          className="text-blue-600 hover:underline font-medium"
-        >
-          {invoiceNumber}
-        </Link>
+        <Button variant="link" asChild className="h-auto p-0 font-medium">
+          <Link href={`/dashboard/admin/invoices/${invoice.id}`}>
+            {invoice.invoiceNumber}
+          </Link>
+        </Button>
       );
     },
   },
@@ -153,7 +151,8 @@ export function AdminRefundActions({ item, onDelete }: AdminRefundActionsProps) 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
-            <MoreVertical className="h-4 w-4" />
+            <span className="sr-only">Menu d&apos;actions</span>
+            <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -165,7 +164,7 @@ export function AdminRefundActions({ item, onDelete }: AdminRefundActionsProps) 
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => onDelete?.(item)}
-            className="text-red-600 focus:text-red-600"
+            className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Supprimer

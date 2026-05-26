@@ -1,7 +1,6 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,13 +9,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  MoreVertical,
+  MoreHorizontal,
   Eye,
   CheckCircle,
   XCircle,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -52,35 +52,6 @@ export type AdminCreditNoteType = {
 };
 
 // ============================================================================
-// HELPER: Get Status Badge Info
-// ============================================================================
-
-export function getStatusBadge(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return {
-        label: 'Brouillon',
-        className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-      };
-    case 'SENT':
-      return {
-        label: 'Émis',
-        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Annulé',
-        className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      };
-    default:
-      return {
-        label: status,
-        className: '',
-      };
-  }
-}
-
-// ============================================================================
 // COLUMN DEFINITIONS
 // ============================================================================
 
@@ -101,12 +72,11 @@ export const adminCreditNoteColumns: ColumnDef<AdminCreditNoteType>[] = [
         return <span className="text-muted-foreground">-</span>;
       }
       return (
-        <Link
-          href={`/dashboard/admin/invoices/${creditNote.creditedInvoiceId}`}
-          className="text-blue-600 hover:underline"
-        >
-          {creditNote.originalInvoice.invoiceNumber}
-        </Link>
+        <Button variant="link" asChild className="h-auto p-0">
+          <Link href={`/dashboard/admin/invoices/${creditNote.creditedInvoiceId}`}>
+            {creditNote.originalInvoice.invoiceNumber}
+          </Link>
+        </Button>
       );
     },
   },
@@ -166,10 +136,7 @@ export const adminCreditNoteColumns: ColumnDef<AdminCreditNoteType>[] = [
   {
     accessorKey: 'status',
     header: 'Statut',
-    cell: ({ row }) => {
-      const statusInfo = getStatusBadge(row.original.status);
-      return <Badge className={statusInfo.className}>{statusInfo.label}</Badge>;
-    },
+    cell: ({ row }) => <StatusBadge type="creditNote" status={row.original.status} />,
   },
   {
     id: 'actions',
@@ -206,7 +173,8 @@ export function AdminCreditNoteActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
-            <MoreVertical className="h-4 w-4" />
+            <span className="sr-only">Menu d&apos;actions</span>
+            <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -237,7 +205,7 @@ export function AdminCreditNoteActions({
           {item.status === 'DRAFT' && (
             <DropdownMenuItem
               onClick={() => onDelete?.(item)}
-              className="text-red-600 focus:text-red-600"
+              className="text-destructive focus:text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Supprimer

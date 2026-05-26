@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, Settings, LogOut, Moon, Sun } from 'lucide-react';
+import { User, Settings, LogOut, Moon, Sun, ShieldCheck } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -20,6 +21,8 @@ export function DashboardHeader() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const { data: session, status } = useSession();
+
+  const isAdmin = session?.user?.role === 'ADMIN';
 
   // Récupérer info utilisateur depuis session
   const user = React.useMemo(() => {
@@ -64,6 +67,19 @@ export function DashboardHeader() {
 
         {/* Actions header */}
         <div className="flex items-center gap-2">
+          {/* Badge Admin — remplace l'ancienne Alert "Mode Administrateur"
+              et libère ~80px vertical sur toutes les pages admin */}
+          {isAdmin && (
+            <Badge
+              variant="outline"
+              className="border-primary text-primary bg-primary/10"
+              aria-label="Mode administrateur"
+            >
+              <ShieldCheck className="mr-1 h-3 w-3" aria-hidden="true" />
+              Admin
+            </Badge>
+          )}
+
           {/* Toggle theme */}
           <Button
             variant="ghost"

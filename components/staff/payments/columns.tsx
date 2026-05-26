@@ -48,12 +48,11 @@ export const staffPaymentColumns: ColumnDef<StaffPaymentType>[] = [
     cell: ({ row }) => {
       const payment = row.original;
       return (
-        <Link
-          href={`/dashboard/staff/invoices/${payment.invoice.invoiceNumber}`}
-          className="text-blue-600 hover:underline font-medium"
-        >
-          {payment.invoice.invoiceNumber}
-        </Link>
+        <Button variant="link" asChild className="h-auto p-0 font-medium">
+          <Link href={`/dashboard/staff/invoices/${payment.invoice.invoiceNumber}`}>
+            {payment.invoice.invoiceNumber}
+          </Link>
+        </Button>
       );
     },
   },

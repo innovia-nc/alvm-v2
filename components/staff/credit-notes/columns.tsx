@@ -1,10 +1,10 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -40,35 +40,6 @@ export type StaffCreditNoteType = {
 };
 
 // ============================================================================
-// HELPER: Get Status Badge Info
-// ============================================================================
-
-export function getStatusBadge(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return {
-        label: 'Brouillon',
-        className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-      };
-    case 'SENT':
-      return {
-        label: 'Émis',
-        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Annulé',
-        className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      };
-    default:
-      return {
-        label: status,
-        className: '',
-      };
-  }
-}
-
-// ============================================================================
 // COLUMN DEFINITIONS
 // ============================================================================
 
@@ -89,12 +60,11 @@ export const staffCreditNoteColumns: ColumnDef<StaffCreditNoteType>[] = [
         return <span className="text-muted-foreground">-</span>;
       }
       return (
-        <Link
-          href={`/dashboard/staff/invoices/${creditNote.creditedInvoiceId}`}
-          className="text-blue-600 hover:underline"
-        >
-          {creditNote.originalInvoice.invoiceNumber}
-        </Link>
+        <Button variant="link" asChild className="h-auto p-0">
+          <Link href={`/dashboard/staff/invoices/${creditNote.creditedInvoiceId}`}>
+            {creditNote.originalInvoice.invoiceNumber}
+          </Link>
+        </Button>
       );
     },
   },
@@ -154,10 +124,7 @@ export const staffCreditNoteColumns: ColumnDef<StaffCreditNoteType>[] = [
   {
     accessorKey: 'status',
     header: 'Statut',
-    cell: ({ row }) => {
-      const statusInfo = getStatusBadge(row.original.status);
-      return <Badge className={statusInfo.className}>{statusInfo.label}</Badge>;
-    },
+    cell: ({ row }) => <StatusBadge type="creditNote" status={row.original.status} />,
   },
   {
     id: 'actions',

@@ -140,6 +140,7 @@ export const paymentsRouter = router({
       invoiceId: z.string().uuid().optional(),
       parentId: z.string().uuid().optional(),
       paymentMethodId: z.string().uuid().optional(),
+      search: z.string().optional(),
       sortBy: z.enum(['paymentDate', 'amount']).default('paymentDate'),
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }))
@@ -148,7 +149,7 @@ export const paymentsRouter = router({
       total: z.number(),
     }))
     .query(async ({ ctx, input }) => {
-      const { limit, offset, invoiceId, parentId, paymentMethodId, sortBy, sortOrder } = input;
+      const { limit, offset, invoiceId, parentId, paymentMethodId, search, sortBy, sortOrder } = input;
 
       const where: Prisma.PaymentWhereInput = {};
 
@@ -160,6 +161,17 @@ export const paymentsRouter = router({
 
       if (invoiceId) where.invoiceId = invoiceId;
       if (paymentMethodId) where.paymentMethodId = paymentMethodId;
+
+      if (search && search.trim().length > 0) {
+        const q = search.trim();
+        where.OR = [
+          { paymentNumber: { contains: q, mode: 'insensitive' } },
+          { reference: { contains: q, mode: 'insensitive' } },
+          { invoice: { invoiceNumber: { contains: q, mode: 'insensitive' } } },
+          { invoice: { parent: { firstName: { contains: q, mode: 'insensitive' } } } },
+          { invoice: { parent: { lastName: { contains: q, mode: 'insensitive' } } } },
+        ];
+      }
 
       const [payments, total] = await Promise.all([
         ctx.prisma.payment.findMany({

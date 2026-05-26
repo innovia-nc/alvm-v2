@@ -71,20 +71,144 @@
   }
 }
 
+/*
+ * Status badge utilities — single source of truth for metier statuses.
+ * Each utility uses a light background with a dark text color to ensure
+ * WCAG 2.1 AA contrast (>= 4.5:1) on normal text. The dark mode variants
+ * invert to dark backgrounds with light text.
+ *
+ * Used by <StatusBadge /> in components/shared/status-badge.tsx.
+ */
 @layer utilities {
+  /* PENDING — registrations en attente, paiements en cours */
   .status-badge-pending {
-    @apply bg-[hsl(var(--status-pending))] text-white;
+    @apply bg-yellow-200 text-yellow-900 border-yellow-300
+      dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700;
   }
+
+  /* CONFIRMED — inscriptions confirmees, presences */
   .status-badge-confirmed {
-    @apply bg-[hsl(var(--status-confirmed))] text-white;
+    @apply bg-green-200 text-green-900 border-green-300
+      dark:bg-green-900/40 dark:text-green-200 dark:border-green-700;
   }
+
+  /* CANCELLED — inscriptions, factures, avoirs annules */
   .status-badge-cancelled {
-    @apply bg-[hsl(var(--status-cancelled))] text-white;
+    @apply bg-red-200 text-red-900 border-red-300
+      dark:bg-red-900/40 dark:text-red-200 dark:border-red-700;
   }
+
+  /* PAID — factures payees */
   .status-badge-paid {
-    @apply bg-[hsl(var(--status-paid))] text-white;
+    @apply bg-green-200 text-green-900 border-green-300
+      dark:bg-green-900/40 dark:text-green-200 dark:border-green-700;
   }
+
+  /* OVERDUE — factures en retard */
   .status-badge-overdue {
-    @apply bg-[hsl(var(--status-overdue))] text-white;
+    @apply bg-red-200 text-red-900 border-red-300
+      dark:bg-red-900/40 dark:text-red-200 dark:border-red-700;
+  }
+
+  /* DRAFT — factures, avoirs en brouillon/devis */
+  .status-badge-draft {
+    @apply bg-gray-200 text-gray-900 border-gray-300
+      dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700;
+  }
+
+  /* SENT — factures emises, avoirs emis */
+  .status-badge-sent {
+    @apply bg-blue-200 text-blue-900 border-blue-300
+      dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700;
+  }
+
+  /* CREDITED — factures creditees */
+  .status-badge-credited {
+    @apply bg-purple-200 text-purple-900 border-purple-300
+      dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
+  }
+
+  /* WAITLIST — inscriptions en liste d'attente */
+  .status-badge-waitlist {
+    @apply bg-orange-200 text-orange-900 border-orange-300
+      dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700;
+  }
+
+  /* PRESENT — presence enfant */
+  .status-badge-present {
+    @apply bg-green-200 text-green-900 border-green-300
+      dark:bg-green-900/40 dark:text-green-200 dark:border-green-700;
+  }
+
+  /* ABSENT — absence enfant */
+  .status-badge-absent {
+    @apply bg-red-200 text-red-900 border-red-300
+      dark:bg-red-900/40 dark:text-red-200 dark:border-red-700;
+  }
+
+  /* LATE — enfant en retard, paiement en retard */
+  .status-badge-late {
+    @apply bg-orange-200 text-orange-900 border-orange-300
+      dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700;
+  }
+
+  /* EXCUSED — enfant excuse */
+  .status-badge-excused {
+    @apply bg-gray-200 text-gray-900 border-gray-300
+      dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700;
+  }
+
+  /* PUBLISHED — camp publie */
+  .status-badge-published {
+    @apply bg-green-200 text-green-900 border-green-300
+      dark:bg-green-900/40 dark:text-green-200 dark:border-green-700;
+  }
+
+  /* CLOSED — camp ferme */
+  .status-badge-closed {
+    @apply bg-gray-200 text-gray-900 border-gray-300
+      dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700;
+  }
+
+  /* APPLIED — avoir applique */
+  .status-badge-applied {
+    @apply bg-purple-200 text-purple-900 border-purple-300
+      dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
+  }
+
+  /* ISSUED — avoir emis (alias de SENT pour CREDIT_NOTE) */
+  .status-badge-issued {
+    @apply bg-blue-200 text-blue-900 border-blue-300
+      dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700;
+  }
+
+  /* PARTIAL — paiement partiel */
+  .status-badge-partial {
+    @apply bg-orange-200 text-orange-900 border-orange-300
+      dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700;
+  }
+
+  /* UNPAID — paiement non effectue */
+  .status-badge-unpaid {
+    @apply bg-yellow-200 text-yellow-900 border-yellow-300
+      dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700;
+  }
+
+  /* REFUNDED — paiement rembourse */
+  .status-badge-refunded {
+    @apply bg-purple-200 text-purple-900 border-purple-300
+      dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
+  }
+
+  /* IMMEDIATE_REFUND — methode de remboursement immediate */
+  .status-badge-immediate-refund {
+    @apply bg-blue-200 text-blue-900 border-blue-300
+      dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700;
+  }
+
+  /* FUTURE_CREDIT — avoir conserve pour utilisation future */
+  .status-badge-future-credit {
+    @apply bg-purple-200 text-purple-900 border-purple-300
+      dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
   }
 }

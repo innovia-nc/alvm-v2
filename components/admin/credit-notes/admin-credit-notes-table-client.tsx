@@ -35,17 +35,24 @@ export function AdminCreditNotesTableClient() {
     status: 'SENT' | 'CANCELLED';
   } | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination et filtre statut
+  // Query tRPC avec pagination, filtre statut et recherche server-side
   const { data, isLoading } = trpc.creditNotes.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter as 'DRAFT' | 'SENT' | 'CANCELLED' }),
+    ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
   });
+
+  function handleSearchChange(search: string) {
+    setSearchTerm(search);
+    pagination.resetToFirstPage();
+  }
 
   const utils = trpc.useUtils();
 
@@ -159,7 +166,8 @@ export function AdminCreditNotesTableClient() {
         isLoading={isLoading}
         pagination={pagination}
         searchKey="creditNoteNumber"
-        searchPlaceholder="Rechercher par numéro, facture, parent ou raison..."
+        searchPlaceholder="Rechercher par numéro, parent ou email..."
+        onSearchChange={handleSearchChange}
       />
 
       {/* Dialog de confirmation de suppression */}

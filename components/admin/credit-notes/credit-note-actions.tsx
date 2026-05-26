@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle, XCircle, Trash2, MoreVertical, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, MoreHorizontal, Loader2 } from 'lucide-react';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 interface CreditNote {
@@ -96,7 +96,8 @@ export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon">
-              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">Menu d&apos;actions</span>
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -120,7 +121,7 @@ export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
             {creditNote.status === 'DRAFT' && (
               <DropdownMenuItem
                 onClick={() => setDeleteDialogOpen(true)}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Supprimer

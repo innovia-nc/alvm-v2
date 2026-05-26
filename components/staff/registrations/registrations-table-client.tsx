@@ -30,6 +30,7 @@ export function RegistrationsTableClient() {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const createInvoiceMutation = trpc.invoices.createFromRegistration.useMutation({
     onSuccess: (invoice) => {
@@ -63,12 +64,18 @@ export function RegistrationsTableClient() {
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination et filtre statut
+  // Query tRPC avec pagination, filtre statut et recherche server-side
   const { data, isLoading } = trpc.registrations.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter }),
+    ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
   });
+
+  function handleSearchChange(search: string) {
+    setSearchTerm(search);
+    pagination.resetToFirstPage();
+  }
 
   // Enrichir les colonnes avec les callbacks
   const columnsWithActions = staffRegistrationColumns.map((col) => {
@@ -120,10 +127,12 @@ export function RegistrationsTableClient() {
     return col;
   });
 
-  const hasActiveFilters = statusFilter !== 'all';
+  const hasActiveFilters = statusFilter !== 'all' || searchTerm !== '';
 
   function resetFilters() {
     setStatusFilter('all');
+    setSearchTerm('');
+    pagination.setPage(1);
   }
 
   return (
@@ -170,6 +179,7 @@ export function RegistrationsTableClient() {
         pagination={pagination}
         searchKey="child.firstName"
         searchPlaceholder="Rechercher par nom d'enfant, parent ou camp..."
+        onSearchChange={handleSearchChange}
       />
 
       {/* Dialog de confirmation de statut (Confirmer / Mettre en attente) */}

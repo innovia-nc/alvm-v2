@@ -137,12 +137,15 @@ export const refundsRouter = router({
 
       if (paymentId) where.paymentId = paymentId;
 
-      if (search) {
+      if (search && search.trim().length > 0) {
+        const q = search.trim();
         where.OR = [
-          { payment: { invoice: { invoiceNumber: { contains: search, mode: 'insensitive' } } } },
-          { payment: { invoice: { parent: { firstName: { contains: search, mode: 'insensitive' } } } } },
-          { payment: { invoice: { parent: { lastName: { contains: search, mode: 'insensitive' } } } } },
-          { reason: { contains: search, mode: 'insensitive' } },
+          { refundNumber: { contains: q, mode: 'insensitive' } },
+          { reference: { contains: q, mode: 'insensitive' } },
+          { reason: { contains: q, mode: 'insensitive' } },
+          { payment: { invoice: { invoiceNumber: { contains: q, mode: 'insensitive' } } } },
+          { payment: { invoice: { parent: { firstName: { contains: q, mode: 'insensitive' } } } } },
+          { payment: { invoice: { parent: { lastName: { contains: q, mode: 'insensitive' } } } } },
         ];
       }
 

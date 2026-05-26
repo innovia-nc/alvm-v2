@@ -4,7 +4,7 @@ import { createServerTRPC } from '@/lib/trpc';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { FileText, Download, Eye, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,42 +24,6 @@ export default async function ParentInvoicesPage() {
   // Get invoices
   const invoicesData = await trpc.invoices.list({ limit: 100, offset: 0 });
   const invoices = invoicesData.invoices;
-
-  // Status badge variant
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'PAID':
-        return 'default';
-      case 'SENT':
-        return 'secondary';
-      case 'OVERDUE':
-        return 'destructive';
-      case 'CANCELLED':
-        return 'outline';
-      case 'DRAFT':
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
-
-  // Status label
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'PAID':
-        return 'Payée';
-      case 'SENT':
-        return 'Émise';
-      case 'OVERDUE':
-        return 'En retard';
-      case 'CANCELLED':
-        return 'Annulée';
-      case 'DRAFT':
-        return 'Brouillon';
-      default:
-        return status;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -91,9 +55,7 @@ export default async function ParentInvoicesPage() {
                       <CardTitle className="text-lg">
                         Facture #{invoice.invoiceNumber}
                       </CardTitle>
-                      <Badge variant={getStatusVariant(invoice.status)}>
-                        {getStatusLabel(invoice.status)}
-                      </Badge>
+                      <StatusBadge type="invoice" status={invoice.status} />
                     </div>
                     <CardDescription className="mt-1">
                       Émise le {new Date(invoice.createdAt).toLocaleDateString('fr-FR')}

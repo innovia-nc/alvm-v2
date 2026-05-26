@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { trpc } from '@/lib/trpc/client';
-import { CalendarDays, MapPin, Users, Pencil, MoreVertical, Send, XCircle, Copy, Loader2 } from 'lucide-react';
+import { CalendarDays, MapPin, Users, Pencil, MoreHorizontal, Send, XCircle, Copy, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 // ============================================================================
@@ -266,7 +266,8 @@ export function CampsCards({ initialCamps }: CampsCardsProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" disabled={isLoading}>
-                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">Menu d&apos;actions</span>
+                        <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

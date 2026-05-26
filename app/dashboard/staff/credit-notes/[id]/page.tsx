@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -18,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { BreadcrumbProvider } from '@/components/layout/breadcrumb-provider';
+import { StatusBadge } from '@/components/shared/status-badge';
 import Link from 'next/link';
 
 interface PageProps {
@@ -34,30 +34,6 @@ export default async function StaffCreditNoteDetailsPage({ params }: PageProps) 
   if (!creditNote) {
     notFound();
   }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'DRAFT':
-        return {
-          label: 'Brouillon',
-          className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-        };
-      case 'SENT':
-        return {
-          label: 'Émis',
-          className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-        };
-      case 'CANCELLED':
-        return {
-          label: 'Annulé',
-          className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-        };
-      default:
-        return { label: status, className: '' };
-    }
-  };
-
-  const statusInfo = getStatusBadge(creditNote.status);
 
   return (
     <BreadcrumbProvider
@@ -94,7 +70,7 @@ export default async function StaffCreditNoteDetailsPage({ params }: PageProps) 
 
             <div>
               <div className="text-sm text-muted-foreground">Statut</div>
-              <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
+              <StatusBadge type="creditNote" status={creditNote.status} />
             </div>
 
             <div>

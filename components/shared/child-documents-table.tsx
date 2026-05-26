@@ -222,6 +222,7 @@ export function ChildDocumentsTable({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
+                        <span className="sr-only">Menu d&apos;actions</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

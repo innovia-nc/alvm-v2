@@ -160,6 +160,7 @@ export const creditNotesRouter = router({
       parentId: z.string().uuid().optional(),
       status: creditNoteStatusEnum.optional(),
       refundMethod: refundMethodEnum.optional(),
+      search: z.string().optional(),
       sortBy: z.enum(['creditNoteNumber', 'issueDate', 'totalAmount']).default('issueDate'),
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }))
@@ -168,7 +169,7 @@ export const creditNotesRouter = router({
       total: z.number(),
     }))
     .query(async ({ ctx, input }) => {
-      const { limit, offset, creditedInvoiceId, parentId, status, refundMethod, sortBy, sortOrder } = input;
+      const { limit, offset, creditedInvoiceId, parentId, status, refundMethod, search, sortBy, sortOrder } = input;
 
       const where: Prisma.InvoiceWhereInput = {
         invoiceType: 'CREDIT_NOTE',
@@ -184,6 +185,17 @@ export const creditNotesRouter = router({
       if (creditedInvoiceId) where.creditedInvoiceId = creditedInvoiceId;
       if (status) where.status = status;
       if (refundMethod) where.refundMethod = refundMethod;
+
+      if (search && search.trim().length > 0) {
+        const q = search.trim();
+        where.OR = [
+          // creditNoteNumber est stocke en BDD dans invoiceNumber (mapping mapCreditNoteWithDetails)
+          { invoiceNumber: { contains: q, mode: 'insensitive' } },
+          { parent: { firstName: { contains: q, mode: 'insensitive' } } },
+          { parent: { lastName: { contains: q, mode: 'insensitive' } } },
+          { parent: { email: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
 
       const sortMap: Record<string, string> = {
         creditNoteNumber: 'invoiceNumber',

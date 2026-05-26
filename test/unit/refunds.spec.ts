@@ -246,7 +246,8 @@ describe('refunds router', () => {
 
       const findManyCall = mockPrisma.refund.findMany.mock.calls[0][0];
       expect(findManyCall.where.OR).toBeDefined();
-      expect(findManyCall.where.OR).toHaveLength(4);
+      // refundNumber, reference, reason + invoiceNumber, firstName, lastName
+      expect(findManyCall.where.OR).toHaveLength(6);
     });
 
     it('applies paymentId filter when provided', async () => {

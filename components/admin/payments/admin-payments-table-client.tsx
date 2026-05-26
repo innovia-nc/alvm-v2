@@ -24,15 +24,23 @@ export function AdminPaymentsTableClient() {
   const router = useRouter();
   const [deletingItem, setDeletingItem] = useState<AdminPaymentType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination
+  // Query tRPC avec pagination + recherche server-side
   const { data, isLoading } = trpc.payments.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
+    ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
   });
+
+  // Callback pour la recherche (debounce gere par DataTableServer)
+  function handleSearchChange(search: string) {
+    setSearchTerm(search);
+    pagination.resetToFirstPage();
+  }
 
   const utils = trpc.useUtils();
 
@@ -55,7 +63,7 @@ export function AdminPaymentsTableClient() {
     try {
       setError(null);
       await deleteMutation.mutateAsync({ id: deletingItem.id });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -65,7 +73,7 @@ export function AdminPaymentsTableClient() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: { original: AdminPaymentType } }) => (
           <AdminPaymentActions
             item={row.original}
             onDelete={setDeletingItem}
@@ -91,7 +99,8 @@ export function AdminPaymentsTableClient() {
         isLoading={isLoading}
         pagination={pagination}
         searchKey="reference"
-        searchPlaceholder="Rechercher par facture, parent, méthode ou référence..."
+        searchPlaceholder="Rechercher par numéro, facture, parent ou référence..."
+        onSearchChange={handleSearchChange}
       />
 
       {/* Dialog de confirmation de suppression */}

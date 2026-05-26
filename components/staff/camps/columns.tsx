@@ -204,6 +204,7 @@ export function StaffCampActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
+            <span className="sr-only">Menu d&apos;actions</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -249,7 +250,7 @@ export function StaffCampActions({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onClose?.(item)}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
               >
                 <XCircle className="mr-2 h-4 w-4" />
                 Fermer

@@ -1,7 +1,6 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,8 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Eye, Download, Trash2, Check, CreditCard, FileText, Clock, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, Eye, Download, Trash2, Check, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -135,17 +135,7 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
   {
     accessorKey: 'status',
     header: 'Statut',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      const statusInfo = getStatusBadge(status);
-      const StatusIcon = statusInfo.icon;
-      return (
-        <Badge variant={statusInfo.variant}>
-          <StatusIcon className="mr-1 h-3 w-3" />
-          {statusInfo.label}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => <StatusBadge type="invoice" status={row.original.status} />,
   },
   {
     id: 'actions',
@@ -155,29 +145,6 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
     },
   },
 ];
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return { variant: 'outline' as const, label: 'Devis', icon: FileText, color: 'text-gray-600' };
-    case 'SENT':
-      return { variant: 'secondary' as const, label: 'Émise', icon: Clock, color: 'text-yellow-600' };
-    case 'PAID':
-      return { variant: 'default' as const, label: 'Payée', icon: CheckCircle, color: 'text-green-600' };
-    case 'OVERDUE':
-      return { variant: 'destructive' as const, label: 'En retard', icon: AlertCircle, color: 'text-red-600' };
-    case 'CANCELLED':
-      return { variant: 'outline' as const, label: 'Annulée', icon: XCircle, color: 'text-gray-600' };
-    case 'CREDITED':
-      return { variant: 'secondary' as const, label: 'Créditée', icon: FileText, color: 'text-purple-600' };
-    default:
-      return { variant: 'secondary' as const, label: status, icon: AlertCircle, color: 'text-gray-600' };
-  }
-}
 
 // ============================================================================
 // ACTIONS COMPONENT
@@ -211,7 +178,7 @@ export function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate,
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Ouvrir menu</span>
+            <span className="sr-only">Menu d&apos;actions</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -235,7 +202,7 @@ export function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate,
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onDelete?.(item)}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Supprimer
