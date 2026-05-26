@@ -69,7 +69,7 @@ export default function EditCampPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Modifier le camp"
+        title="Modifier l'ACM"
         description={camp ? `Modification de "${camp.name}"` : 'Chargement...'}
       />
 

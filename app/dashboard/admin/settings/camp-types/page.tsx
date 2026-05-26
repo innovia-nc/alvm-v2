@@ -10,8 +10,8 @@ export default async function CampTypesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Types de Camps"
-        description="Configuration des types de camps disponibles"
+        title="Types d'ACM"
+        description="Configuration des types d'ACM disponibles"
       />
 
       <Card>

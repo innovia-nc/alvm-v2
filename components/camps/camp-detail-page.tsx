@@ -59,11 +59,11 @@ export function CampDetailPage({ campId, basePath }: CampDetailPageProps) {
   if (!camp) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Camp introuvable" />
+        <PageHeader title="ACM introuvable" />
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              Ce camp n&apos;existe pas ou a été supprimé.
+              Cet ACM n&apos;existe pas ou a été supprimé.
             </p>
           </CardContent>
         </Card>

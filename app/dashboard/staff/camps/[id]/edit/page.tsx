@@ -68,7 +68,7 @@ export default function StaffEditCampPage({ params }: PageProps) {
   if (!camp) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Camp introuvable" description="Ce camp n'existe pas ou plus" />
+        <PageHeader title="ACM introuvable" description="Cet ACM n'existe pas ou plus" />
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">

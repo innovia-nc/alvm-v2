@@ -36,6 +36,7 @@ export type AdminCampType = {
   pricePerDay: number;
   maxCapacity: number;
   daysCount: number;
+  campTypeId: string;
   registrationDeadline: Date;
   registrationsCount: number;
   availableSpots: number;

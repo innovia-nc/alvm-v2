@@ -5,7 +5,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, Users, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, CheckCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { AttendanceGrid } from './attendance-grid';
 
@@ -206,6 +206,18 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
               {presentCount}/{childrenForDate.length} présents
             </span>
           </div>
+
+          {/* Download PDF */}
+          <Button asChild variant="outline" size="sm">
+            <a
+              href={`/api/generate/attendance-list/${campId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Télécharger PDF
+            </a>
+          </Button>
 
           {/* Bulk action */}
           <Button

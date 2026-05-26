@@ -2,9 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
@@ -20,43 +17,23 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
-} from '@/components/ui/form';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DuplicateCampDialog,
+  type DuplicateFormValues,
+} from './duplicate-camp-dialog';
 
 type ActionType = 'publish' | 'close';
 type StatusFilter = 'ALL' | 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
-
-const duplicateSchema = z.object({
-  name: z.string().min(3, 'Nom requis (min 3 caractères)').max(200),
-});
-
-type DuplicateFormData = z.infer<typeof duplicateSchema>;
 
 export function AdminCampsTableClient() {
   const router = useRouter();
@@ -70,10 +47,8 @@ export function AdminCampsTableClient() {
     null
   );
 
-  // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination, recherche et filtre statut
   const { data, isLoading } = trpc.camps.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
@@ -81,44 +56,35 @@ export function AdminCampsTableClient() {
     ...(statusFilter !== 'ALL' && { status: statusFilter }),
   });
 
+  const { data: campTypes } = trpc.camps.listCampTypes.useQuery();
+
   const utils = trpc.useUtils();
 
-  // Mutation de mise à jour (publish/close)
   const updateMutation = trpc.camps.update.useMutation({
     onSuccess: () => {
       const action = actioningCamp?.action;
       toast.success(
-        action === 'publish' ? 'Camp publié avec succès' : 'Camp fermé avec succès'
+        action === 'publish' ? 'ACM publié avec succès' : 'ACM fermé avec succès'
       );
       setActioningCamp(null);
       utils.camps.list.invalidate();
       router.refresh();
     },
     onError: (err) => {
-      toast.error(err.message || 'Impossible de mettre à jour le camp');
+      toast.error(err.message || "Impossible de mettre à jour l'ACM");
       setActioningCamp(null);
     },
   });
 
-  // Mutation de duplication
   const duplicateMutation = trpc.camps.duplicate.useMutation({
     onSuccess: () => {
-      toast.success('Camp dupliqué avec succès');
+      toast.success('ACM dupliqué avec succès');
       setDuplicatingCamp(null);
-      duplicateForm.reset();
       utils.camps.list.invalidate();
       router.refresh();
     },
     onError: (err) => {
       toast.error(err.message || 'Erreur lors de la duplication');
-      setDuplicatingCamp(null);
-    },
-  });
-
-  const duplicateForm = useForm<DuplicateFormData>({
-    resolver: zodResolver(duplicateSchema),
-    defaultValues: {
-      name: '',
     },
   });
 
@@ -131,45 +97,38 @@ export function AdminCampsTableClient() {
         id: actioningCamp.camp.id,
         status: actioningCamp.action === 'publish' ? 'PUBLISHED' : 'CLOSED',
       });
-    } catch (err: any) {
-      // Erreur déjà gérée par onError
+    } catch {
+      // gérée par onError
     }
   }
 
-  function handleDuplicate(values: DuplicateFormData) {
+  function handleDuplicate(values: DuplicateFormValues) {
     if (!duplicatingCamp) return;
     duplicateMutation.mutate({
       id: duplicatingCamp.id,
       name: values.name,
-    });
-  }
-
-  function openDuplicateDialog(camp: AdminCampType) {
-    setDuplicatingCamp(camp);
-    duplicateForm.reset({
-      name: `${camp.name} (copie)`,
+      campTypeId: values.campTypeId,
     });
   }
 
   const getActionTitle = () => {
     if (!actioningCamp) return '';
-    return actioningCamp.action === 'publish' ? 'Publier le camp' : 'Fermer le camp';
+    return actioningCamp.action === 'publish' ? "Publier l'ACM" : "Fermer l'ACM";
   };
 
   const getActionDescription = () => {
     if (!actioningCamp) return '';
     const campName = actioningCamp.camp.name;
     return actioningCamp.action === 'publish'
-      ? `Êtes-vous sûr de vouloir publier le camp "${campName}" ? Il sera visible par tous les parents.`
-      : `Êtes-vous sûr de vouloir fermer le camp "${campName}" ? Aucune nouvelle inscription ne sera acceptée.`;
+      ? `Êtes-vous sûr de vouloir publier l'ACM "${campName}" ? Il sera visible par tous les parents.`
+      : `Êtes-vous sûr de vouloir fermer l'ACM "${campName}" ? Aucune nouvelle inscription ne sera acceptée.`;
   };
 
-  // Enrichir les colonnes avec les callbacks
   const columnsWithActions = adminCampColumns.map((col) => {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: { original: AdminCampType } }) => (
           <AdminCampActions
             item={row.original}
             onPublish={(camp: AdminCampType) =>
@@ -178,7 +137,7 @@ export function AdminCampsTableClient() {
             onClose={(camp: AdminCampType) =>
               setActioningCamp({ camp, action: 'close' })
             }
-            onDuplicate={openDuplicateDialog}
+            onDuplicate={(camp: AdminCampType) => setDuplicatingCamp(camp)}
           />
         ),
       };
@@ -195,7 +154,6 @@ export function AdminCampsTableClient() {
 
   return (
     <div className="space-y-4">
-      {/* Filtres */}
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
           <Label htmlFor="status-filter" className="mb-2 block">
@@ -231,7 +189,6 @@ export function AdminCampsTableClient() {
         )}
       </div>
 
-      {/* Table avec pagination */}
       <DataTableServer
         columns={columnsWithActions}
         data={camps}
@@ -243,7 +200,6 @@ export function AdminCampsTableClient() {
         onSearchChange={setSearchTerm}
       />
 
-      {/* Dialog de confirmation d'action (publish/close) */}
       <AlertDialog
         open={!!actioningCamp}
         onOpenChange={(open) => !open && setActioningCamp(null)}
@@ -265,62 +221,15 @@ export function AdminCampsTableClient() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog de duplication */}
-      <Dialog
+      <DuplicateCampDialog
         open={!!duplicatingCamp}
         onOpenChange={(open) => !open && setDuplicatingCamp(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Dupliquer le camp</DialogTitle>
-            <DialogDescription>
-              Créez une copie de "{duplicatingCamp?.name}" avec les mêmes dates. Le
-              nouveau camp sera créé en mode brouillon.
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form {...duplicateForm}>
-            <form
-              onSubmit={duplicateForm.handleSubmit(handleDuplicate)}
-              className="space-y-4"
-            >
-              <FormField
-                control={duplicateForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nom du nouveau camp *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nom du camp dupliqué" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Toutes les autres informations seront copiées à l'identique
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDuplicatingCamp(null)}
-                  disabled={duplicateMutation.isPending}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={duplicateMutation.isPending}>
-                  {duplicateMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Dupliquer
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+        onConfirm={handleDuplicate}
+        originalCampName={duplicatingCamp?.name ?? ''}
+        originalCampTypeId={duplicatingCamp?.campTypeId ?? ''}
+        campTypes={campTypes ?? []}
+        isSubmitting={duplicateMutation.isPending}
+      />
     </div>
   );
 }

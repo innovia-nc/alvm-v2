@@ -23,7 +23,7 @@ export default function StaffAttendancePage({ params }: PageProps) {
           <Link href={`/dashboard/staff/camps/${id}`}>
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour au camp
+              Retour à l&apos;ACM
             </Button>
           </Link>
         }

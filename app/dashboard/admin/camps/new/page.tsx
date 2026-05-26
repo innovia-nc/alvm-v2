@@ -45,8 +45,8 @@ export default function NewCampPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Créer un nouveau camp"
-        description="Remplissez les informations pour créer un camp de vacances"
+        title="Créer un nouvel ACM"
+        description="Remplissez les informations pour créer un ACM"
       />
 
       {isLoadingTypes ? (

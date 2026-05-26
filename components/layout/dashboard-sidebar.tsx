@@ -108,7 +108,7 @@ const navigationConfig: Record<string, NavSection[]> = {
       title: 'Gestion des ACM',
       items: [
         {
-          title: 'Camps',
+          title: 'ACM',
           href: '/dashboard/staff/camps',
           icon: CalendarDays,
         },
@@ -180,7 +180,7 @@ const navigationConfig: Record<string, NavSection[]> = {
       title: 'Gestion des ACM',
       items: [
         {
-          title: 'Camps',
+          title: 'ACM',
           href: '/dashboard/admin/camps',
           icon: CalendarDays,
         },
@@ -225,7 +225,7 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Settings,
         },
         {
-          title: 'Types de Camps',
+          title: "Types d'ACM",
           href: '/dashboard/admin/settings/camp-types',
           icon: Tag,
         },

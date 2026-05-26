@@ -344,6 +344,7 @@ export const campsRouter = router({
     .input(z.object({
       id: z.string().uuid(),
       name: z.string().min(3).max(200),
+      campTypeId: z.string().uuid().optional(),
     }))
     .output(campSchema)
     .mutation(async ({ ctx, input }) => {
@@ -354,11 +355,26 @@ export const campsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp source non trouvé' });
       }
 
+      const targetCampTypeId = input.campTypeId ?? source.campTypeId;
+
+      if (input.campTypeId && input.campTypeId !== source.campTypeId) {
+        const campType = await ctx.prisma.campType.findFirst({
+          where: { id: input.campTypeId, active: true },
+          select: { id: true },
+        });
+        if (!campType) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Type de camp cible non trouvé ou inactif',
+          });
+        }
+      }
+
       const camp = await ctx.prisma.camp.create({
         data: {
           name: input.name,
           description: source.description,
-          campTypeId: source.campTypeId,
+          campTypeId: targetCampTypeId,
           location: source.location,
           maxCapacity: source.maxCapacity,
           startDate: source.startDate,

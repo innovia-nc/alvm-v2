@@ -55,8 +55,8 @@ export default function StaffNewCampPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Nouveau Camp"
-        description="Créer un nouveau camp d'activités"
+        title="Nouvel ACM"
+        description="Créer un nouvel ACM"
       />
 
       <div className="max-w-4xl">

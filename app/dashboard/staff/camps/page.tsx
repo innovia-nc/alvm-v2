@@ -12,13 +12,13 @@ export default async function StaffCampsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Mes Camps"
-        description="Gérez et suivez tous vos camps d'activités"
+        title="Mes ACM"
+        description="Gérez et suivez tous vos ACM (centres aérés)"
         actions={
           <Link href="/dashboard/staff/camps/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Créer un camp
+              Créer un ACM
             </Button>
           </Link>
         }

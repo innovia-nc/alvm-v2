@@ -57,12 +57,12 @@ export default function CampTypesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Types de Camps"
-        description="Gérez les catégories de camps disponibles"
+        title="Types d'ACM"
+        description="Gérez les catégories d'ACM disponibles"
         actions={
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" />
-            Nouveau type de camp
+            Nouveau type d'ACM
           </Button>
         }
       />
@@ -70,7 +70,7 @@ export default function CampTypesPage() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Liste des Types de Camps</CardTitle>
+          <CardTitle>Liste des Types d'ACM</CardTitle>
           <CardDescription>
             {stats.total} type{stats.total > 1 ? 's' : ''} de camp au total
           </CardDescription>
