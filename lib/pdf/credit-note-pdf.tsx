@@ -184,9 +184,6 @@ export const CreditNotePDF: React.FC<{ data: CreditNoteData }> = ({ data }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>AVOIR N° {data.creditNoteNumber}</Text>
-          <Text style={styles.companyInfo}>Association de Loisirs et Vacances Multiples</Text>
-          <Text style={styles.companyInfo}>Nouméa, Nouvelle-Calédonie</Text>
-          <Text style={styles.companyInfo}>Email: contact@mikado.nc</Text>
         </View>
 
         {/* Credit Note Info */}
@@ -258,8 +255,6 @@ export const CreditNotePDF: React.FC<{ data: CreditNoteData }> = ({ data }) => {
           <Text>
             Cet avoir sera déduit du solde de votre compte ou donnera lieu à un remboursement.
           </Text>
-          <Text>Pour toute question, contactez-nous à contact@mikado.nc</Text>
-          <Text>RIDET : NC123456 - APE : 9329Z</Text>
         </View>
       </Page>
     </Document>

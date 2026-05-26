@@ -197,14 +197,14 @@ export default function AdminSettingsPage() {
   const organizationForm = useForm<OrganizationFormValues>({
     resolver: zodResolver(organizationSchema),
     defaultValues: {
-      name: 'Mikado',
-      short_name: 'Mikado',
-      address: 'Nouméa',
-      city: 'Nouméa',
-      postal_code: '98800',
-      country: 'Nouvelle-Calédonie',
+      name: '',
+      short_name: '',
+      address: '',
+      city: '',
+      postal_code: '',
+      country: '',
       phone: '',
-      email: 'contact@alvm.nc',
+      email: '',
     },
     mode: 'onBlur',
   });
@@ -225,9 +225,9 @@ export default function AdminSettingsPage() {
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
     defaultValues: {
-      from_name: 'Mikado',
-      from_email: 'noreply@alvm.nc',
-      reply_to: 'contact@alvm.nc',
+      from_name: '',
+      from_email: '',
+      reply_to: '',
     },
     mode: 'onBlur',
   });
@@ -238,7 +238,7 @@ export default function AdminSettingsPage() {
       fec_journal_code: 'VE',
       fec_sales_account: '706000',
       fec_customers_account: '411000',
-      fec_company_code: 'MKD',
+      fec_company_code: '',
     },
     mode: 'onBlur',
   });
@@ -259,14 +259,14 @@ export default function AdminSettingsPage() {
     if (organizationSettings) {
       const data = settingsToFormData<OrganizationFormValues>(organizationSettings);
       organizationForm.reset({
-        name: 'Mikado',
-        short_name: 'Mikado',
-        address: 'Nouméa',
-        city: 'Nouméa',
-        postal_code: '98800',
-        country: 'Nouvelle-Calédonie',
+        name: '',
+        short_name: '',
+        address: '',
+        city: '',
+        postal_code: '',
+        country: '',
         phone: '',
-        email: 'contact@alvm.nc',
+        email: '',
         ...data,
       });
     }
@@ -291,9 +291,9 @@ export default function AdminSettingsPage() {
     if (emailSettings) {
       const data = settingsToFormData<EmailFormValues>(emailSettings);
       emailForm.reset({
-        from_name: 'Mikado',
-        from_email: 'noreply@alvm.nc',
-        reply_to: 'contact@alvm.nc',
+        from_name: '',
+        from_email: '',
+        reply_to: '',
         ...data,
       });
     }
@@ -306,7 +306,7 @@ export default function AdminSettingsPage() {
         fec_journal_code: 'VE',
         fec_sales_account: '706000',
         fec_customers_account: '411000',
-        fec_company_code: 'MKD',
+        fec_company_code: '',
         ...data,
       });
     }
@@ -379,7 +379,7 @@ export default function AdminSettingsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Paramètres du Système"
-        description="Configurez les paramètres de l'application Mikado"
+        description="Configurez les paramètres de l'application ALVM"
       />
 
       {/* ========== ORGANIZATION ========== */}
