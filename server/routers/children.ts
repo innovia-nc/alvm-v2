@@ -25,6 +25,8 @@ const associatedParentSchema = z.object({
   lastName: z.string(),
   email: z.string(),
   phone: z.string(),
+  homePhone: z.string().nullable(),
+  workPhone: z.string().nullable(),
   isPrimary: z.boolean(),
   relationship: z.string().nullable(),
 });
@@ -57,7 +59,7 @@ const parentInclude = {
   parentLinks: {
     include: {
       parent: {
-        select: { firstName: true, lastName: true, email: true, phone: true },
+        select: { firstName: true, lastName: true, email: true, phone: true, homePhone: true, workPhone: true },
       },
     },
     orderBy: [
@@ -93,6 +95,8 @@ function mapChild(c: any) {
       // legacy data may have NULL'd it).
       email: link.parent.email ?? '',
       phone: link.parent.phone,
+      homePhone: link.parent.homePhone ?? null,
+      workPhone: link.parent.workPhone ?? null,
       isPrimary: link.isPrimary,
       relationship: link.relationship ?? null,
     })),
@@ -422,7 +426,7 @@ export const childrenRouter = router({
       const links = await ctx.prisma.childParent.findMany({
         where: { childId: input.childId },
         include: {
-          parent: { select: { firstName: true, lastName: true, email: true, phone: true } },
+          parent: { select: { firstName: true, lastName: true, email: true, phone: true, homePhone: true, workPhone: true } },
         },
         orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
       });
@@ -434,6 +438,8 @@ export const childrenRouter = router({
         lastName: link.parent.lastName,
         email: link.parent.email ?? '',
         phone: link.parent.phone,
+        homePhone: link.parent.homePhone ?? null,
+        workPhone: link.parent.workPhone ?? null,
         isPrimary: link.isPrimary,
         relationship: (link.relationship as string | null) ?? null,
       }));
@@ -457,7 +463,7 @@ export const childrenRouter = router({
 
       const parent = await ctx.prisma.parent.findFirst({
         where: { userId: input.parentId, deletedAt: null },
-        select: { userId: true, firstName: true, lastName: true, email: true, phone: true },
+        select: { userId: true, firstName: true, lastName: true, email: true, phone: true, homePhone: true, workPhone: true },
       });
       if (!parent) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
@@ -496,6 +502,8 @@ export const childrenRouter = router({
         lastName: parent.lastName,
         email: parent.email ?? '',
         phone: parent.phone,
+        homePhone: parent.homePhone ?? null,
+        workPhone: parent.workPhone ?? null,
         isPrimary: link.isPrimary,
         relationship: (link.relationship as string | null) ?? null,
       };

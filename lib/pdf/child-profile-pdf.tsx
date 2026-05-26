@@ -29,6 +29,8 @@ interface ChildParent {
   lastName: string;
   email: string | null;
   phone: string;
+  homePhone?: string | null;
+  workPhone?: string | null;
   isPrimary: boolean;
   relationship: string | null;
 }
@@ -366,6 +368,18 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
               <Text style={styles.parentDetail}>
                 Téléphone : {parent.phone}
               </Text>
+
+              {parent.homePhone && (
+                <Text style={styles.parentDetail}>
+                  Téléphone domicile : {parent.homePhone}
+                </Text>
+              )}
+
+              {parent.workPhone && (
+                <Text style={styles.parentDetail}>
+                  Téléphone professionnel : {parent.workPhone}
+                </Text>
+              )}
 
               {parent.email && (
                 <Text style={styles.parentDetail}>

@@ -53,6 +53,8 @@ export async function GET(
                             lastName: true,
                             email: true,
                             phone: true,
+                            homePhone: true,
+                            workPhone: true,
                         },
                     },
                 },
@@ -68,6 +70,8 @@ export async function GET(
         lastName: pl.parent.lastName,
         email: pl.parent.email,
         phone: pl.parent.phone,
+        homePhone: pl.parent.homePhone,
+        workPhone: pl.parent.workPhone,
         isPrimary: pl.isPrimary,
         relationship: pl.relationship,
     }));

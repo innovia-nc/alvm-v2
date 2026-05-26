@@ -61,6 +61,8 @@ interface Child {
     lastName: string;
     email: string;
     phone: string;
+    homePhone?: string | null;
+    workPhone?: string | null;
     isPrimary: boolean;
     // Widened to `string | null` to tolerate legacy values outside the
     // canonical enum (see server/routers/children.ts B1 fix).

@@ -16,6 +16,8 @@ export interface ChildParent {
   lastName: string;
   email: string;
   phone: string;
+  homePhone?: string | null;
+  workPhone?: string | null;
   isPrimary: boolean;
   // Widened to `string | null` to tolerate legacy values in BDD outside the
   // canonical enum (see server/routers/children.ts B1 fix). The relation label
@@ -118,6 +120,18 @@ export function ChildParentsList({ parents, className }: ChildParentsListProps) 
                   <Phone className="h-3.5 w-3.5 flex-shrink-0" />
                   <span className="truncate">{parent.phone}</span>
                 </div>
+                {parent.homePhone && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate">Domicile : {parent.homePhone}</span>
+                  </div>
+                )}
+                {parent.workPhone && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate">Pro : {parent.workPhone}</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
