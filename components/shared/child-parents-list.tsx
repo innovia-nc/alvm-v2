@@ -17,7 +17,10 @@ export interface ChildParent {
   email: string;
   phone: string;
   isPrimary: boolean;
-  relationship?: 'mother' | 'father' | 'guardian' | 'step_mother' | 'step_father' | 'grandparent' | 'other' | null;
+  // Widened to `string | null` to tolerate legacy values in BDD outside the
+  // canonical enum (see server/routers/children.ts B1 fix). The relation label
+  // lookup gracefully degrades to the raw string for unknown values.
+  relationship?: string | null;
 }
 
 interface ChildParentsListProps {

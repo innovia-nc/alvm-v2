@@ -212,6 +212,72 @@ describe('invoices router', () => {
         expect(call.where.deletedAt).toBeNull();
       });
 
+      // -------------------------------------------------------------------------
+      // B7 — search support on invoices.list
+      // -------------------------------------------------------------------------
+
+      it('applies OR search on invoiceNumber + parent fields when search provided', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({ search: 'Dupont' });
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.OR).toBeDefined();
+        expect(call.where.OR).toHaveLength(4);
+        expect(call.where.OR).toEqual(
+          expect.arrayContaining([
+            { invoiceNumber: { contains: 'Dupont', mode: 'insensitive' } },
+            { parent: { firstName: { contains: 'Dupont', mode: 'insensitive' } } },
+            { parent: { lastName: { contains: 'Dupont', mode: 'insensitive' } } },
+            { parent: { email: { contains: 'Dupont', mode: 'insensitive' } } },
+          ]),
+        );
+      });
+
+      it('does not add OR when search is undefined', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({});
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.OR).toBeUndefined();
+      });
+
+      it('does not add OR when search is an empty string or whitespace', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({ search: '   ' });
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.OR).toBeUndefined();
+      });
+
+      it('combines search with status filter (AND)', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({ search: 'FAC-2026', status: 'SENT' });
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.status).toBe('SENT');
+        expect(call.where.OR).toBeDefined();
+        expect(call.where.OR).toHaveLength(4);
+      });
+
+      it('combines search with parentId filter (AND)', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({ search: 'jean@test.com', parentId: OTHER_PARENT });
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.parentId).toBe(OTHER_PARENT);
+        expect(call.where.OR).toBeDefined();
+      });
+
       it('maps invoice with details correctly', async () => {
         const row = makeInvoiceRow({
           totalAmount: 15000,

@@ -6,7 +6,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, Trash2, Edit } from 'lucide-react';
+import { Loader2, FileText, Trash2, Edit, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -73,6 +73,7 @@ const statusVariants: Record<Registration['status'], 'default' | 'secondary' | '
 export function RegistrationDetails({ registration }: { registration: Registration }) {
   const router = useRouter();
   const basePath = useDashboardBasePath();
+  const utils = trpc.useUtils();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const deleteRegistrationMutation = trpc.registrations.delete.useMutation({
@@ -87,9 +88,32 @@ export function RegistrationDetails({ registration }: { registration: Registrati
     },
   });
 
+  const createInvoiceMutation = trpc.invoices.createFromRegistration.useMutation({
+    onSuccess: (invoice) => {
+      toast.success(`Facture ${invoice.invoiceNumber ?? ''} créée avec succès`.trim());
+      utils.registrations.list.invalidate();
+      utils.invoices.list.invalidate();
+      router.push(`${basePath}/invoices/${invoice.id}`);
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erreur lors de la création de la facture');
+    },
+  });
+
   const handleDelete = async () => {
     setIsDeleting(true);
     deleteRegistrationMutation.mutate({ id: registration.id });
+  };
+
+  const canCreateInvoice =
+    registration.status === 'CONFIRMED' && registration.invoiceId === null;
+
+  const handleCreateInvoice = () => {
+    createInvoiceMutation.mutate({
+      registrationId: registration.id,
+      status: 'SENT',
+    });
   };
 
   return (
@@ -286,10 +310,23 @@ export function RegistrationDetails({ registration }: { registration: Registrati
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-4">
+      <div className="flex flex-wrap justify-end gap-4">
         <Button variant="outline" onClick={() => router.back()}>
           Retour
         </Button>
+        {canCreateInvoice && (
+          <Button
+            onClick={handleCreateInvoice}
+            disabled={createInvoiceMutation.isPending}
+          >
+            {createInvoiceMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Receipt className="mr-2 h-4 w-4" />
+            )}
+            Créer une facture
+          </Button>
+        )}
         <Button variant="outline" asChild>
           <Link href={`${basePath}/registrations/${registration.id}/edit`}>
             <Edit className="mr-2 h-4 w-4" />

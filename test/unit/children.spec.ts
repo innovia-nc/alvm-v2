@@ -343,6 +343,62 @@ describe('children router', () => {
       expect(findFirstCall.include.parentLinks).toBeDefined();
       expect(findFirstCall.include.parentLinks.include.parent).toBeDefined();
     });
+
+    // -------------------------------------------------------------------------
+    // B1 — Lenient output schema: must NOT crash on aberrant BDD values
+    // -------------------------------------------------------------------------
+
+    it('should not crash when parent.email is malformed (legacy data)', async () => {
+      const linkWithBadEmail = makeParentLink({
+        parent: {
+          firstName: 'Marie',
+          lastName: 'Dupont',
+          email: 'not-a-valid-email',
+          phone: '0612345678',
+        },
+      });
+      admin.mockPrisma.child.findFirst.mockResolvedValue(
+        makeChild({ parentLinks: [linkWithBadEmail] }),
+      );
+
+      const result = await admin.caller.children.getById({ id: CHILD_ID });
+      expect(result).not.toBeNull();
+      expect(result!.parents[0].email).toBe('not-a-valid-email');
+    });
+
+    it('should not crash when parent.email is null (legacy data)', async () => {
+      const linkWithNullEmail = makeParentLink({
+        parent: {
+          firstName: 'Marie',
+          lastName: 'Dupont',
+          email: null,
+          phone: '0612345678',
+        },
+      });
+      admin.mockPrisma.child.findFirst.mockResolvedValue(
+        makeChild({ parentLinks: [linkWithNullEmail] }),
+      );
+
+      const result = await admin.caller.children.getById({ id: CHILD_ID });
+      expect(result).not.toBeNull();
+      // Null email is coalesced to '' so the front-end type signature stays
+      // `string`. The B1 fix is about not crashing on the .email() validator;
+      // the exact value matters less.
+      expect(result!.parents[0].email).toBe('');
+    });
+
+    it('should not crash when relationship is outside the canonical enum', async () => {
+      const linkWithUnknownRel = makeParentLink({
+        relationship: 'beau-pere-legacy',
+      });
+      admin.mockPrisma.child.findFirst.mockResolvedValue(
+        makeChild({ parentLinks: [linkWithUnknownRel] }),
+      );
+
+      const result = await admin.caller.children.getById({ id: CHILD_ID });
+      expect(result).not.toBeNull();
+      expect(result!.parents[0].relationship).toBe('beau-pere-legacy');
+    });
   });
 
   // =========================================================================

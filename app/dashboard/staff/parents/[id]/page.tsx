@@ -9,7 +9,7 @@ export default async function StaffParentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(['STAFF']);
+  await requireRole(['STAFF', 'ADMIN']);
 
   const { id } = await params;
 

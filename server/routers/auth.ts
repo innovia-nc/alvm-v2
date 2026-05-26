@@ -6,9 +6,11 @@ import type { UserRole } from '@prisma/client';
 
 type Role = 'PARENT' | 'STAFF' | 'ADMIN';
 
+// Output schema — lenient on email (no .email()) to tolerate legacy rows.
+// Inputs (verifyCredentials, login) keep z.string().email().
 const userProfileSchema = z.object({
   id: z.string().uuid(),
-  email: z.string().email(),
+  email: z.string(),
   name: z.string().nullable(),
   image: z.string().nullable(),
   role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
@@ -28,7 +30,7 @@ export const authRouter = router({
     }))
     .output(z.object({
       id: z.string().uuid(),
-      email: z.string().email(),
+      email: z.string(),
       name: z.string().nullable(),
       image: z.string().nullable(),
       role: z.enum(['PARENT', 'STAFF', 'ADMIN']),

@@ -4,6 +4,10 @@ import { hash } from 'bcryptjs';
 import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 
+// NOTE: Output schemas are intentionally lenient on `email` (z.string() rather
+// than z.string().email()). Some legacy rows in BDD have malformed emails and
+// a strict .email() check on outputs causes getById/list to crash.
+// Inputs (create/update mutations) remain strict via z.string().email().
 const parentSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
@@ -12,7 +16,7 @@ const parentSchema = z.object({
   phone: z.string(),
   homePhone: z.string().nullable(),
   workPhone: z.string().nullable(),
-  email: z.string().email(),
+  email: z.string(),
   address: z.string().nullable(),
   city: z.string().nullable(),
   postalCode: z.string().nullable(),
@@ -24,7 +28,7 @@ const parentSchema = z.object({
 
 const parentWithUserSchema = parentSchema.extend({
   user: z.object({
-    email: z.string().email(),
+    email: z.string(),
     name: z.string().nullable(),
     emailVerified: z.date().nullable(),
   }),

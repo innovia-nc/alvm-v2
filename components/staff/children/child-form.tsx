@@ -129,7 +129,9 @@ interface ChildFormProps {
       email: string;
       phone: string;
       isPrimary: boolean;
-      relationship: 'mother' | 'father' | 'guardian' | 'step_mother' | 'step_father' | 'grandparent' | 'other' | null;
+      // Widened to `string | null` to tolerate legacy values outside the
+      // canonical enum (see server/routers/children.ts B1 fix).
+      relationship: string | null;
     }>;
   };
 }
@@ -175,13 +177,22 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
     },
   });
 
+  // Known canonical relationship enum values — used to narrow the lenient
+  // `string | null` from the API back to the strict union for the form input.
+  const KNOWN_RELATIONSHIPS = ['mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other'] as const;
+  type KnownRelationship = typeof KNOWN_RELATIONSHIPS[number];
+  const narrowRelationship = (r: string | null | undefined): KnownRelationship | undefined => {
+    if (!r) return undefined;
+    return (KNOWN_RELATIONSHIPS as readonly string[]).includes(r) ? (r as KnownRelationship) : undefined;
+  };
+
   // Préparer les valeurs par défaut
   const defaultValues: ChildFormValues = mode === 'edit' && initialData
     ? {
         parents: initialData.parents.map((p) => ({
           parentId: p.parentId,
           isPrimary: p.isPrimary,
-          relationship: p.relationship || undefined,
+          relationship: narrowRelationship(p.relationship),
         })),
         firstName: initialData.firstName,
         lastName: initialData.lastName,

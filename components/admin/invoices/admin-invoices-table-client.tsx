@@ -38,16 +38,24 @@ export function AdminInvoicesTableClient() {
   const [paymentDialogItem, setPaymentDialogItem] = useState<AdminInvoiceType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  // Query tRPC avec pagination et filtres
+  // Query tRPC avec pagination, filtres et recherche
   const { data, isLoading } = trpc.invoices.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter as any }),
+    ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
   });
+
+  // Callback pour la recherche (debounce + reset page géré par DataTableServer)
+  function handleSearchChange(search: string) {
+    setSearchTerm(search);
+    pagination.resetToFirstPage();
+  }
 
   const utils = trpc.useUtils();
 
@@ -145,10 +153,11 @@ export function AdminInvoicesTableClient() {
   // Réinitialiser les filtres
   const resetFilters = () => {
     setStatusFilter('all');
+    setSearchTerm('');
     pagination.setPage(1);
   };
 
-  const hasActiveFilters = statusFilter !== 'all';
+  const hasActiveFilters = statusFilter !== 'all' || searchTerm !== '';
 
   // Enrichir les colonnes avec les callbacks
   // Fonction pour gérer le téléchargement direct du PDF
@@ -229,6 +238,7 @@ export function AdminInvoicesTableClient() {
         pagination={pagination}
         searchKey="invoiceNumber"
         searchPlaceholder="Rechercher par numéro, nom ou email du parent..."
+        onSearchChange={handleSearchChange}
       />
 
       {/* Dialog de confirmation de suppression */}

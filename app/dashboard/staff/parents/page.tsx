@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { StaffParentsTableClient } from './staff-parents-table-client';
 
 export default async function StaffParentsPage() {
-  await requireRole(['STAFF']);
+  await requireRole(['STAFF', 'ADMIN']);
 
   return (
     <div className="space-y-6">

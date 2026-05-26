@@ -16,9 +16,11 @@ function generateTempPassword(): string {
     .join('-');
 }
 
+// Output schema: lenient on email (z.string()) to tolerate legacy malformed
+// rows. Input/mutation schemas keep z.string().email().
 const userSchema = z.object({
   id: z.string().uuid(),
-  email: z.string().email(),
+  email: z.string(),
   name: z.string().nullable(),
   image: z.string().nullable(),
   role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
@@ -30,7 +32,7 @@ const userSchema = z.object({
     firstName: z.string(),
     lastName: z.string(),
     phone: z.string(),
-    email: z.string().email(),
+    email: z.string(),
     address: z.string().nullable(),
     city: z.string().nullable(),
     postalCode: z.string().nullable(),
@@ -40,7 +42,7 @@ const userSchema = z.object({
     firstName: z.string(),
     lastName: z.string(),
     phone: z.string().nullable(),
-    email: z.string().email(),
+    email: z.string(),
   }).nullable(),
 });
 

@@ -18,7 +18,9 @@ export interface SelectedParent {
   email: string;
   phone: string;
   isPrimary: boolean;
-  relationship?: 'mother' | 'father' | 'guardian' | 'step_mother' | 'step_father' | 'grandparent' | 'other' | null;
+  // Widened to `string | null` to tolerate legacy values in BDD outside the
+  // canonical enum (see server/routers/children.ts B1 fix).
+  relationship?: string | null;
 }
 
 interface SelectedParentsListProps {

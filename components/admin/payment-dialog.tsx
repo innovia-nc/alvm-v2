@@ -122,6 +122,8 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
     [invoicesData]
   );
 
+  const hasEligibleInvoices = unpaidInvoices.length > 0;
+
   // Récupérer les avoirs disponibles pour le parent sélectionné
   const { data: creditNotesData } = trpc.creditNotes.list.useQuery(
     {
@@ -221,36 +223,50 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Aucune facture éligible */}
+            {!hasEligibleInvoices && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Aucune facture en attente de paiement. Les factures doivent être
+                  en statut <strong>Émise</strong> ou <strong>En retard</strong>{' '}
+                  pour recevoir un paiement.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Sélection de la facture */}
-            <FormField
-              control={form.control}
-              name="invoiceId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Facture *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez une facture" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {unpaidInvoices.map((invoice) => {
-                        const remaining = invoice.totalAmount - invoice.paidAmount;
-                        return (
-                          <SelectItem key={invoice.id} value={invoice.id}>
-                            #{invoice.invoiceNumber} - {invoice.parent.firstName}{' '}
-                            {invoice.parent.lastName} - Reste à payer:{' '}
-                            {remaining.toLocaleString()} XPF
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {hasEligibleInvoices && (
+              <FormField
+                control={form.control}
+                name="invoiceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Facture *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une facture" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {unpaidInvoices.map((invoice) => {
+                          const remaining = invoice.totalAmount - invoice.paidAmount;
+                          return (
+                            <SelectItem key={invoice.id} value={invoice.id}>
+                              #{invoice.invoiceNumber} - {invoice.parent.firstName}{' '}
+                              {invoice.parent.lastName} - Reste à payer:{' '}
+                              {remaining.toLocaleString()} XPF
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Infos facture sélectionnée */}
             {selectedInvoiceData && (
@@ -436,6 +452,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                 type="submit"
                 loading={createPayment.isPending}
                 disabled={
+                  !hasEligibleInvoices ||
                   !isAmountValid ||
                   !isCreditNoteAmountValid ||
                   (isCreditNoteMethod && !selectedCreditNoteId)

@@ -9,15 +9,24 @@ const relationshipEnum = z.enum([
   'mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other',
 ]);
 
+// NOTE: Output schema is intentionally lenient (no .email() / no enum strictness).
+// Legacy rows in BDD may contain malformed emails or relationship values
+// outside the canonical enum — normalising those is a data-fix concern,
+// not an API contract concern. The strict validation lives on *input* schemas
+// (mutations) which remain strict via relationshipEnum / z.string().email().
+// `email` is z.string() (not .email()) but never null — Parent.email is
+// non-null in the Prisma schema, and existing front-end consumers expect string.
+// `relationship` becomes z.string().nullable() to tolerate legacy values
+// outside the enum.
 const associatedParentSchema = z.object({
   id: z.string().uuid(),
   parentId: z.string().uuid(),
   firstName: z.string(),
   lastName: z.string(),
-  email: z.string().email(),
+  email: z.string(),
   phone: z.string(),
   isPrimary: z.boolean(),
-  relationship: relationshipEnum.nullable(),
+  relationship: z.string().nullable(),
 });
 
 const medicalInfoSchema = z.object({
@@ -79,10 +88,13 @@ function mapChild(c: any) {
       parentId: link.parentId,
       firstName: link.parent.firstName,
       lastName: link.parent.lastName,
-      email: link.parent.email,
+      // Coalesce to '' to keep the front-end type signature stable even if
+      // a legacy row has email = null (Prisma schema says non-null but
+      // legacy data may have NULL'd it).
+      email: link.parent.email ?? '',
       phone: link.parent.phone,
       isPrimary: link.isPrimary,
-      relationship: link.relationship,
+      relationship: link.relationship ?? null,
     })),
   };
 }
@@ -420,10 +432,10 @@ export const childrenRouter = router({
         parentId: link.parentId,
         firstName: link.parent.firstName,
         lastName: link.parent.lastName,
-        email: link.parent.email,
+        email: link.parent.email ?? '',
         phone: link.parent.phone,
         isPrimary: link.isPrimary,
-        relationship: link.relationship as z.infer<typeof relationshipEnum> | null,
+        relationship: (link.relationship as string | null) ?? null,
       }));
     }),
 
@@ -482,10 +494,10 @@ export const childrenRouter = router({
         parentId: link.parentId,
         firstName: parent.firstName,
         lastName: parent.lastName,
-        email: parent.email,
+        email: parent.email ?? '',
         phone: parent.phone,
         isPrimary: link.isPrimary,
-        relationship: link.relationship as z.infer<typeof relationshipEnum> | null,
+        relationship: (link.relationship as string | null) ?? null,
       };
     }),
 

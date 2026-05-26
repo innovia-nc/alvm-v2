@@ -36,7 +36,9 @@ interface ManageParentsProps {
     email: string;
     phone: string;
     isPrimary: boolean;
-    relationship: 'mother' | 'father' | 'guardian' | 'step_mother' | 'step_father' | 'grandparent' | 'other' | null;
+    // Widened to `string | null` to tolerate legacy values outside the
+    // canonical enum (see server/routers/children.ts B1 fix).
+    relationship: string | null;
   }>;
 }
 
@@ -122,13 +124,22 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
     },
   });
 
+  // Narrow the lenient `string | null` relationship from the API back to the
+  // strict mutation enum. Unknown legacy values are dropped (sent as undefined).
+  const KNOWN_RELATIONSHIPS = ['mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other'] as const;
+  type KnownRelationship = typeof KNOWN_RELATIONSHIPS[number];
+  const narrowRelationship = (r: string | null | undefined): KnownRelationship | undefined => {
+    if (!r) return undefined;
+    return (KNOWN_RELATIONSHIPS as readonly string[]).includes(r) ? (r as KnownRelationship) : undefined;
+  };
+
   // Handler pour ajouter un parent
   const handleAddParent = (parent: SelectedParent) => {
     addParentMutation.mutate({
       childId,
       parentId: parent.parentId,
       isPrimary: parents.length === 0, // Premier parent = principal
-      relationship: parent.relationship || undefined,
+      relationship: narrowRelationship(parent.relationship),
     });
   };
 

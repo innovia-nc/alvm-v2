@@ -181,6 +181,7 @@ export const invoicesRouter = router({
       offset: z.number().min(0).default(0),
       parentId: z.string().uuid().optional(),
       status: invoiceStatusEnum.optional(),
+      search: z.string().optional(),
       sortBy: z.enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount']).default('issueDate'),
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }))
@@ -189,7 +190,7 @@ export const invoicesRouter = router({
       total: z.number(),
     }))
     .query(async ({ ctx, input }) => {
-      const { limit, offset, parentId, status, sortBy, sortOrder } = input;
+      const { limit, offset, parentId, status, search, sortBy, sortOrder } = input;
 
       const where: Prisma.InvoiceWhereInput = {
         deletedAt: null,
@@ -203,6 +204,16 @@ export const invoicesRouter = router({
       }
 
       if (status) where.status = status;
+
+      if (search && search.trim().length > 0) {
+        const q = search.trim();
+        where.OR = [
+          { invoiceNumber: { contains: q, mode: 'insensitive' } },
+          { parent: { firstName: { contains: q, mode: 'insensitive' } } },
+          { parent: { lastName: { contains: q, mode: 'insensitive' } } },
+          { parent: { email: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
 
       const [invoices, total] = await Promise.all([
         ctx.prisma.invoice.findMany({

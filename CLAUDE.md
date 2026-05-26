@@ -71,6 +71,7 @@ au lieu d'un appel HTTP au backend. Le mot de passe hashé est stocké dans
 
 ### Comptabilite
 - Ne JAMAIS hardcoder le taux TGC — utiliser les valeurs stockees sur la facture
+- **ALVM est exoneree de TGC** au titre de l'article LP 492 — Loi du pays N°2016-14 du 30 septembre 2016. `tax_rate = 0` dans `app_settings.pricing` est volontaire et legal. Le footer facture mentionne explicitement cette exoneration. Ne JAMAIS "corriger" cette valeur a 11 — toutes les factures emises sont a TGC=0 par design.
 - Le compte auxiliaire client : `'AUX' + uuid.replace(/-/g, '').slice(0, 8)`
 - `deriveClientAux()` n'existe plus qu'en TypeScript (plus de version SQL)
 - Les ecritures VE sont creees quand `status` passe a `SENT` (appel explicite dans le router)

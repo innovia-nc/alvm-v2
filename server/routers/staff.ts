@@ -4,12 +4,15 @@ import { hash } from 'bcryptjs';
 import { router, staffProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 
+// Output schemas use plain z.string() for email (no .email()) to avoid
+// runtime crashes if BDD contains legacy malformed values. Input/mutation
+// schemas keep z.string().email() for new data.
 const staffMemberSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
   firstName: z.string(),
   lastName: z.string(),
-  email: z.string().email(),
+  email: z.string(),
   phone: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -17,7 +20,7 @@ const staffMemberSchema = z.object({
 
 const staffMemberWithUserSchema = staffMemberSchema.extend({
   user: z.object({
-    email: z.string().email(),
+    email: z.string(),
     name: z.string().nullable(),
     emailVerified: z.date().nullable(),
   }),

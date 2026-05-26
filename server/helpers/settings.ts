@@ -31,7 +31,19 @@ export async function getPricingSetting(
   if (!row?.value) return DEFAULTS.pricing[key];
 
   const parsed = typeof row.value === 'string' ? parseJsonNumber(row.value) : Number(row.value);
-  return Number.isFinite(parsed) ? parsed : DEFAULTS.pricing[key];
+
+  if (!Number.isFinite(parsed)) {
+    // Defensive fallback: stored value is malformed (e.g. unquoted string, null,
+    // or non-numeric JSON). Log so it can be fixed in BDD, but do not crash.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[settings] pricing.${key} value is not a finite number (got ${JSON.stringify(row.value)}). ` +
+      `Falling back to default ${DEFAULTS.pricing[key]}.`,
+    );
+    return DEFAULTS.pricing[key];
+  }
+
+  return parsed;
 }
 
 export async function getTaxRateDecimal(
@@ -45,22 +57,58 @@ export async function getDefaultDueDate(
   prisma: HasAppSetting,
 ): Promise<Date> {
   const days = await getPricingSetting(prisma, 'payment_terms_days');
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+  // Extra guard: getPricingSetting already returns the default if the stored
+  // value isn't a finite number, but we double-check here in case future code
+  // paths bypass it. The output is never new Date(NaN) silently.
+  const safeDays = Number.isFinite(days) && days > 0
+    ? days
+    : DEFAULTS.pricing.payment_terms_days;
+
+  if (safeDays !== days) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[settings] getDefaultDueDate received invalid days=${days}, falling back to ${safeDays}`,
+    );
+  }
+
+  return new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000);
 }
 
 export async function getCreditExpiryDate(
   prisma: HasAppSetting,
 ): Promise<Date> {
   const days = await getPricingSetting(prisma, 'credit_expiry_days');
+  const safeDays = Number.isFinite(days) && days > 0
+    ? days
+    : DEFAULTS.pricing.credit_expiry_days;
   const date = new Date();
-  date.setDate(date.getDate() + days);
+  date.setDate(date.getDate() + safeDays);
   return date;
 }
 
+/**
+ * Parses a setting value into a number. Tolerates:
+ *  - JSON-encoded numbers (e.g. "30", "0.11")
+ *  - Plain numeric strings ("30")
+ *  - JSON-encoded strings of numbers (e.g. "\"30\"")
+ * Returns NaN if the value cannot be coerced — callers MUST guard with
+ * Number.isFinite() before using the result.
+ */
 function parseJsonNumber(value: string): number {
+  // 1. Try JSON.parse first — handles numeric literals and quoted numbers
   try {
-    return Number(JSON.parse(value));
+    const parsed = JSON.parse(value);
+    if (typeof parsed === 'number') return parsed;
+    if (typeof parsed === 'string') {
+      const n = Number(parsed);
+      return Number.isFinite(n) ? n : NaN;
+    }
+    // boolean/null/object → not usable
+    return NaN;
   } catch {
-    return Number(value);
+    // 2. Fallback: Number() on the raw string
+    const n = Number(value);
+    return Number.isFinite(n) ? n : NaN;
   }
 }
