@@ -362,22 +362,30 @@ export function DataTableServer<TData, TValue>({
 
   // Debounce pour la recherche
   const [searchValue, setSearchValue] = React.useState('');
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+  // Ref pour mémoriser la dernière valeur debouncée sans en faire une dépendance
+  // du useEffect (évite une double exécution après chaque debounce).
+  const lastDebouncedRef = React.useRef('');
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchValue);
+      const prev = lastDebouncedRef.current;
+      lastDebouncedRef.current = searchValue;
+
       if (onSearchChange) {
         onSearchChange(searchValue);
       }
-      // Reset à la page 1 lors d'une recherche
-      if (searchValue !== debouncedSearch) {
+      // Reset à la page 1 uniquement quand le terme change réellement
+      if (searchValue !== prev) {
         pagination.setPage(1);
       }
     }, 300); // 300ms de debounce
 
     return () => clearTimeout(timer);
-  }, [searchValue, onSearchChange, debouncedSearch, pagination]);
+  // debouncedSearch retiré des deps : la ref lastDebouncedRef porte l'état
+  // précédent sans provoquer de re-exécution. pagination est stable grâce
+  // aux useCallback/useMemo de useServerPagination.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchValue, onSearchChange, pagination]);
 
   const table = useReactTable({
     data,

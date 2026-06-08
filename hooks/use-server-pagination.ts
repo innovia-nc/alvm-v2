@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { PAGINATION_DEFAULTS } from '@/lib/constants/pagination';
 
 interface UseServerPaginationOptions {
@@ -60,7 +60,12 @@ export interface UseServerPaginationReturn {
 }
 
 /**
- * Hook personnalisé pour gérer la pagination server-side
+ * Hook personnalisé pour gérer la pagination server-side.
+ *
+ * Toutes les fonctions retournées sont stabilisées avec useCallback et l'objet
+ * retourné est mémoïsé avec useMemo. Cela garantit des références stables entre
+ * les renders, ce qui est indispensable pour éviter des boucles de re-render
+ * dans les useEffect qui dépendent de l'objet pagination (ex: DataTableServer).
  *
  * @example
  * ```tsx
@@ -78,56 +83,88 @@ export function useServerPagination({
   defaultPageSize = PAGINATION_DEFAULTS.DEFAULT_PAGE_SIZE,
   defaultPage = 1,
 }: UseServerPaginationOptions = {}): UseServerPaginationReturn {
-  const [page, setPage] = useState(defaultPage);
-  const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [page, setPageState] = useState(defaultPage);
+  const [pageSize, setPageSizeState] = useState(defaultPageSize);
 
   // Calcul de l'offset (0-indexed pour PostgreSQL)
   const offset = (page - 1) * pageSize;
   const limit = pageSize;
 
-  // Calcule le nombre total de pages
-  const getTotalPages = (total: number): number => {
+  // Stabilisation des fonctions : useCallback garantit une référence stable tant
+  // que les dépendances n'ont pas changé. Sans cela, chaque render recrée de
+  // nouvelles fonctions, ce qui invalide les useEffect qui en dépendent.
+
+  const setPage = useCallback((newPage: number) => {
+    setPageState(newPage);
+  }, []);
+
+  const setPageSize = useCallback((size: number) => {
+    setPageSizeState(size);
+  }, []);
+
+  const getTotalPages = useCallback((total: number): number => {
     if (total === 0) return 1;
     return Math.ceil(total / pageSize);
-  };
+  }, [pageSize]);
 
-  // Navigation
-  const goToFirstPage = () => setPage(1);
+  const goToFirstPage = useCallback(() => setPageState(1), []);
 
-  const goToLastPage = (total: number) => {
-    const totalPages = getTotalPages(total);
-    setPage(totalPages);
-  };
+  const goToLastPage = useCallback((total: number) => {
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    setPageState(totalPages);
+  }, [pageSize]);
 
-  const goToPrevPage = () => {
-    setPage((prev) => Math.max(1, prev - 1));
-  };
+  const goToPrevPage = useCallback(() => {
+    setPageState((prev) => Math.max(1, prev - 1));
+  }, []);
 
-  const goToNextPage = (totalPages: number) => {
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  };
+  const goToNextPage = useCallback((totalPages: number) => {
+    setPageState((prev) => Math.min(totalPages, prev + 1));
+  }, []);
 
-  // Helpers
+  const hasNextPage = useCallback(
+    (totalPages: number) => page < totalPages,
+    [page],
+  );
+
+  const resetToFirstPage = useCallback(() => setPageState(1), []);
+
   const hasPrevPage = page > 1;
-  const hasNextPage = (totalPages: number) => page < totalPages;
 
-  // Reset to first page (useful after search/filter change)
-  const resetToFirstPage = () => setPage(1);
-
-  return {
-    page,
-    setPage,
-    pageSize,
-    setPageSize,
-    offset,
-    limit,
-    getTotalPages,
-    goToFirstPage,
-    goToLastPage,
-    goToPrevPage,
-    goToNextPage,
-    hasPrevPage,
-    hasNextPage,
-    resetToFirstPage,
-  };
+  // Mémoïsation de l'objet retourné : évite qu'une nouvelle référence d'objet
+  // soit créée à chaque render quand page et pageSize n'ont pas changé.
+  return useMemo(
+    () => ({
+      page,
+      setPage,
+      pageSize,
+      setPageSize,
+      offset,
+      limit,
+      getTotalPages,
+      goToFirstPage,
+      goToLastPage,
+      goToPrevPage,
+      goToNextPage,
+      hasPrevPage,
+      hasNextPage,
+      resetToFirstPage,
+    }),
+    [
+      page,
+      setPage,
+      pageSize,
+      setPageSize,
+      offset,
+      limit,
+      getTotalPages,
+      goToFirstPage,
+      goToLastPage,
+      goToPrevPage,
+      goToNextPage,
+      hasPrevPage,
+      hasNextPage,
+      resetToFirstPage,
+    ],
+  );
 }
