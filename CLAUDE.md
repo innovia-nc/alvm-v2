@@ -118,6 +118,7 @@ Pour chaque router :
 - Helper `test/helpers/test-caller.ts` : caller tRPC avec Prisma mocke
 - Helper `test/helpers/mock-prisma.ts` : mock profond de tous les modeles
 - Toujours mocker `$queryRawUnsafe` et `accountingEntry.create` pour les tests comptables
+- L'environnement Vitest global est `node` (tests routers/services prisma-mockes). Pour un test de **hook ou composant React** (DOM requis), NE PAS changer la config globale : ajouter le docblock `// @vitest-environment jsdom` en tete du fichier de test (`@testing-library/react` + `jsdom` sont en devDeps). Ex : `test/unit/use-server-pagination.spec.ts`.
 
 ## Ce qu'il ne faut PAS faire
 - Ne pas hardcoder `0.11` pour le taux TGC
