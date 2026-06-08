@@ -15,10 +15,10 @@
 | FEAT-002 | Libelles "Parent/Client" & "Enfant/Stagiaire" | 2 | Should | Quick win | ✅ **DONE (2026-06-08)** | aucune |
 | FEAT-003 | Historique des inscriptions par enfant | 5 | Must | Feature majeure | ✅ **DONE (2026-06-08)** | (pref. apres FEAT-002) |
 | FEAT-004 | Tracabilite factures (cree par / valide par) | 3 | Should | Feature majeure | ✅ **DONE (2026-06-08)** | sequencer migration avec FEAT-005 |
-| FEAT-005 | Auto-deduction avoirs sur prochaine facture | 5 | Could* | Feature majeure (compta) | **NON-READY** | arbitrages metier + cadrage compta ; sequencer avec FEAT-004 |
-| EPIC-006 | Tableau permissions par role | XL | Won't (ce cycle) | A decouper | **NON-READY** | decisions client (chantier securite dedie) |
+| FEAT-005 | Auto-deduction avoirs sur prochaine facture | 5 | — | — | ❌ **ABANDONNE (2026-06-08)** | decision client : drop |
+| EPIC-006 | Tableau permissions par role | XL | — | — | ❌ **ABANDONNE (2026-06-08)** | decision client : drop |
 
-\* FEAT-005 : **Must** sur le fond (besoin reel), mais reclasse **Could ce cycle** tant que les arbitrages comptables ne sont pas valides — ne pas la mettre en sprint avant deblocage.
+> **FEAT-005 et EPIC-006 abandonnes le 2026-06-08** (decision Mathieu). Non livres, retires du backlog actif. Les questions client associees (ci-dessous) deviennent caduques — conservees pour memoire si le besoin resurgit.
 
 ## Priorisation — synthese
 
@@ -58,7 +58,10 @@ FEAT-003 (5, essentiel client) et FEAT-004 (3, audit interne, migration legere).
 - FEAT-004 & FEAT-005 : touchent toutes deux `Invoice` (migration + flux facturation) -> **ordonner FEAT-004 puis FEAT-005**, ne pas paralleliser sur la meme working tree (cf. CLAUDE.md global §5.3 — worktree dedie si agents Backend en parallele).
 - EPIC-006 : transverse, impacte tous les routers sensibles -> chantier isole.
 
-## Questions client en attente (bloquantes pour passage Ready)
+## Questions client (CADUQUES — FEAT-005 & EPIC-006 abandonnees le 2026-06-08)
+
+> Conservees pour memoire uniquement. Les deux stories ont ete droppees ; ces questions ne sont plus a poser sauf reactivation explicite du besoin.
+
 
 ### FEAT-005 — Auto-deduction des avoirs (arbitrages metier + compta)
 - (a) Deduction a la **creation DRAFT** ou a l'**emission SENT** ? — *hypothese : SENT.*
@@ -89,6 +92,6 @@ FEAT-003 (5, essentiel client) et FEAT-004 (3, audit interne, migration legere).
 La migration `prisma/migrations-manual/FEAT-004-tracabilite-invoice.sql` ajoute 2 colonnes optionnelles sur `invoices`. À appliquer sur Supabase via **`prisma migrate deploy`** ou **`prisma db push`** — **JAMAIS `prisma migrate dev`**. Snapshot Supabase recommande avant application en prod. Champs optionnels = retro-compat (aucun backfill).
 
 ## Hors perimetre / backlog futur (rappels)
-- **Abandonnes** : refonte Avoir/Remboursement, MDP staff par defaut, interface unifiee admin/staff.
+- **Abandonnes** : refonte Avoir/Remboursement, MDP staff par defaut, interface unifiee admin/staff, **FEAT-005 (auto-deduction avoirs)**, **EPIC-006 (permissions par role)**.
 - **Reporte (backlog futur, pas de story)** : ajout du **lieu de naissance** sur la fiche enfant.
 - Notification parent lors de l'application d'un avoir (rattachable a FEAT-005 plus tard).
