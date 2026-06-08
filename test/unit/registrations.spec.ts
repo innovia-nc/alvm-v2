@@ -1673,3 +1673,51 @@ describe('registrations.applyCredit', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// FEAT-003/FEAT-004 — Isolation cross-parent (sécurité)
+// Un parent ne peut pas accéder aux inscriptions d'un autre parent.
+// La liste registrations.list ne prend pas de parentId en input ;
+// le scope est appliqué côté serveur via ctx.user.id pour les PARENT.
+// ---------------------------------------------------------------------------
+
+describe('registrations — isolation cross-parent (FEAT-003/FEAT-004 security)', () => {
+  it('PARENT query always forces parentId = ctx.user.id in where clause', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.registration.findMany.mockResolvedValue([]);
+    mockPrisma.registration.count.mockResolvedValue(0);
+
+    await caller.registrations.list({ limit: 20, offset: 0 });
+
+    const where = mockPrisma.registration.findMany.mock.calls[0][0].where;
+    // Le filtre applicatif DOIT forcer parentId = ctx.user.id
+    expect(where.parentId).toBe(PARENT_USER.id);
+    // Il ne doit pas être positionné à l'ID d'un autre parent
+    expect(where.parentId).not.toBe(OTHER_PARENT);
+  });
+
+  it('PARENT query where clause never references another parent ID', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.registration.findMany.mockResolvedValue([]);
+    mockPrisma.registration.count.mockResolvedValue(0);
+
+    await caller.registrations.list({ limit: 20, offset: 0 });
+
+    // Vérifie que le where envoyé à Prisma ne contient jamais OTHER_PARENT
+    const where = mockPrisma.registration.findMany.mock.calls[0][0].where;
+    expect(where.parentId).toBe(PARENT_USER.id);
+    expect(where.parentId).not.toBe(OTHER_PARENT);
+  });
+
+  it('STAFF can list all registrations without parentId restriction', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.registration.findMany.mockResolvedValue([]);
+    mockPrisma.registration.count.mockResolvedValue(0);
+
+    await caller.registrations.list({ limit: 20, offset: 0 });
+
+    const where = mockPrisma.registration.findMany.mock.calls[0][0].where;
+    // STAFF n'est pas restreint : parentId absent du where
+    expect(where.parentId).toBeUndefined();
+  });
+});

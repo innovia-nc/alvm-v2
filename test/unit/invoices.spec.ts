@@ -50,11 +50,15 @@ function makeInvoiceRow(overrides: Record<string, any> = {}) {
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
+    creator: null,
+    validator: null,
     parent: {
       firstName: 'Jean',
       lastName: 'Dupont',
       email: 'jean@test.com',
       phone: '0601020304',
+      homePhone: null,
+      workPhone: null,
       address: '1 rue de la Paix',
       city: 'Noumea',
       postalCode: '98800',
@@ -958,8 +962,211 @@ describe('invoices router', () => {
         expect(result.status).toBe('SENT');
         expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
           where: { id: INVOICE_ID },
-          data: { status: 'SENT', pdfUrl: null },
+          data: { status: 'SENT', pdfUrl: null, validatedById: STAFF_USER.id },
         });
+      });
+    });
+  });
+
+  // =========================================================================
+  // FEAT-004 — Tracabilite (createdById / validatedById / role-gating)
+  // =========================================================================
+
+  describe('FEAT-004 tracability', () => {
+    // -----------------------------------------------------------------------
+    // T1 — create remplit createdById = ctx.user.id
+    // -----------------------------------------------------------------------
+    describe('create sets createdById', () => {
+      it('passes createdById = ctx.user.id to invoice.create', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        const created = makeRawInvoice();
+        mockPrisma.invoice.create.mockResolvedValue(created);
+        mockPrisma.invoiceLine.create.mockResolvedValue({});
+
+        await caller.invoices.create({
+          parentId: PARENT_USER.id,
+          dueDate: '2026-04-15',
+          lines: [
+            { registrationId: null, description: 'Camp ete - Enfant', quantity: 5, unitPrice: 2000 },
+          ],
+        });
+
+        const createCall = mockPrisma.invoice.create.mock.calls[0][0];
+        expect(createCall.data.createdById).toBe(STAFF_USER.id);
+      });
+
+      it('does not set validatedById on create', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        const created = makeRawInvoice();
+        mockPrisma.invoice.create.mockResolvedValue(created);
+        mockPrisma.invoiceLine.create.mockResolvedValue({});
+
+        await caller.invoices.create({
+          parentId: PARENT_USER.id,
+          dueDate: '2026-04-15',
+          lines: [
+            { registrationId: null, description: 'Camp ete - Enfant', quantity: 5, unitPrice: 2000 },
+          ],
+        });
+
+        const createCall = mockPrisma.invoice.create.mock.calls[0][0];
+        expect(createCall.data.validatedById).toBeUndefined();
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // T2 — createFromRegistration remplit createdById = ctx.user.id
+    // -----------------------------------------------------------------------
+    describe('createFromRegistration sets createdById', () => {
+      const mockRegistration = {
+        id: REG_ID,
+        parentId: PARENT_USER.id,
+        campId: CAMP_ID,
+        childId: CHILD_ID,
+        status: 'CONFIRMED',
+        paymentStatus: 'UNPAID',
+        deletedAt: null,
+        camp: {
+          name: 'Camp Ete 2026',
+          startDate: new Date('2026-07-01'),
+          endDate: new Date('2026-07-05'),
+          pricePerDay: 2000,
+          campType: { accountingCode: '706000' },
+        },
+        child: { firstName: 'Marie', lastName: 'Dupont' },
+      };
+
+      it('passes createdById = ctx.user.id to invoice.create', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.registration.findFirst.mockResolvedValue(mockRegistration);
+        mockPrisma.invoiceLine.findFirst.mockResolvedValue(null);
+        const created = makeRawInvoice();
+        mockPrisma.invoice.create.mockResolvedValue(created);
+        mockPrisma.invoiceLine.create.mockResolvedValue({});
+
+        await caller.invoices.createFromRegistration({ registrationId: REG_ID });
+
+        const createCall = mockPrisma.invoice.create.mock.calls[0][0];
+        expect(createCall.data.createdById).toBe(STAFF_USER.id);
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // T3 — validate remplit validatedById et ne touche pas createdById
+    // -----------------------------------------------------------------------
+    describe('validate sets validatedById and does not overwrite createdById', () => {
+      it('passes validatedById = ctx.user.id to invoice.update', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'DRAFT' }));
+        mockPrisma.invoice.update.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
+          ...makeRawInvoice({ status: 'SENT' }),
+          lines: [],
+        });
+
+        await caller.invoices.validate({ id: INVOICE_ID });
+
+        const updateCall = mockPrisma.invoice.update.mock.calls[0][0];
+        expect(updateCall.data.validatedById).toBe(STAFF_USER.id);
+      });
+
+      it('does not set createdById in the validate update call', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'DRAFT' }));
+        mockPrisma.invoice.update.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
+          ...makeRawInvoice({ status: 'SENT' }),
+          lines: [],
+        });
+
+        await caller.invoices.validate({ id: INVOICE_ID });
+
+        // createdById MUST NOT appear in the validate update — never overwrite it
+        const updateCall = mockPrisma.invoice.update.mock.calls[0][0];
+        expect(updateCall.data.createdById).toBeUndefined();
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // T4 — getById : STAFF reçoit creatorName/validatorName renseignés
+    // -----------------------------------------------------------------------
+    describe('getById role-gating', () => {
+      it('returns creatorName and validatorName for STAFF', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeInvoiceRow({
+            creator: { id: STAFF_USER.id, name: 'Test Staff' },
+            validator: { id: ADMIN_USER.id, name: 'Test Admin' },
+          }),
+        );
+
+        const result = await caller.invoices.getById({ id: INVOICE_ID });
+
+        expect(result).not.toBeNull();
+        expect(result!.creatorName).toBe('Test Staff');
+        expect(result!.validatorName).toBe('Test Admin');
+      });
+
+      it('returns creatorName and validatorName for ADMIN', async () => {
+        ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeInvoiceRow({
+            creator: { id: STAFF_USER.id, name: 'Test Staff' },
+            validator: null,
+          }),
+        );
+
+        const result = await caller.invoices.getById({ id: INVOICE_ID });
+
+        expect(result).not.toBeNull();
+        expect(result!.creatorName).toBe('Test Staff');
+        expect(result!.validatorName).toBeNull();
+      });
+
+      // R3 — un PARENT reçoit null pour creatorName et validatorName
+      it('returns null for creatorName and validatorName for PARENT (R3 non-exposition)', async () => {
+        ({ caller, mockPrisma } = createTestCaller(PARENT_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeInvoiceRow({
+            // Meme si la BDD retourne des données creator/validator,
+            // le mapping les nullifie pour les PARENT
+            creator: { id: STAFF_USER.id, name: 'Test Staff' },
+            validator: { id: ADMIN_USER.id, name: 'Test Admin' },
+          }),
+        );
+
+        const result = await caller.invoices.getById({ id: INVOICE_ID });
+
+        expect(result).not.toBeNull();
+        // Preuve du role-gating : null pour PARENT quelles que soient les données BDD
+        expect(result!.creatorName).toBeNull();
+        expect(result!.validatorName).toBeNull();
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // T5 — select whitelist : pas de champ sensible dans invoiceInclude
+    // -----------------------------------------------------------------------
+    describe('invoiceInclude select whitelist (no sensitive fields)', () => {
+      it('getById select does not expose email, role or tokens on creator/validator', async () => {
+        ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+        await caller.invoices.getById({ id: INVOICE_ID });
+
+        const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
+
+        // creator select doit contenir uniquement id et name
+        expect(findFirstCall.include.creator.select).toEqual({ id: true, name: true });
+        expect(findFirstCall.include.creator.select).not.toHaveProperty('email');
+        expect(findFirstCall.include.creator.select).not.toHaveProperty('role');
+        expect(findFirstCall.include.creator.select).not.toHaveProperty('hashedPassword');
+
+        // validator select idem
+        expect(findFirstCall.include.validator.select).toEqual({ id: true, name: true });
+        expect(findFirstCall.include.validator.select).not.toHaveProperty('email');
+        expect(findFirstCall.include.validator.select).not.toHaveProperty('role');
+        expect(findFirstCall.include.validator.select).not.toHaveProperty('hashedPassword');
       });
     });
   });
