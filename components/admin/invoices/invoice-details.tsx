@@ -452,28 +452,26 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
         </Card>
       )}
 
-      {/* Traçabilité interne — visible uniquement en contexte admin/staff */}
-      {/* Le back renvoie null pour les parents : ce bloc s'affiche mais avec "Non renseigné" */}
-      {(invoice.creatorName !== undefined || invoice.validatorName !== undefined) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Traçabilité</CardTitle>
-            <CardDescription>Informations de suivi interne</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-sm">
-                <span className="text-muted-foreground">Créé par : </span>
-                <span className="font-medium">{invoice.creatorName ?? 'Non renseigné'}</span>
-              </p>
-              <p className="text-sm">
-                <span className="text-muted-foreground">Validé par : </span>
-                <span className="font-medium">{invoice.validatorName ?? 'Non renseigné'}</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Traçabilité interne — rendu uniquement sur les routes admin/staff (jamais parent).
+          Le back renvoie null pour les parents (role-gating getById) ; fallback "Non renseigné". */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Traçabilité</CardTitle>
+          <CardDescription>Informations de suivi interne</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <p className="text-sm">
+              <span className="text-muted-foreground">Créé par : </span>
+              <span className="font-medium">{invoice.creatorName ?? 'Non renseigné'}</span>
+            </p>
+            <p className="text-sm">
+              <span className="text-muted-foreground">Validé par : </span>
+              <span className="font-medium">{invoice.validatorName ?? 'Non renseigné'}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Bouton d'ajout de paiement si montant restant */}
       {invoice.remainingAmount > 0 && invoice.status !== 'CANCELLED' && invoice.status !== 'DRAFT' && (
