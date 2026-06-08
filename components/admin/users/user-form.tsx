@@ -253,7 +253,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
         {selectedRole === 'PARENT' && (
           <Card>
             <CardHeader>
-              <CardTitle>Profil Parent</CardTitle>
+              <CardTitle>Profil Parent / Client</CardTitle>
               <CardDescription>Informations du responsable légal</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

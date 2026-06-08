@@ -203,7 +203,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
       {parent.children && parent.children.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Enfants ({parent.children.length})</CardTitle>
+            <CardTitle>Enfants / Stagiaires ({parent.children.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

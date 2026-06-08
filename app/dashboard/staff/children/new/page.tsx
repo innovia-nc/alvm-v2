@@ -9,7 +9,7 @@ export default async function NewChildPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Nouvel Enfant"
+        title="Nouvel Enfant / Stagiaire"
         description="Ajouter un nouvel enfant au système"
       />
 

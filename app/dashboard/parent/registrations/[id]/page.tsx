@@ -239,7 +239,7 @@ export default async function RegistrationDetailPage({
           {/* Child info */}
           <Card>
             <CardHeader>
-              <CardTitle>Enfant inscrit</CardTitle>
+              <CardTitle>Enfant / Stagiaire inscrit</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start gap-3">

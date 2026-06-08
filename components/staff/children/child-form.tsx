@@ -308,7 +308,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
         {mode === 'create' && (
           <Card>
             <CardHeader>
-              <CardTitle>Parents associés</CardTitle>
+              <CardTitle>Parents / Clients associés</CardTitle>
             </CardHeader>
             <CardContent>
               <FormField
@@ -358,7 +358,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
         {mode === 'edit' && initialData && (
           <Card>
             <CardHeader>
-              <CardTitle>Parents associés</CardTitle>
+              <CardTitle>Parents / Clients associés</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">

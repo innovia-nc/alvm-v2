@@ -11,7 +11,7 @@ export default async function StaffParentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Gestion des Parents"
+        title="Gestion des Parents / Clients"
         description="Liste des parents et gestion de leurs informations"
         actions={
           <Link href="/dashboard/staff/parents/new">

@@ -25,7 +25,7 @@ export default async function StaffParentEditPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Modifier le Parent"
+        title="Modifier le Parent / Client"
         description={`Modification de ${parent.firstName} ${parent.lastName}`}
       />
 

@@ -24,7 +24,7 @@ export default async function StaffChildDetailPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Détails de l'Enfant"
+        title="Détails de l'Enfant / Stagiaire"
         description={`${child.firstName} ${child.lastName}`}
       />
 

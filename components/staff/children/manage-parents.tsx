@@ -204,7 +204,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Parents associés ({parents.length}/3)</CardTitle>
+              <CardTitle>Parents / Clients associés ({parents.length}/3)</CardTitle>
               <CardDescription>
                 Gérez les parents de cet enfant
               </CardDescription>
