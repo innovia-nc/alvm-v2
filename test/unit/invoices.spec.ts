@@ -1268,6 +1268,59 @@ describe('invoices router', () => {
         caller.invoices.generatePDF({ id: INVOICE_ID }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
+
+    describe('payments loading and mapping', () => {
+      beforeEach(() => {
+        ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
+        // findFirst retourne null par défaut → NOT_FOUND
+        // Les assertions portent sur le call Prisma, pas sur le PDF généré
+      });
+
+      it('queries findFirst with payments select whitelist (amount, paymentDate, paymentMethod.name)', async () => {
+        // Invoice manquante — on vérifie uniquement la shape du query
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+        await expect(
+          caller.invoices.generatePDF({ id: INVOICE_ID }),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+        const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
+        expect(findFirstCall.include).toHaveProperty('payments');
+        expect(findFirstCall.include.payments.select).toEqual({
+          amount: true,
+          paymentDate: true,
+          paymentMethod: { select: { name: true } },
+        });
+      });
+
+      it('includes parent, lines and payments together in the findFirst query', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+        await expect(
+          caller.invoices.generatePDF({ id: INVOICE_ID }),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+        const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
+        expect(findFirstCall.include).toHaveProperty('parent');
+        expect(findFirstCall.include).toHaveProperty('lines');
+        expect(findFirstCall.include).toHaveProperty('payments');
+      });
+
+      it('does not expose sensitive fields in the payments select (no id, no invoiceId, no parentId)', async () => {
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+        await expect(
+          caller.invoices.generatePDF({ id: INVOICE_ID }),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+        const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
+        const paymentsSelect = findFirstCall.include.payments.select;
+        expect(paymentsSelect).not.toHaveProperty('id');
+        expect(paymentsSelect).not.toHaveProperty('invoiceId');
+        expect(paymentsSelect).not.toHaveProperty('parentId');
+        expect(paymentsSelect).not.toHaveProperty('notes');
+      });
+    });
   });
 
   // =========================================================================
