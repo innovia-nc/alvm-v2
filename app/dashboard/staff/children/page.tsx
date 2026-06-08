@@ -12,7 +12,7 @@ export default async function StaffChildrenPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Gestion des Enfants"
+        title="Gestion des Enfants / Stagiaires"
         description="Gérez les informations des enfants inscrits aux camps"
         actions={
           <Link href="/dashboard/staff/children/new">

@@ -88,12 +88,12 @@ const navigationConfig: Record<string, NavSection[]> = {
       title: 'Gestion des utilisateurs',
       items: [
         {
-          title: 'Parents',
+          title: 'Parents / Clients',
           href: '/dashboard/staff/parents',
           icon: Users,
         },
         {
-          title: 'Enfants',
+          title: 'Enfants / Stagiaires',
           href: '/dashboard/staff/children',
           icon: Users,
         },
@@ -160,12 +160,12 @@ const navigationConfig: Record<string, NavSection[]> = {
       title: 'Gestion des utilisateurs',
       items: [
         {
-          title: 'Parents',
+          title: 'Parents / Clients',
           href: '/dashboard/admin/users/parents',
           icon: Users,
         },
         {
-          title: 'Enfants',
+          title: 'Enfants / Stagiaires',
           href: '/dashboard/admin/children',
           icon: Users,
         },

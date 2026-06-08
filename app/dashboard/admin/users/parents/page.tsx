@@ -11,7 +11,7 @@ export default async function AdminParentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Gestion des Parents"
+        title="Gestion des Parents / Clients"
         description="Liste et gestion des comptes parents"
         actions={
           <Link href="/dashboard/admin/users/parents/new">

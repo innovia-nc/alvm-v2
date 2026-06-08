@@ -24,7 +24,7 @@ export default async function StaffParentDetailPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Détails du Parent"
+        title="Détails du Parent / Client"
         description={`${parent.firstName} ${parent.lastName}`}
       />
 

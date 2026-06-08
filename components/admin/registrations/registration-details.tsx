@@ -198,7 +198,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
       {/* Informations de l'enfant */}
       <Card>
         <CardHeader>
-          <CardTitle>Enfant</CardTitle>
+          <CardTitle>Enfant / Stagiaire</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -221,7 +221,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
       {/* Informations du parent */}
       <Card>
         <CardHeader>
-          <CardTitle>Parent</CardTitle>
+          <CardTitle>Parent / Client</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">

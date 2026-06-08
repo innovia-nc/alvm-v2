@@ -8,7 +8,7 @@ export default async function NewParentPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Nouveau Parent"
+        title="Nouveau Parent / Client"
         description="Créer un nouveau compte parent"
       />
 
