@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChildParentsList } from '@/components/shared/child-parents-list';
 import { ChildDocumentsSection } from '@/components/shared/child-documents-section';
+import { ChildRegistrationsHistory } from '@/components/admin/children/child-registrations-history';
 import {
   Pencil,
   Trash2,
@@ -330,6 +331,9 @@ export function ChildDetails({ child }: ChildDetailsProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Historique des inscriptions */}
+      <ChildRegistrationsHistory childId={child.id} />
 
       {/* Documents */}
       <ChildDocumentsSection
