@@ -120,6 +120,8 @@ model User {
   cancelledAccountingEntries AccountingEntry[]   @relation("EntryCanceller")
   appliedCredits             CreditApplication[] @relation("CreditApplier")
   recordedAllocations        CreditNoteAllocation[] @relation("AllocationRecorder")
+  createdInvoices            Invoice[]           @relation("InvoiceCreator")
+  validatedInvoices          Invoice[]           @relation("InvoiceValidator")
 
   @@map("users")
 }
@@ -453,6 +455,8 @@ model Invoice {
   pdfUrl              String?       @map("pdf_url")
   accountingExportedAt DateTime?    @map("accounting_exported_at") @db.Timestamptz()
   notes               String?
+  createdById         String?       @map("created_by_id") @db.Uuid
+  validatedById       String?       @map("validated_by_id") @db.Uuid
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt           DateTime?     @map("deleted_at") @db.Timestamptz()
@@ -460,6 +464,8 @@ model Invoice {
   parent           Parent   @relation(fields: [parentId], references: [userId], onDelete: Restrict)
   creditedInvoice  Invoice? @relation("CreditedInvoice", fields: [creditedInvoiceId], references: [id])
   creditNotes      Invoice[] @relation("CreditedInvoice")
+  creator          User?    @relation("InvoiceCreator",   fields: [createdById],   references: [id], onDelete: SetNull)
+  validator        User?    @relation("InvoiceValidator", fields: [validatedById], references: [id], onDelete: SetNull)
 
   lines                   InvoiceLine[]
   payments                Payment[]            @relation("InvoicePayments")

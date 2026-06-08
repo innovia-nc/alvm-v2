@@ -63,6 +63,8 @@ type Invoice = {
   status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
   version: number;
   pdfUrl: string | null;
+  creatorName: string | null;
+  validatorName: string | null;
   parent: {
     firstName: string;
     lastName: string;
@@ -446,6 +448,29 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Traçabilité interne — visible uniquement en contexte admin/staff */}
+      {/* Le back renvoie null pour les parents : ce bloc s'affiche mais avec "Non renseigné" */}
+      {(invoice.creatorName !== undefined || invoice.validatorName !== undefined) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Traçabilité</CardTitle>
+            <CardDescription>Informations de suivi interne</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Créé par : </span>
+                <span className="font-medium">{invoice.creatorName ?? 'Non renseigné'}</span>
+              </p>
+              <p className="text-sm">
+                <span className="text-muted-foreground">Validé par : </span>
+                <span className="font-medium">{invoice.validatorName ?? 'Non renseigné'}</span>
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

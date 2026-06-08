@@ -69,6 +69,8 @@ const invoiceWithDetailsSchema = invoiceSchema.extend({
     paymentMethod: z.string(),
   })),
   remainingAmount: z.number(),
+  creatorName: z.string().nullable(),
+  validatorName: z.string().nullable(),
 });
 
 const invoiceInclude = {
@@ -107,11 +109,36 @@ const invoiceInclude = {
       },
     },
   },
+  // Traçabilité — whitelist stricte : id + name uniquement.
+  // Champs JAMAIS exposés : email, hashedPassword, Account.providerAccountId, tokens.
+  creator: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  validator: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
 } as const;
 
-function mapInvoiceWithDetails(inv: any) {
+function mapInvoiceWithDetails(inv: any, role?: string) {
   const totalAmount = toNum(inv.totalAmount);
   const paidAmount = toNum(inv.paidAmount);
+
+  // Role-gating R3 : creatorName/validatorName sont null pour les PARENT.
+  // Seuls STAFF et ADMIN voient ces champs de traçabilité interne.
+  const isStaffOrAdmin = role !== 'PARENT';
+  const creatorName: string | null = isStaffOrAdmin
+    ? (inv.creator?.name ?? null)
+    : null;
+  const validatorName: string | null = isStaffOrAdmin
+    ? (inv.validator?.name ?? null)
+    : null;
+
   return {
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
@@ -146,6 +173,8 @@ function mapInvoiceWithDetails(inv: any) {
       paymentMethod: p.paymentMethod?.name || 'Unknown',
     })),
     remainingAmount: totalAmount - paidAmount,
+    creatorName,
+    validatorName,
   };
 }
 
@@ -235,7 +264,7 @@ export const invoicesRouter = router({
       ]);
 
       return {
-        invoices: invoices.map(mapInvoiceWithDetails),
+        invoices: invoices.map((inv) => mapInvoiceWithDetails(inv, ctx.user.role)),
         total,
       };
     }),
@@ -258,7 +287,7 @@ export const invoicesRouter = router({
         include: invoiceInclude,
       });
 
-      return invoice ? mapInvoiceWithDetails(invoice) : null;
+      return invoice ? mapInvoiceWithDetails(invoice, ctx.user.role) : null;
     }),
 
   create: staffProcedure
@@ -295,6 +324,7 @@ export const invoicesRouter = router({
             taxAmount,
             taxRate,
             status: 'DRAFT',
+            createdById: ctx.user.id,
           },
         });
 
@@ -395,6 +425,7 @@ export const invoicesRouter = router({
             taxAmount,
             taxRate,
             status: input.status,
+            createdById: ctx.user.id,
           },
         });
 
@@ -533,7 +564,7 @@ export const invoicesRouter = router({
       const invoice = await ctx.prisma.$transaction(async (tx) => {
         const updated = await tx.invoice.update({
           where: { id: input.id },
-          data: { status: 'SENT', pdfUrl: null },
+          data: { status: 'SENT', pdfUrl: null, validatedById: ctx.user.id },
         });
 
         // Fetch invoice with lines and camp type accounting code
