@@ -2,6 +2,7 @@ import { requireRole } from '@/lib/auth';
 import { createServerTRPC } from '@/lib/trpc';
 import { PageHeader } from '@/components/shared/page-header';
 import { ChildDocumentsSection } from '@/components/shared/child-documents-section';
+import { ChildRegistrationsHistory } from '@/components/admin/children/child-registrations-history';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,22 @@ export default async function ParentChildDetailPage({
   if (!child) {
     notFound();
   }
+
+  /**
+   * Pré-chargement SSR de l'historique des inscriptions dans le contexte du
+   * PARENT authentifié. `createServerTRPC` lit la session NextAuth active
+   * (via `auth()` dans `createContext`). Le router `registrations.list`
+   * applique automatiquement `where.parentId = ctx.user.id` quand
+   * `ctx.user.role === 'PARENT'` — le scope cross-parent est donc garanti
+   * côté serveur, sans aucune logique supplémentaire ici.
+   */
+  const registrationsData = await trpc.registrations.list({
+    childId: id,
+    sortBy: 'registrationDate',
+    sortOrder: 'desc',
+    limit: 50,
+    offset: 0,
+  });
 
   const age = calculateAge(child.birthDate);
   const hasAllergies = child.medicalInfo?.allergies && child.medicalInfo.allergies.length > 0;
@@ -276,6 +293,12 @@ export default async function ParentChildDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Historique des inscriptions — données SSR, aucun refetch réseau */}
+      <ChildRegistrationsHistory
+        childId={child.id}
+        initialData={registrationsData}
+      />
 
       {/* Documents */}
       <ChildDocumentsSection
