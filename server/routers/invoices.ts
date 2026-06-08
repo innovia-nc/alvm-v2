@@ -714,6 +714,15 @@ export const invoicesRouter = router({
               totalPrice: true,
             },
           },
+          payments: {
+            select: {
+              amount: true,
+              paymentDate: true,
+              paymentMethod: {
+                select: { name: true },
+              },
+            },
+          },
         },
       });
       if (!invoice) {
@@ -752,6 +761,11 @@ export const invoicesRouter = router({
           quantity: l.quantity,
           unitPrice: toNum(l.unitPrice),
           totalPrice: toNum(l.totalPrice),
+        })),
+        payments: invoice.payments.map((p) => ({
+          amount: toNum(p.amount),
+          paymentDate: p.paymentDate,
+          paymentMethod: p.paymentMethod.name,
         })),
         subtotalHt: toNum(invoice.subtotalHt),
         taxAmount: toNum(invoice.taxAmount),

@@ -25,6 +25,12 @@ interface InvoiceLine {
   totalPrice: number;
 }
 
+interface InvoicePayment {
+  amount: number;
+  paymentDate: Date;
+  paymentMethod: string;
+}
+
 interface InvoiceData {
   invoiceNumber: string;
   issueDate: Date;
@@ -39,6 +45,7 @@ interface InvoiceData {
     postalCode: string;
   };
   lines: InvoiceLine[];
+  payments?: InvoicePayment[];
   subtotalHt: number;
   taxAmount: number;
   taxRate: number;
@@ -159,6 +166,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTop: '2 solid #000',
+  },
+  paymentsSection: {
+    marginTop: 20,
+  },
+  paymentsRow: {
+    flexDirection: 'row',
+    borderBottom: '1 solid #e0e0e0',
+    padding: 6,
+  },
+  paymentsColMethod: {
+    width: '40%',
+  },
+  paymentsColDate: {
+    width: '35%',
+  },
+  paymentsColAmount: {
+    width: '25%',
+    textAlign: 'right',
   },
   footer: {
     position: 'absolute',
@@ -300,6 +325,25 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
             <Text>{formatCurrency(remainingAmount)}</Text>
           </View>
         </View>
+
+        {/* Modes de règlement */}
+        {data.payments && data.payments.length > 0 && (
+          <View style={styles.paymentsSection}>
+            <Text style={styles.sectionTitle}>MODES DE RÈGLEMENT</Text>
+            <View style={[styles.paymentsRow, { backgroundColor: '#f0f0f0', fontWeight: 'bold' }]}>
+              <Text style={styles.paymentsColMethod}>Mode de paiement</Text>
+              <Text style={styles.paymentsColDate}>Date</Text>
+              <Text style={styles.paymentsColAmount}>Montant</Text>
+            </View>
+            {data.payments.map((payment, index) => (
+              <View key={index} style={styles.paymentsRow}>
+                <Text style={styles.paymentsColMethod}>{payment.paymentMethod}</Text>
+                <Text style={styles.paymentsColDate}>{formatDate(payment.paymentDate)}</Text>
+                <Text style={styles.paymentsColAmount}>{formatCurrency(payment.amount)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Footer partagé */}
         <PDFFooter
