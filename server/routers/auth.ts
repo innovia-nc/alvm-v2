@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash, compare } from 'bcryptjs';
 import { router, publicProcedure, protectedProcedure } from '@/server/trpc/init';
+import { BCRYPT_ROUNDS } from '@/server/helpers/password';
 
 type Role = 'PARENT' | 'STAFF' | 'ADMIN';
 
@@ -146,7 +147,7 @@ export const authRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Mot de passe actuel incorrect' });
       }
 
-      const newHashedPassword = await hash(input.newPassword, 12);
+      const newHashedPassword = await hash(input.newPassword, BCRYPT_ROUNDS);
 
       await ctx.prisma.account.update({
         where: { id: account.id },

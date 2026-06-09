@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
 import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
+import { BCRYPT_ROUNDS } from '@/server/helpers/password';
 import type { Prisma } from '@prisma/client';
 
 // NOTE: Output schemas are intentionally lenient on `email` (z.string() rather
@@ -273,7 +274,7 @@ export const parentsRouter = router({
         });
 
         if (input.password) {
-          const hashedPassword = await hash(input.password, 12);
+          const hashedPassword = await hash(input.password, BCRYPT_ROUNDS);
           await tx.account.create({
             data: {
               userId: user.id,

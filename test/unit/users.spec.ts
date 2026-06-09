@@ -777,8 +777,12 @@ describe('users router', () => {
       });
 
       expect(result.success).toBe(true);
-      // Generated temp password follows XXX-XXXX-XX pattern (3-4-2 segments)
-      expect(result.tempPassword).toMatch(/^[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{2}$/);
+      // Mot de passe temporaire généré via le helper CSPRNG partagé
+      // (generatePassword) : respecte la politique min 8 / maj / min / chiffre.
+      expect(result.tempPassword.length).toBeGreaterThanOrEqual(8);
+      expect(result.tempPassword).toMatch(/[A-Z]/);
+      expect(result.tempPassword).toMatch(/[a-z]/);
+      expect(result.tempPassword).toMatch(/[0-9]/);
     });
 
     it('should reject reset for non-existent user', async () => {
