@@ -16,9 +16,11 @@
 | FEAT-003 | Historique des inscriptions par enfant | 5 | Must | Feature majeure | ✅ **DONE (2026-06-08)** | (pref. apres FEAT-002) |
 | FEAT-004 | Tracabilite factures (cree par / valide par) | 3 | Should | Feature majeure | ✅ **DONE (2026-06-08)** | sequencer migration avec FEAT-005 |
 | FEAT-005 | Auto-deduction avoirs sur prochaine facture | 5 | — | — | ❌ **ABANDONNE (2026-06-08)** | decision client : drop |
-| EPIC-006 | Tableau permissions par role | XL | — | — | ❌ **ABANDONNE (2026-06-08)** | decision client : drop |
+| EPIC-006 | Tableau permissions par role | XL | Could | Securite transverse | 🔄 **REOUVERT — Spike (2026-06-09)** | decision client : cadrage relance |
 
-> **FEAT-005 et EPIC-006 abandonnes le 2026-06-08** (decision Mathieu). Non livres, retires du backlog actif. Les questions client associees (ci-dessous) deviennent caduques — conservees pour memoire si le besoin resurgit.
+> **FEAT-005 abandonne le 2026-06-08** (decision Mathieu). Non livre, retire du backlog actif. Questions client associees caduques — conservees pour memoire.
+>
+> **EPIC-006 reouvert le 2026-06-09** suite au retour de deploiement (« aucune option de gestion des droits d'acces »). Relance **en mode cadrage uniquement** (Story 1 — Spike). Livrable : **`docs/adr/ADR-001-permissions-par-role.md`** (modele RBAC dynamique propose, reponses recommandees Q1-Q7). **Aucun dev de prod** tant que le client n'a pas valide les 7 questions. Les stories 2→6 (Data/Enforcement/UI/Audit) seront ouvertes apres validation.
 
 ## Priorisation — synthese
 

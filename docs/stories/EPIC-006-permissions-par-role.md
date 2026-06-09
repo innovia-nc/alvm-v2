@@ -1,7 +1,12 @@
 # EPIC-006 : Tableau de gestion des permissions par role
 
 > Source CDC : item D5 — effort XL — SECURITE — **CONSTRUCTION FROM SCRATCH**
-> **STATUT : NON-READY — EPIC a decouper. Decisions client manquantes.**
+> **STATUT : SPIKE EN COURS (reouvert 2026-06-09).** Story 1 (Spike) livree :
+> voir **`docs/adr/ADR-001-permissions-par-role.md`**. Stories 2→6 bloquees
+> tant que le client n'a pas valide les questions Q1-Q7 (reponses recommandees
+> dans l'ADR). Abandonne le 2026-06-08, reactive en cadrage suite au retour de
+> deploiement (« aucune option de gestion des droits d'acces depuis le compte
+> administrateur »).
 
 ## Constat technique (grounded — IMPORTANT)
 Ce systeme **n'a jamais existe** dans le codebase :
