@@ -378,7 +378,7 @@ export function DataTableServer<TData, TValue>({
       if (searchValue !== prev) {
         pagination.setPage(1);
       }
-    }, 300); // 300ms de debounce
+    }, 500); // 500ms de debounce — laisse le temps de saisir avant le refetch
 
     return () => clearTimeout(timer);
   // debouncedSearch retiré des deps : la ref lastDebouncedRef porte l'état
@@ -407,55 +407,18 @@ export function DataTableServer<TData, TValue>({
   });
 
   // ============================================================================
-  // LOADING STATE
+  // RENDER
   // ============================================================================
-
-  if (isLoading) {
-    return (
-      <div className={cn('space-y-4', className)}>
-        {searchKey && (
-          <div className="flex items-center">
-            <Input
-              placeholder={searchPlaceholder}
-              disabled
-              className="max-w-sm"
-            />
-          </div>
-        )}
-        <DataTableSkeleton columns={columns.length} />
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // EMPTY STATE
-  // ============================================================================
-
-  if (totalCount === 0 && !searchValue) {
-    return (
-      <div className={cn('space-y-4', className)}>
-        {searchKey && (
-          <div className="flex items-center">
-            <Input
-              placeholder={searchPlaceholder}
-              value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
-              className="max-w-sm"
-            />
-          </div>
-        )}
-        {emptyState ?? <DataTableEmpty />}
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // TABLE RENDER
-  // ============================================================================
+  // Le champ de recherche est rendu une seule fois, à une position STABLE dans
+  // l'arbre, quel que soit l'état (chargement / vide / table). C'est volontaire :
+  // si l'input était démonté ou désactivé pendant un refetch (isLoading), il
+  // perdait le focus et la saisie en cours, obligeant à taper très vite ou à
+  // coller le texte. En le gardant monté, React préserve focus + valeur pendant
+  // que seul le contenu en dessous bascule.
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Search Input */}
+      {/* Search Input (toujours monté, jamais désactivé) */}
       {searchKey && (
         <div className="flex items-center">
           <Input
@@ -467,86 +430,95 @@ export function DataTableServer<TData, TValue>({
         </div>
       )}
 
-      {/* Table */}
-      <div className="w-full overflow-x-auto rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const canSort = header.column.getCanSort();
+      {isLoading ? (
+        <DataTableSkeleton columns={columns.length} />
+      ) : totalCount === 0 && !searchValue ? (
+        emptyState ?? <DataTableEmpty />
+      ) : (
+        <>
+          {/* Table */}
+          <div className="w-full overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      const canSort = header.column.getCanSort();
 
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : (
-                        <div
-                          className={cn(
-                            canSort &&
-                              'flex cursor-pointer select-none items-center gap-2',
-                            !canSort && 'flex items-center'
-                          )}
-                          onClick={
-                            canSort
-                              ? header.column.getToggleSortingHandler()
-                              : undefined
-                          }
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {canSort && (
-                            <span className="ml-auto">
-                              {header.column.getIsSorted() === 'asc' ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : header.column.getIsSorted() === 'desc' ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <div className="h-4 w-4" />
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder ? null : (
+                            <div
+                              className={cn(
+                                canSort &&
+                                  'flex cursor-pointer select-none items-center gap-2',
+                                !canSort && 'flex items-center'
                               )}
-                            </span>
+                              onClick={
+                                canSort
+                                  ? header.column.getToggleSortingHandler()
+                                  : undefined
+                              }
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                              {canSort && (
+                                <span className="ml-auto">
+                                  {header.column.getIsSorted() === 'asc' ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : header.column.getIsSorted() ===
+                                    'desc' ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <div className="h-4 w-4" />
+                                  )}
+                                </span>
+                              )}
+                            </div>
                           )}
-                        </div>
-                      )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {data.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {data.length > 0 ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && 'selected'}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      Aucun résultat trouvé pour &quot;{searchValue}&quot;
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  Aucun résultat trouvé pour &quot;{searchValue}&quot;
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-      {/* Pagination Server-Side */}
-      <DataTablePagination pagination={pagination} totalCount={totalCount} />
+          {/* Pagination Server-Side */}
+          <DataTablePagination pagination={pagination} totalCount={totalCount} />
+        </>
+      )}
     </div>
   );
 }
