@@ -39,7 +39,13 @@ function makeDbUser(overrides: Record<string, unknown> = {}) {
       city: 'Noumea',
       postalCode: '98800',
     },
-    staffMember: null,
+    staffMember: null as null | {
+      userId: string;
+      firstName: string;
+      lastName: string;
+      phone: string | null;
+      email: string;
+    },
     ...overrides,
   };
 }
