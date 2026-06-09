@@ -99,7 +99,7 @@ export function RegistrationForm() {
     if (!childrenData?.children) return [];
 
     // Filtrer par parent si un parent est sélectionné
-    let children = watchParentId
+    const children = watchParentId
       ? childrenData.children.filter((child) =>
           child.parents.some((parent) => parent.parentId === watchParentId)
         )

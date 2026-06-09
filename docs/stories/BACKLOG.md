@@ -84,7 +84,7 @@ FEAT-003 (5, essentiel client) et FEAT-004 (3, audit interne, migration legere).
 ## Dette technique tracee (issue du Lot A — QA 2026-06-08)
 - **TD-A1** — ~~test auto BUG-001 (stabilite hook `useServerPagination`, verrou R-B)~~ → ✅ **RESOLU** : `test/unit/use-server-pagination.spec.ts` (24 tests) ajoute avant livraison.
 - **TD-A2** (P3) — FEAT-001 : couverture de test limitee a la shape de la requete `generatePDF`. Ajouter un test du mapping output (facture AVEC paiements) + rendu du bloc PDF (cas non-vide / vide). Assigne : backend/qa, sprint suivant.
-- **TD-A3** (P2, **preexistant hors Lot A**) — config ESLint 9 absente (`eslint.config.js` flat config manquante) : `eslint .` casse, gate lint `exhaustive-deps` non executable en CI. Assigne : devops/frontend. A corriger pour reactiver le lint hooks React.
+- **TD-A3** (P2, **preexistant hors Lot A**) — ~~config ESLint 9 absente (`eslint.config.js` flat config manquante) : `eslint .` casse, gate lint `exhaustive-deps` non executable en CI~~ → ✅ **RESOLU (2026-06-09)** : `eslint.config.mjs` (flat config, FlatCompat + `next/core-web-vitals` + `next/typescript`) ; `pnpm lint` vert (0 erreur, 99 warnings : `any` + `exhaustive-deps` signales non bloquants). CI GitHub Actions ajoutee (`.github/workflows/ci.yml` : install + prisma generate + typecheck + lint + vitest). `noUnusedLocals`/`noUnusedParameters` actives dans tsconfig.
 
 ## Dette technique tracee (issue du Lot B — QA 2026-06-08)
 - **TD-LOTB-1** — ~~condition morte d'affichage du bloc Tracabilite (`invoice-details.tsx`)~~ → ✅ **RESOLU** (corrige avant livraison).

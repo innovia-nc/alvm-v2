@@ -242,7 +242,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
         </Card>
       ) : (
         <AttendanceGrid
-          children={childrenForDate}
+          childrenList={childrenForDate}
           onMarkAttendance={handleMarkAttendance}
           isPending={markMutation.isPending}
         />
