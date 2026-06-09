@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
 import { router, staffProcedure } from '@/server/trpc/init';
-import { generatePassword } from '@/server/helpers/password';
+import { generatePassword, BCRYPT_ROUNDS } from '@/server/helpers/password';
 import type { Prisma } from '@prisma/client';
 
 // Output schemas use plain z.string() for email (no .email()) to avoid
@@ -156,7 +156,7 @@ export const staffRouter = router({
         : null;
       const wasGenerated = providedPassword === null;
       const plainPassword = providedPassword ?? generatePassword();
-      const hashedPassword = await hash(plainPassword, 12);
+      const hashedPassword = await hash(plainPassword, BCRYPT_ROUNDS);
 
       const result = await ctx.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({

@@ -16,6 +16,13 @@ import { randomInt } from 'node:crypto';
  * faciliter la lecture/recopie par l'administrateur.
  */
 
+/**
+ * Coût bcrypt (work factor) pour le hachage des mots de passe.
+ * Centralisé ici pour rester cohérent sur tous les flux (création staff,
+ * users, parents, reset, changement de mot de passe).
+ */
+export const BCRYPT_ROUNDS = 12;
+
 const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // sans I, O
 const LOWER = 'abcdefghijkmnopqrstuvwxyz'; // sans l
 const DIGITS = '23456789'; // sans 0, 1
