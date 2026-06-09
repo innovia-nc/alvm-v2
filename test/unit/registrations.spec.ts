@@ -29,11 +29,16 @@ const OTHER_PARENT = 'a1a11111-1111-4111-a111-111111111111';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const now = new Date('2026-03-07T10:00:00Z');
-const futureDate = new Date('2026-06-01T00:00:00Z');
-const pastDate = new Date('2025-01-01T00:00:00Z');
-const campStart = new Date('2026-07-01T00:00:00Z');
-const campEnd = new Date('2026-07-05T00:00:00Z');
+// Dates ancrées sur l'instant courant pour éviter toute dérive temporelle :
+// le router compare aux vraies dates (`new Date()`), donc des littéraux figés
+// finissent par basculer dans le passé et cassent les tests. Les offsets
+// garantissent que « futur » reste futur et « passé » reste passé.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const now = new Date();
+const futureDate = new Date(Date.now() + 90 * DAY_MS);
+const pastDate = new Date(Date.now() - 365 * DAY_MS);
+const campStart = new Date(Date.now() + 120 * DAY_MS);
+const campEnd = new Date(Date.now() + 124 * DAY_MS);
 
 function makeRegistrationRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -1382,7 +1387,7 @@ describe('registrations.getAvailableCredits', () => {
   describe('business rules', () => {
     it('should return mapped credits with computed daysUntilExpiry', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
-      const expiresAt = new Date('2027-03-07T00:00:00Z');
+      const expiresAt = new Date(Date.now() + 365 * DAY_MS);
       mockPrisma.parentCredit.findMany.mockResolvedValue([{
         id: CREDIT_ID,
         creditNoteId: INVOICE_ID,
