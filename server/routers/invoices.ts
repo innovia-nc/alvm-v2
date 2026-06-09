@@ -826,7 +826,7 @@ export const invoicesRouter = router({
   sendEmail: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async () => {
       // TODO: Email sending will be implemented in Phase 3 (email setup)
       throw new TRPCError({
         code: 'NOT_IMPLEMENTED' as any,

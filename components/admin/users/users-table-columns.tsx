@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Key, User } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Key } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // ============================================================================

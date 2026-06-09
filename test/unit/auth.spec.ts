@@ -4,7 +4,6 @@ import {
   createTestCaller,
   ADMIN_USER,
   PARENT_USER,
-  STAFF_USER,
 } from '../helpers/test-caller';
 import type { TestCaller } from '../helpers/test-caller';
 
@@ -139,7 +138,6 @@ describe('auth router', () => {
       });
       mockPrisma.user.findUnique.mockResolvedValueOnce(dbUser);
 
-      const { caller: staffCaller } = createTestCaller(STAFF_USER);
       // Reuse mockPrisma from the staff caller setup — but we need the mock on the right instance.
       // Instead, just reconfigure the current caller's mock and call with the admin caller
       // (the router only uses ctx.user.id to look up, the DB user determines the role in the output).

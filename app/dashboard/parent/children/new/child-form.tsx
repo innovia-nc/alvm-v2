@@ -27,7 +27,6 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { trpc } from '@/lib/trpc/client';
-import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
 
 // ============================================================================
@@ -68,7 +67,6 @@ type ChildFormData = z.infer<typeof childFormSchema>;
 export function ChildForm() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { data: session } = useSession();
   const createChildMutation = trpc.children.createByParent.useMutation();
 
   const form = useForm<ChildFormData>({

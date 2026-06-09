@@ -2,7 +2,6 @@ import { requireAuth } from '@/lib/auth';
 import { PageHeader } from '@/components/shared/page-header';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,

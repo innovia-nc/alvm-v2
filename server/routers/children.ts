@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, staffProcedure, parentProcedure } from '@/server/trpc/init';
-import type { Prisma, GenderType } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 

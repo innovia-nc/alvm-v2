@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash, compare } from 'bcryptjs';
 import { router, publicProcedure, protectedProcedure } from '@/server/trpc/init';
-import type { UserRole } from '@prisma/client';
 
 type Role = 'PARENT' | 'STAFF' | 'ADMIN';
 

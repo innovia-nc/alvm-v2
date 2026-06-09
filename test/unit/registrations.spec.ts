@@ -5,7 +5,6 @@ import {
   ADMIN_USER,
   STAFF_USER,
   PARENT_USER,
-  ANIMATOR_USER,
   type TestCaller,
 } from '../helpers/test-caller';
 
@@ -14,7 +13,6 @@ import {
 // ---------------------------------------------------------------------------
 
 const REG_ID       = 'd1a00000-0000-4000-a000-000000000001';
-const REG_ID_2     = 'd1a00000-0000-4000-a000-000000000002';
 const CAMP_ID      = 'e1a00000-0000-4000-a000-000000000001';
 const CHILD_ID     = 'f1a00000-0000-4000-a000-000000000001';
 const INVOICE_ID   = 'a1a00000-0000-4000-a000-000000000001';
