@@ -169,6 +169,57 @@ describe('staff router', () => {
       expect(result.id).toBe(USER_ID);
     });
 
+    it('should return generatedPassword=null when a password is provided', async () => {
+      admin.mockPrisma.user.findUnique.mockResolvedValue(null);
+      admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
+      admin.mockPrisma.user.create.mockResolvedValue({
+        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+      });
+      admin.mockPrisma.account.create.mockResolvedValue({});
+      admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
+
+      const result = await admin.caller.staff.create(createInput);
+      expect(result.generatedPassword).toBeNull();
+    });
+
+    it('should auto-generate a password when none is provided', async () => {
+      admin.mockPrisma.user.findUnique.mockResolvedValue(null);
+      admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
+      admin.mockPrisma.user.create.mockResolvedValue({
+        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+      });
+      admin.mockPrisma.account.create.mockResolvedValue({});
+      admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
+
+      // password omis → génération serveur
+      const { password: _omit, ...withoutPassword } = createInput;
+      const result = await admin.caller.staff.create(withoutPassword);
+
+      expect(result.id).toBe(USER_ID);
+      expect(result.generatedPassword).toBeTruthy();
+      const generated = result.generatedPassword as string;
+      // Respecte la politique : min 8, majuscule, minuscule, chiffre
+      expect(generated.length).toBeGreaterThanOrEqual(8);
+      expect(generated).toMatch(/[A-Z]/);
+      expect(generated).toMatch(/[a-z]/);
+      expect(generated).toMatch(/[0-9]/);
+      // Le compte credentials a bien été créé (mot de passe hashé stocké)
+      expect(admin.mockPrisma.account.create).toHaveBeenCalled();
+    });
+
+    it('should auto-generate when password is an empty string', async () => {
+      admin.mockPrisma.user.findUnique.mockResolvedValue(null);
+      admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
+      admin.mockPrisma.user.create.mockResolvedValue({
+        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+      });
+      admin.mockPrisma.account.create.mockResolvedValue({});
+      admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
+
+      const result = await admin.caller.staff.create({ ...createInput, password: '' });
+      expect(result.generatedPassword).toBeTruthy();
+    });
+
     it('should reject password shorter than 8 characters', async () => {
       await expect(
         admin.caller.staff.create({ ...createInput, password: 'Pass1' }),
