@@ -57,3 +57,5 @@ servait un build du 25 nov. 2025 pendant que les correctifs s'accumulaient sur
 `master`. Détection tardive faute de supervision du « dernier déploiement ».
 Action : vérifier `vercel ls` (âge du dernier déploiement prod) dans les routines
 de supervision, et re-lier la connexion Git à chaque renommage/migration de repo.
+
+> Pipeline Git reconnecté et validé le 2026-07-06 (voir Incident 2025-11).
