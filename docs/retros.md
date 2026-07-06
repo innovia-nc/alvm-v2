@@ -73,3 +73,24 @@ source systémique de 500 — inventaire fait, gardes Zod alignées ; (b) les
 règles métier « écrites des deux côtés » (BDD + code) doivent être testées en
 conditions réelles : les mocks unitaires ne voient rien de tout ça. La campagne
 est désormais rejouable avant chaque mise en prod (docs/deploiement.md).
+
+### Addendum 2026-07-06 (ter) — recette visuelle complète v2.0.1 (Playwright/Chrome)
+
+Recette de bout en bout simulant les parcours utilisateurs ADMIN + PARENT sur
+clone de prod : **19/19 critères PASS**, couvrant les 8 guides utilisateurs
+(connexion/habilitations, camps, familles, inscriptions, présences, facturation/
+paiements, FEC). Preuve visuelle (20 captures + rapport) :
+`docs/test-evidence/recette-v2.0.1/`. Rejouable via
+`pnpm exec playwright test --config docs/test-evidence/recette-v2.0.1/playwright.config.ts`.
+
+Les régressions corrigées en 2.0.1 sont re-prouvées côté UI (parent sans code
+postal, TGC exonérée LP 492, recalcul du payé, inscription confirmée facturable)
+et l'invariant comptable est vérifié en base (écritures VE équilibrées D=C=25 000,
+statut PAID avec paid_amount = total).
+
+**Faux-vert intercepté** : le scénario initial de création d'enfant rattachait
+l'enfant à un homonyme de la prod tout en passant au vert (sélecteur de carte
+trop large). Corrigé par ciblage du parent via email unique + assertion stricte,
+liaison re-prouvée en aval. Leçon : dans un dialog de recherche listant plusieurs
+résultats, cibler par identifiant unique, jamais par un `.first()` sur un
+conteneur large — sinon la recette valide le mauvais enregistrement (§6.5).
