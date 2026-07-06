@@ -59,8 +59,11 @@ function makeCampWithIncludes(overrides: Record<string, unknown> = {}) {
     ...base,
     campType: { id: CAMP_TYPE_ID, name: 'Centre aere', description: 'Camp de jour' },
     creator: {
-      name: 'Test Animator',
-      staffMember: { firstName: 'Animateur', lastName: 'Test' },
+      name: 'Test Animator' as string | null,
+      staffMember: { firstName: 'Animateur', lastName: 'Test' } as {
+        firstName: string;
+        lastName: string;
+      } | null,
     },
     _count: { registrations: 5 },
   };
@@ -199,7 +202,7 @@ describe('camps.list', () => {
 
     it('should fallback to "Unknown" when both staffMember and name are null', async () => {
       const campRow = makeCampWithIncludes();
-      campRow.creator = { name: null, staffMember: null as any };
+      campRow.creator = { name: null, staffMember: null };
       mockPrisma.camp.findMany.mockResolvedValue([campRow]);
       mockPrisma.camp.count.mockResolvedValue(1);
 
@@ -568,13 +571,17 @@ describe('camps.update', () => {
       expect(result.name).toBe('Camp Modifie');
     });
 
-    it('should reject ANIMATOR who is not the creator and not ADMIN', async () => {
+    // Décision produit 2026-07-06 (entérine 19ccf9c « fermeture des camps ») :
+    // tout STAFF — y compris ANIMATOR — peut modifier n'importe quel camp.
+    it('should allow ANIMATOR to update any camp regardless of creator', async () => {
       const { caller, mockPrisma } = createTestCaller(ANIMATOR_USER);
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
         createdBy: 'd1a00000-0000-4000-a000-000000000099',
       }));
+      mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
-      await expect(caller.camps.update(updateInput)).rejects.toThrow('Vous ne pouvez pas modifier ce camp');
+      const result = await caller.camps.update(updateInput);
+      expect(result.name).toBe('Camp Modifie');
     });
 
     it('should allow ADMIN to update any camp regardless of creator', async () => {

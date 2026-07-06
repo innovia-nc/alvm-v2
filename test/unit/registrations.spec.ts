@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
 import {
   createTestCaller,
@@ -36,6 +36,18 @@ const futureDate = new Date('2026-06-01T00:00:00Z');
 const pastDate = new Date('2025-01-01T00:00:00Z');
 const campStart = new Date('2026-07-01T00:00:00Z');
 const campEnd = new Date('2026-07-05T00:00:00Z');
+
+// Le routeur compare les fixtures à l'horloge réelle (deadline d'inscription,
+// expiration de crédit). Sans horloge figée, les tests pourrissent dès que
+// `futureDate` est dépassée — figer le temps sur `now` rend la suite déterministe.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(now);
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 function makeRegistrationRow(overrides: Record<string, unknown> = {}) {
   return {

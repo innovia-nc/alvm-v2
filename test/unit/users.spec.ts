@@ -39,7 +39,13 @@ function makeDbUser(overrides: Record<string, unknown> = {}) {
       city: 'Noumea',
       postalCode: '98800',
     },
-    staffMember: null,
+    staffMember: null as null | {
+      userId: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      email: string;
+    },
     ...overrides,
   };
 }
@@ -76,8 +82,23 @@ function makeDbAdminUser(overrides: Record<string, unknown> = {}) {
     emailVerified: now,
     createdAt: now,
     updatedAt: now,
-    parent: null,
-    staffMember: null,
+    parent: null as null | {
+      userId: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      email: string;
+      address: string | null;
+      city: string | null;
+      postalCode: string | null;
+    },
+    staffMember: null as null | {
+      userId: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      email: string;
+    },
     ...overrides,
   };
 }
