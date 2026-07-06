@@ -116,7 +116,8 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 : typage any des mappers server/routers).
+- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers ; TD-002 10 factures brouillon legacy 0 XPF à nettoyer côté ALVM).
+- `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).
 - `docs/retros.md` — retros et post-mortems (incident pipeline orphelin, bugs campagne smoke).
 - `test/e2e-smoke/smoke.mjs` — campagne de tests reels rejouable (`pnpm smoke`, sur clone de prod uniquement).
@@ -127,6 +128,15 @@ Pour chaque router :
 - Helper `test/helpers/mock-prisma.ts` : mock profond de tous les modeles
 - Toujours mocker `$queryRawUnsafe` et `accountingEntry.create` pour les tests comptables
 - L'environnement Vitest global est `node` (tests routers/services prisma-mockes). Pour un test de **hook ou composant React** (DOM requis), NE PAS changer la config globale : ajouter le docblock `// @vitest-environment jsdom` en tete du fichier de test (`@testing-library/react` + `jsdom` sont en devDeps). Ex : `test/unit/use-server-pagination.spec.ts`.
+
+### Tests reels sur clone de prod (avant chaque mise en prod)
+Les tests unitaires sont mockes : ils ne voient ni les CHECK/triggers legacy de
+la BDD, ni les donnees reelles. Deux campagnes **rejouables sur un clone de prod**
+(Postgres jetable, JAMAIS la prod — procedure : `docs/deploiement.md`) :
+- `pnpm smoke` — campagne API/invariants comptables (`test/e2e-smoke/smoke.mjs`).
+- `pnpm recette` — **recette visuelle Playwright** simulant les parcours
+  utilisateurs ADMIN + PARENT (8 guides), une capture par critere. Spec et
+  preuves : `docs/test-evidence/recette-v2.0.1/` (rapport dans `rapport.md`).
 
 ## Ce qu'il ne faut PAS faire
 - Ne pas hardcoder `0.11` pour le taux TGC

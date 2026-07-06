@@ -83,3 +83,25 @@ Mise en place du banc :
 par cette campagne le 2026-07-06 : TGC 11 % facturée à tort (settings pricing
 non seedés), 500 création parent (CHECK code postal), 500 enfant > 18 ans,
 remboursement sans recalcul du payé, deadlock confirmation d'inscription payée.
+
+## Recette visuelle complète (Playwright + Chrome)
+
+En complément de la campagne smoke (API/invariants), une **recette de bout en
+bout simule les parcours utilisateurs** dans le navigateur — une capture d'écran
+par critère, mappée sur les 8 guides utilisateurs (connexion/habilitations,
+camps, familles, inscriptions, présences, facturation/paiements, FEC), personas
+ADMIN et PARENT.
+
+- Spec + config + preuves : `docs/test-evidence/recette-v2.0.1/`
+  (`acceptance.spec.ts`, `playwright.config.ts`, 20 captures, `rapport.md`).
+- Sur le **même banc** que le smoke (clone de prod, Postgres jetable `alvm-smoke`,
+  `pnpm dev`), lancer :
+  ```bash
+  pnpm recette
+  ```
+- Le spec résout quelques ids (facture, camp) et vérifie les écritures
+  comptables via `docker exec alvm-smoke psql …` — **usage recette uniquement,
+  jamais contre la prod**.
+
+Dernière exécution : **19/19 PASS** le 2026-07-06 (rapport
+`docs/test-evidence/recette-v2.0.1/rapport.md`).

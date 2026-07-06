@@ -2,6 +2,22 @@
 
 Registre priorisé (P0 = bloquant, P3 = confort). Items `OPEN` / `DONE`.
 
+## TD-002 — 10 factures brouillon legacy à 0 XPF en prod — P2 — OPEN
+
+**Constat (2026-07-06, campagne de tests réels)** : les 10 factures présentes en
+prod sont des **brouillons legacy à 0 XPF** (créés par l'ancienne app avant le
+câblage des prix — lignes et `unit_price` à 0). Conséquence fonctionnelle : le
+formulaire de paiement ne propose que les factures avec un restant dû
+(`remainingAmount > 0`), donc **aucune n'est payable** et la liste apparaît vide.
+
+**Ce n'est pas un bug applicatif** : le code neuf facture correctement (25 000 XPF,
+TGC 0 — prouvé par la recette v2.0.1). C'est un **nettoyage de données** à faire
+côté association.
+
+**Résolution cible (action métier, pas code)** : annuler (CANCELLED) ou refacturer
+ces 10 brouillons via l'app — les montants se préremplissent depuis les tarifs
+des camps. À faire avec l'ALVM avant la bascule en usage réel des paiements.
+
 ## TD-001 — Typage `any` des mappers dans `server/routers/**` — P2 — OPEN
 
 **Constat (2026-07-06, introduction d'ESLint)** : les fonctions de mapping
