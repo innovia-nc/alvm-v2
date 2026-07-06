@@ -35,3 +35,18 @@ correctifs jamais déployés** (dont BUG-001, la recherche des inscriptions).
 **Preuves** : recette prod du 2026-07-06 (login, pages admin, tRPC sur données
 réelles, PDF 200 + 401 sans auth, traçabilité FEAT-004) ; diff schéma résiduel
 vide ; dump pré-migration conservé (`~/Desktop/alvm-prod-backup-20260706.sql`).
+
+### Addendum 2026-07-06 (post-livraison) — P0 « validation facture à 0 XPF »
+
+Premier retour utilisateur après mise en prod : 500 sur `invoices.validate`.
+Cause : contrainte CHECK `check_debit_or_credit` héritée de l'ère triggers —
+**invisible pour Prisma** (`migrate diff` ne modélise pas les CHECK), donc hors
+du radar de la migration ET des mocks de tests. Les brouillons legacy à 0 XPF
+déclenchaient une écriture 0/0 rejetée par Postgres. L'ancien trigger SQL avait
+le même défaut : cas jamais exercé avant.
+
+**Pattern réutilisable** : lors d'une reprise de BDD existante, inventorier les
+contraintes CHECK/triggers restants (`pg_constraint contype='c'`, `pg_trigger`)
+— ils encodent des règles métier que ni Prisma ni les tests unitaires mockés ne
+voient. Fix : garde « montant nul » dans les 4 fonctions d'écritures comptables
++ test anti-régression (`invoices.spec` : validation 0 XPF sans écriture).
