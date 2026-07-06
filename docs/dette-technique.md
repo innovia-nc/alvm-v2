@@ -2,7 +2,7 @@
 
 Registre priorisé (P0 = bloquant, P3 = confort). Items `OPEN` / `DONE`.
 
-## TD-002 — 10 factures brouillon legacy à 0 XPF en prod — P2 — OPEN
+## TD-002 — 10 factures brouillon legacy à 0 XPF en prod — P2 — DONE (2026-07-06)
 
 **Constat (2026-07-06, campagne de tests réels)** : les 10 factures présentes en
 prod sont des **brouillons legacy à 0 XPF** (créés par l'ancienne app avant le
@@ -23,8 +23,13 @@ passe les 10 factures 0 XPF en CANCELLED (reproduit `invoices.updateStatus` :
 status + version++), idempotent, gardé (total=0, paid=0, DRAFT/SENT, 0 écriture).
 Les inscriptions restent CONFIRMED/UNPAID → refacturables au bon tarif ensuite.
 **Testé sur clone de prod le 2026-07-06** (10→CANCELLED, 15 inscriptions restées
-refacturables, re-run = 0). **Pas encore appliqué en prod** — en attente de
-validation ALVM (annuler vs refacturer story par story).
+refacturables, re-run = 0).
+
+**✅ Appliqué en prod le 2026-07-06** (validation Mathieu) : 10 factures →
+CANCELLED, la 11ᵉ facture SENT (non nulle, réelle) correctement exclue par le
+garde-fou ; 15 inscriptions CONFIRMED/UNPAID préservées et refacturables.
+**Reste (action ALVM)** : refacturer au bon tarif les inscriptions concernées
+via l'app (les montants se préremplissent depuis les tarifs des camps).
 
 ## TD-001 — Typage `any` des mappers dans `server/routers/**` — P2 — OPEN
 

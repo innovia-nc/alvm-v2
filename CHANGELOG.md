@@ -5,6 +5,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Assainissement données (TD-002) : les 10 factures brouillon legacy à 0 XPF
+  (importées de l'ancienne app, non payables) sont passées en **Annulée** en
+  prod. Les inscriptions liées restent confirmées/non payées et peuvent être
+  refacturées au bon tarif. Script idempotent versionné
+  (`prisma/migrations-manual/2026-07-06-cancel-legacy-zero-invoices.sql`).
+
 ## [2.0.1] — 2026-07-06
 
 Correctifs issus du test du flux métier de bout en bout puis de la **campagne
