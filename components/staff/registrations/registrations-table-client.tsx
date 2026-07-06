@@ -1,5 +1,6 @@
 'use client';
 
+import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -82,7 +83,7 @@ export function RegistrationsTableClient() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: Row<StaffRegistrationType> }) => (
           <StaffRegistrationActions
             item={row.original}
             onCreateInvoice={(item: StaffRegistrationType) =>

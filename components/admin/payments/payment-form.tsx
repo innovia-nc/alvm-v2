@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import type { inferRouterOutputs } from '@trpc/server';
+import type { AppRouter } from '@/server/trpc/router';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,12 +44,15 @@ const paymentFormSchema = z.object({
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
+type InvoiceListItem =
+  inferRouterOutputs<AppRouter>['invoices']['list']['invoices'][number];
+
 export function PaymentForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceListItem | null>(null);
 
   const invoiceIdParam = searchParams.get('invoiceId');
 

@@ -100,8 +100,8 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
       });
       setCancellingRegistration(null);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Impossible d'annuler cette inscription");
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : "Impossible d'annuler cette inscription");
       setCancellingRegistration(null);
     }
   }

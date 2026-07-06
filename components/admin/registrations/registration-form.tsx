@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import type { inferRouterOutputs } from '@trpc/server';
+import type { AppRouter } from '@/server/trpc/router';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,11 +43,14 @@ const registrationFormSchema = z.object({
 
 type RegistrationFormValues = z.infer<typeof registrationFormSchema>;
 
+type CampListItem =
+  inferRouterOutputs<AppRouter>['camps']['list']['camps'][number];
+
 export function RegistrationForm() {
   const router = useRouter();
   const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCamp, setSelectedCamp] = useState<any>(null);
+  const [selectedCamp, setSelectedCamp] = useState<CampListItem | null>(null);
   const [childSearch, setChildSearch] = useState('');
   const [showChildDropdown, setShowChildDropdown] = useState(false);
 
@@ -99,7 +104,7 @@ export function RegistrationForm() {
     if (!childrenData?.children) return [];
 
     // Filtrer par parent si un parent est sélectionné
-    let children = watchParentId
+    const children = watchParentId
       ? childrenData.children.filter((child) =>
           child.parents.some((parent) => parent.parentId === watchParentId)
         )
@@ -378,8 +383,8 @@ export function RegistrationForm() {
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Période: </span>
                       <span className="font-medium">
-                        Du {new Date(selectedCamp.startDate).toLocaleDateString('fr-FR')} au{' '}
-                        {new Date(selectedCamp.endDate).toLocaleDateString('fr-FR')} ({selectedCamp.daysCount} jours)
+                        Du {selectedCamp.startDate ? new Date(selectedCamp.startDate).toLocaleDateString('fr-FR') : '—'} au{' '}
+                        {selectedCamp.endDate ? new Date(selectedCamp.endDate).toLocaleDateString('fr-FR') : '—'} ({selectedCamp.daysCount} jours)
                       </span>
                     </div>
                   </div>

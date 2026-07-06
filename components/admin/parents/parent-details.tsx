@@ -71,8 +71,8 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
       toast.success('Parent supprimé avec succès');
       router.push(parentsPath);
       router.refresh();
-    } catch (err: any) {
-      const errorMessage = err.message || 'Erreur lors de la suppression';
+    } catch (err) {
+      const errorMessage = err instanceof Error && err.message ? err.message : 'Erreur lors de la suppression';
       toast.error(errorMessage);
     }
   }

@@ -130,8 +130,8 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
 
       setIsDialogOpen(false);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
     }
   }
 
@@ -144,8 +144,8 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
       setError(null);
       await deleteMutation.mutateAsync({ id });
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Impossible de supprimer ce type de camp');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Impossible de supprimer ce type de camp');
     }
   }
 

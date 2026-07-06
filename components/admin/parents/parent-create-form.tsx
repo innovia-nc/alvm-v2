@@ -102,8 +102,8 @@ export function ParentCreateForm() {
       toast.success('Parent créé avec succès');
       router.push(`/dashboard/admin/users/parents/${result.id}`);
       router.refresh();
-    } catch (err: any) {
-      const errorMessage = err.message || 'Une erreur est survenue';
+    } catch (err) {
+      const errorMessage = err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
       setError(errorMessage);
       toast.error(errorMessage);
     }

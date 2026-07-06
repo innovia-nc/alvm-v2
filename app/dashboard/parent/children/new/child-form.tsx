@@ -111,8 +111,8 @@ export function ChildForm() {
 
       router.push('/dashboard/parent/children');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
     }
   }
 

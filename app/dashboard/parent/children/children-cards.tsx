@@ -73,8 +73,8 @@ export function ChildrenCards({ initialChildren }: ChildrenCardsProps) {
       await deleteMutation.mutateAsync({ id: deletingChild.id });
       setDeletingChild(null);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Impossible de supprimer cet enfant');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Impossible de supprimer cet enfant');
       setDeletingChild(null);
     }
   }

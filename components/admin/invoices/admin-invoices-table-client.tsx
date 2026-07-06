@@ -1,5 +1,6 @@
 'use client';
 
+import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
@@ -30,6 +31,9 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { PaymentDialog } from '@/components/admin/payment-dialog';
 
+
+type InvoiceStatusFilter = 'all' | 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+
 export function AdminInvoicesTableClient() {
   const router = useRouter();
   const [deletingItem, setDeletingItem] = useState<AdminInvoiceType | null>(null);
@@ -37,7 +41,7 @@ export function AdminInvoicesTableClient() {
   const [validatingItem, setValidatingItem] = useState<AdminInvoiceType | null>(null);
   const [paymentDialogItem, setPaymentDialogItem] = useState<AdminInvoiceType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Hook de pagination server-side
@@ -47,7 +51,7 @@ export function AdminInvoicesTableClient() {
   const { data, isLoading } = trpc.invoices.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
-    ...(statusFilter !== 'all' && { status: statusFilter as any }),
+    ...(statusFilter !== 'all' && { status: statusFilter }),
     ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
   });
 
@@ -124,7 +128,7 @@ export function AdminInvoicesTableClient() {
     try {
       setError(null);
       await deleteMutation.mutateAsync({ id: deletingItem.id });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -135,7 +139,7 @@ export function AdminInvoicesTableClient() {
     try {
       setError(null);
       await sendEmailMutation.mutateAsync({ id: sendingEmailItem.id });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -145,7 +149,7 @@ export function AdminInvoicesTableClient() {
     try {
       setError(null);
       await validateMutation.mutateAsync({ id: validatingItem.id });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -168,7 +172,7 @@ export function AdminInvoicesTableClient() {
         setError(null);
         await generatePDFMutation.mutateAsync({ id: item.id });
         // Le PDF s'ouvre automatiquement via onSuccess de la mutation
-      } catch (err: any) {
+      } catch {
         // Erreur déjà gérée par onError de la mutation
       }
     } else {
@@ -181,7 +185,7 @@ export function AdminInvoicesTableClient() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: Row<AdminInvoiceType> }) => (
           <AdminInvoiceActions
             item={row.original}
             onDelete={setDeletingItem}
@@ -207,7 +211,10 @@ export function AdminInvoicesTableClient() {
       {/* Filtres */}
       <div className="flex flex-wrap gap-4 items-end">
         <div className="min-w-[200px]">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as InvoiceStatusFilter)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Filtrer par statut" />
             </SelectTrigger>

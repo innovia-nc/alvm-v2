@@ -107,8 +107,8 @@ export function ChildDetails({ child }: ChildDetailsProps) {
       toast.success('Enfant supprimé avec succès');
       router.push(`${basePath}/children`);
       router.refresh();
-    } catch (err: any) {
-      const errorMessage = err.message || 'Erreur lors de la suppression';
+    } catch (err) {
+      const errorMessage = err instanceof Error && err.message ? err.message : 'Erreur lors de la suppression';
       toast.error(errorMessage);
     }
   }

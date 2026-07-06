@@ -133,8 +133,8 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
 
       setIsDialogOpen(false);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
     }
   }
 
@@ -147,8 +147,8 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
       setError(null);
       await deleteMutation.mutateAsync({ id });
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Impossible de supprimer cette méthode de paiement');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Impossible de supprimer cette méthode de paiement');
     }
   }
 

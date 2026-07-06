@@ -50,3 +50,5 @@ docs/**/*.docx
 docs/**/*.doc
 docs/**/*.xlsx
 docs/**/*.pdf
+.env*
+!.env.example

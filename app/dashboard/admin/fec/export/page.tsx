@@ -81,8 +81,8 @@ export default function FECExportPage() {
 
       // Télécharger le fichier FEC
       downloadFEC(result.content, result.filename);
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors de l\'export');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue lors de l\'export');
     }
   }
 

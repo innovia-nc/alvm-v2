@@ -28,7 +28,7 @@ interface ChildAttendance {
 }
 
 interface AttendanceGridProps {
-  children: ChildAttendance[];
+  attendees: ChildAttendance[];
   onMarkAttendance: (
     registrationId: string,
     status: AttendanceStatus,
@@ -45,7 +45,7 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
 };
 
 export function AttendanceGrid({
-  children,
+  attendees,
   onMarkAttendance,
   isPending,
 }: AttendanceGridProps) {
@@ -59,7 +59,7 @@ export function AttendanceGrid({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {children.map((child) => (
+          {attendees.map((child) => (
             <TableRow key={child.registrationId}>
               <TableCell>
                 <div className="font-medium">

@@ -121,8 +121,8 @@ export function RegistrationEditForm({
       toast.success('Inscription modifiée avec succès');
       router.push(`${basePath}/registrations/${registration.id}`);
       router.refresh();
-    } catch (err: any) {
-      const errorMessage = err.message || 'Une erreur est survenue';
+    } catch (err) {
+      const errorMessage = err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
       setError(errorMessage);
       toast.error(errorMessage);
     }

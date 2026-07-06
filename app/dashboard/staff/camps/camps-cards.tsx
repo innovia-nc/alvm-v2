@@ -118,8 +118,8 @@ export function CampsCards({ initialCamps }: CampsCardsProps) {
 
       setActioningCamp(null);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Impossible d'effectuer cette action");
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : "Impossible d'effectuer cette action");
       setActioningCamp(null);
     }
   }
@@ -136,8 +136,8 @@ export function CampsCards({ initialCamps }: CampsCardsProps) {
       setDuplicatingCamp(null);
       duplicateForm.reset();
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Impossible de dupliquer ce camp");
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : "Impossible de dupliquer ce camp");
     }
   }
 

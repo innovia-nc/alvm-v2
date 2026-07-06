@@ -4,7 +4,10 @@
  */
 interface HasAppSetting {
   appSetting: {
-    findUnique: (args: any) => Promise<{ value: string | null } | null>;
+    findUnique: (args: {
+      where: { category_key: { category: string; key: string } };
+      select: { value: true };
+    }) => Promise<{ value: string | null } | null>;
   };
 }
 

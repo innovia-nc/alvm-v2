@@ -7,6 +7,8 @@
 
 'use client';
 
+import type { inferRouterOutputs } from '@trpc/server';
+import type { AppRouter } from '@/server/trpc/router';
 import { ChildForm } from '@/components/staff/children/child-form';
 import { ChildDocumentsSection } from '@/components/shared/child-documents-section';
 
@@ -14,30 +16,9 @@ import { ChildDocumentsSection } from '@/components/shared/child-documents-secti
 // TYPES
 // ============================================================================
 
-interface ChildData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  birthDate: Date;
-  gender: 'MALE' | 'FEMALE' | 'OTHER';
-  medicalInfo: {
-    allergies: string[];
-    medications: string[];
-    conditions: string[];
-    diet_restrictions: string[];
-    notes: string;
-  };
-  emergencyContactName: string | null;
-  emergencyContactPhone: string | null;
-  emergencyContactRelation: string | null;
-  parents: Array<{
-    parentId: string;
-    isPrimary: boolean;
-    // Widened to `string | null` to tolerate legacy values outside the
-    // canonical enum (see server/routers/children.ts B1 fix).
-    relationship: string | null;
-  }>;
-}
+// Shape réelle servie par le routeur — évite une interface locale qui dérive
+// du contrat (le cast `as any` masquait des champs manquants : ecole, parents enrichis).
+type ChildData = NonNullable<inferRouterOutputs<AppRouter>['children']['getById']>;
 
 interface ChildEditWithDocumentsProps {
   /**
@@ -70,7 +51,7 @@ export function ChildEditWithDocuments({
     <div className="space-y-8">
       {/* Formulaire d'édition */}
       <div className="max-w-2xl">
-        <ChildForm mode="edit" initialData={child as any} basePath={basePath} />
+        <ChildForm mode="edit" initialData={child} basePath={basePath} />
       </div>
 
       {/* Section documents (en pleine largeur) */}

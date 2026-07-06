@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import type { inferRouterOutputs } from '@trpc/server';
+import type { AppRouter } from '@/server/trpc/router';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,12 +44,15 @@ const refundFormSchema = z.object({
 
 type RefundFormValues = z.infer<typeof refundFormSchema>;
 
+type PaymentListItem =
+  inferRouterOutputs<AppRouter>['payments']['list']['payments'][number];
+
 export function RefundForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const basePath = useDashboardBasePath();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentListItem | null>(null);
 
   const paymentIdParam = searchParams.get('paymentId');
 
@@ -166,7 +171,7 @@ export function RefundForm() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Méthode: </span>
-                    <span className="font-medium">{selectedPayment.paymentMethod}</span>
+                    <span className="font-medium">{selectedPayment.paymentMethodName}</span>
                   </div>
                 </div>
               </div>

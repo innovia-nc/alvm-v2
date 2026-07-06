@@ -1,5 +1,6 @@
 'use client';
 
+import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
@@ -95,7 +96,7 @@ export function ChildrenTableClient() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: Row<StaffChildType> }) => (
           <StaffChildActions
             item={row.original}
             onDelete={(item: StaffChildType) => setDeletingItem(item)}

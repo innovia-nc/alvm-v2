@@ -1,5 +1,6 @@
 'use client';
 
+import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
@@ -80,7 +81,7 @@ export function ParentsTableClient() {
     try {
       setError(null);
       await deleteMutation.mutateAsync({ id: deletingParent.id });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -90,7 +91,7 @@ export function ParentsTableClient() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: Row<Parent> }) => (
           <ParentActions
             parent={row.original}
             onResetPassword={handleResetPassword}

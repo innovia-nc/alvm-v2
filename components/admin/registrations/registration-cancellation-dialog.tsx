@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { inferRouterOutputs } from '@trpc/server';
+import type { AppRouter } from '@/server/trpc/router';
 import { trpc } from '@/lib/trpc/client';
 import type { AdminRegistrationType } from './columns';
 import {
@@ -39,6 +41,9 @@ interface RegistrationCancellationDialogProps {
 type RefundChoice = 'IMMEDIATE_REFUND' | 'FUTURE_CREDIT';
 type RefundMethod = 'CASH' | 'CHECK' | 'BANK_TRANSFER';
 
+type RegistrationStatusAnalysis =
+  inferRouterOutputs<AppRouter>['registrations']['analyzeRegistrationStatus'];
+
 export function RegistrationCancellationDialog({
   registration,
   open,
@@ -50,7 +55,7 @@ export function RegistrationCancellationDialog({
   const [refundChoice, setRefundChoice] = useState<RefundChoice>('IMMEDIATE_REFUND');
   const [refundMethod, setRefundMethod] = useState<RefundMethod>('BANK_TRANSFER');
   const [error, setError] = useState<string | null>(null);
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<RegistrationStatusAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(true);
 
   // Query pour analyser la situation
@@ -217,17 +222,12 @@ export function RegistrationCancellationDialog({
   function handleSubmit() {
     if (!registration) return;
 
-    const params: any = {
+    cancelMutation.mutate({
       registrationId: registration.id,
       reason: reason.trim(),
-    };
-
-    // Ajouter les paramètres selon le cas
-    if (analysisData?.requiresRefundChoice) {
-      params.refundChoice = refundChoice;
-    }
-
-    cancelMutation.mutate(params);
+      // Paramètre présent uniquement quand un choix de remboursement est requis
+      ...(analysisData?.requiresRefundChoice ? { refundChoice } : {}),
+    });
   }
 
   const isLastStep = step === getTotalSteps();

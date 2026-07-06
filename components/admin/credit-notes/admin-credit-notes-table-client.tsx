@@ -1,5 +1,6 @@
 'use client';
 
+import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
@@ -89,7 +90,7 @@ export function AdminCreditNotesTableClient() {
     try {
       setError(null);
       await deleteMutation.mutateAsync({ id: deletingItem.id });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -102,7 +103,7 @@ export function AdminCreditNotesTableClient() {
         id: updatingStatus.item.id,
         status: updatingStatus.status,
       });
-    } catch (err: any) {
+    } catch {
       // Erreur déjà gérée par onError
     }
   }
@@ -114,7 +115,7 @@ export function AdminCreditNotesTableClient() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: any) => (
+        cell: ({ row }: { row: Row<AdminCreditNoteType> }) => (
           <AdminCreditNoteActions
             item={row.original}
             onDelete={setDeletingItem}
