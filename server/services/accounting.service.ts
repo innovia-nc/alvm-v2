@@ -83,6 +83,10 @@ export async function createInvoiceAccountingEntries(
     userId,
   } = params;
 
+  // Une facture à 0 XPF n'a aucun impact journal : la contrainte BDD
+  // check_debit_or_credit interdit toute ligne 0/0 (legacy factures de test).
+  if (totalAmount === 0) return;
+
   // Guard: skip if entries already exist for this invoice
   const existing = await tx.accountingEntry.count({
     where: { invoiceId, journalCode: 'VE', isCancelled: false },
@@ -207,6 +211,9 @@ export async function createCreditNoteAccountingEntries(
     userId,
   } = params;
 
+  // Même garde que les factures : pas d'écriture 0/0 (check_debit_or_credit).
+  if (totalAmount === 0) return;
+
   // Guard: skip if entries already exist
   const existing = await tx.accountingEntry.count({
     where: { creditNoteId, journalCode: 'VE', isCancelled: false },
@@ -326,6 +333,9 @@ export async function createPaymentEntries(
     userId,
   } = params;
 
+  // Pas d'écriture 0/0 (check_debit_or_credit) — un paiement nul n'a pas d'impact journal.
+  if (amount === 0) return;
+
   if (paymentMethodCode === 'CREDIT_NOTE' && creditNoteIsFutureCredit === false) {
     return;
   }
@@ -430,6 +440,9 @@ export async function createRefundEntries(
   if (refundMethod === 'FUTURE_CREDIT') {
     return;
   }
+
+  // Pas d'écriture 0/0 (check_debit_or_credit) — un remboursement nul n'a pas d'impact journal.
+  if (amount === 0) return;
 
   const entryNum = await nextEntryNum(tx, 'BQ');
   const clientAux = deriveClientAux(parentId);

@@ -965,6 +965,27 @@ describe('invoices router', () => {
           data: { status: 'SENT', pdfUrl: null, validatedById: STAFF_USER.id },
         });
       });
+
+      it('validates a 0 XPF invoice without creating accounting entries', async () => {
+        // Anti-régression prod 2026-07-06 : une écriture 0/0 viole la
+        // contrainte BDD check_debit_or_credit (500 sur les brouillons legacy à 0).
+        const zero = { subtotalHt: 0, taxAmount: 0, totalAmount: 0 };
+        mockPrisma.invoice.findFirst.mockResolvedValue(
+          makeRawInvoice({ status: 'DRAFT', ...zero }),
+        );
+        mockPrisma.invoice.update.mockResolvedValue(
+          makeRawInvoice({ status: 'SENT', ...zero }),
+        );
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
+          ...makeRawInvoice({ status: 'SENT', ...zero }),
+          lines: [],
+        });
+
+        const result = await caller.invoices.validate({ id: INVOICE_ID });
+
+        expect(result.status).toBe('SENT');
+        expect(mockPrisma.accountingEntry.create).not.toHaveBeenCalled();
+      });
     });
   });
 
