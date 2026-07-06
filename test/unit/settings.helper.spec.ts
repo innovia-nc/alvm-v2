@@ -96,7 +96,9 @@ describe('settings.helper — pricing values', () => {
     it('falls back to default decimal when value is garbage', async () => {
       const prisma = makeFakePrisma('garbage');
       const result = await getTaxRateDecimal(prisma as any);
-      expect(result).toBeCloseTo(0.11);
+      // Défaut légal = 0 : ALVM est exonérée de TGC (LP 492) ; un fallback à
+      // 11 % a facturé de la TGC à tort quand pricing n'était pas seedé.
+      expect(result).toBe(0);
     });
   });
 

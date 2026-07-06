@@ -461,8 +461,8 @@ describe('invoices router', () => {
           ],
         };
 
-        // subtotalHt = 3*1000 + 2*500 = 4000, default tax = 11% → totalAmount = 4440
-        const created = makeRawInvoice({ totalAmount: 4440, subtotalHt: 4000 });
+        // subtotalHt = 3*1000 + 2*500 = 4000, TGC par défaut = 0 (exonération LP 492) → totalAmount = 4000
+        const created = makeRawInvoice({ totalAmount: 4000, subtotalHt: 4000 });
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
@@ -470,9 +470,9 @@ describe('invoices router', () => {
 
         const createCall = mockPrisma.invoice.create.mock.calls[0][0];
         expect(createCall.data.subtotalHt).toBe(4000);
-        expect(createCall.data.taxRate).toBeCloseTo(0.11);
-        expect(createCall.data.taxAmount).toBeCloseTo(440);
-        expect(createCall.data.totalAmount).toBeCloseTo(4440);
+        expect(createCall.data.taxRate).toBe(0);
+        expect(createCall.data.taxAmount).toBe(0);
+        expect(createCall.data.totalAmount).toBe(4000);
         expect(createCall.data.status).toBe('DRAFT');
       });
 
@@ -636,22 +636,22 @@ describe('invoices router', () => {
         ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
       });
 
-      it('creates invoice with correct computed amounts (5 days x 2000 + 11% tax)', async () => {
+      it('creates invoice with correct computed amounts (5 days x 2000, TGC 0 — LP 492)', async () => {
         mockPrisma.registration.findFirst.mockResolvedValue(mockRegistration);
         mockPrisma.invoiceLine.findFirst.mockResolvedValue(null);
-        // subtotalHt = 5 * 2000 = 10000, default tax 11% → totalAmount = 11100
-        const created = makeRawInvoice({ totalAmount: 11100, subtotalHt: 10000 });
+        // subtotalHt = 5 * 2000 = 10000, TGC 0 (exonération LP 492) → totalAmount = 10000
+        const created = makeRawInvoice({ totalAmount: 10000, subtotalHt: 10000 });
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.createFromRegistration({ registrationId: REG_ID });
 
         const createCall = mockPrisma.invoice.create.mock.calls[0][0];
-        // 5 days (July 1-5 inclusive) * 2000 = 10000 HT, +11% = 11100 TTC
+        // 5 days (July 1-5 inclusive) * 2000 = 10000 HT, TGC 0 (LP 492) = 10000 TTC
         expect(createCall.data.subtotalHt).toBe(10000);
-        expect(createCall.data.taxRate).toBeCloseTo(0.11);
-        expect(createCall.data.taxAmount).toBeCloseTo(1100);
-        expect(createCall.data.totalAmount).toBeCloseTo(11100);
+        expect(createCall.data.taxRate).toBe(0);
+        expect(createCall.data.taxAmount).toBe(0);
+        expect(createCall.data.totalAmount).toBe(10000);
         expect(createCall.data.parentId).toBe(PARENT_USER.id);
         expect(createCall.data.status).toBe('DRAFT');
       });

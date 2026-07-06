@@ -211,7 +211,8 @@ async function main() {
     { category: 'pricing', key: 'currency', value: '"XPF"', description: 'Devise (code ISO)' },
     { category: 'pricing', key: 'currency_symbol', value: '"XPF"', description: 'Symbole de devise affiché' },
     { category: 'pricing', key: 'default_camp_price', value: '5000', description: 'Prix par défaut par jour de camp (en XPF)' },
-    { category: 'pricing', key: 'tax_rate', value: '11', description: 'Taux de TGC en pourcentage' },
+    // ALVM est exonérée de TGC (article LP 492 — Loi du pays N°2016-14). 0 est volontaire et légal.
+    { category: 'pricing', key: 'tax_rate', value: '0', description: 'Taux de TGC en pourcentage (0 = exonération LP 492)' },
     { category: 'pricing', key: 'payment_terms_days', value: '30', description: 'Délai de paiement par défaut (jours)' },
     { category: 'pricing', key: 'credit_expiry_days', value: '365', description: 'Durée de validité des avoirs (jours)' },
     { category: 'pricing', key: 'payment_method_inactive_days', value: '30', description: 'Inactivité avant désactivation méthode de paiement (jours)' },

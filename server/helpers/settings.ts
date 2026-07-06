@@ -13,7 +13,10 @@ interface HasAppSetting {
 
 const DEFAULTS = {
   pricing: {
-    tax_rate: 11,
+    // ALVM est exonérée de TGC (article LP 492 — Loi du pays N°2016-14 du
+    // 30/09/2016). Le fallback DOIT être 0 : un défaut à 11 a facturé de la
+    // TGC illégale quand app_settings.pricing n'était pas seedé (P0 2026-07-06).
+    tax_rate: 0,
     payment_terms_days: 30,
     credit_expiry_days: 365,
     payment_method_inactive_days: 30,
