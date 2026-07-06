@@ -3,7 +3,7 @@
 ## Presentation
 
 Application de gestion de camps de vacances pour l'ALVM.
-Monolithe Next.js deployable sur Vercel + Supabase PostgreSQL.
+Monolithe Next.js deployable sur Vercel + Neon PostgreSQL (integration Vercel).
 
 Refonte de l'architecture 2 apps (alvm-back NestJS + alvm-selfhosted Next.js)
 en une seule application Next.js App Router.
@@ -13,12 +13,12 @@ en une seule application Next.js App Router.
 - **Runtime** : Node.js 22, pnpm 9
 - **Framework** : Next.js 15.x (App Router)
 - **API** : tRPC 11.x (via `/api/trpc/[trpc]` route handler)
-- **ORM** : Prisma 6.x (PostgreSQL via Supabase)
+- **ORM** : Prisma 6.x (PostgreSQL via Neon)
 - **Auth** : NextAuth v5 (Credentials provider, JWT sessions)
 - **Validation** : Zod 4.x
 - **UI** : shadcn/ui, Tailwind CSS 3.x, Radix UI
 - **Tests** : Vitest 2.x
-- **Deploiement** : Vercel (front + API), Supabase (BDD)
+- **Deploiement** : Vercel (front + API), Neon (BDD) — voir docs/deploiement.md
 
 ## Architecture
 
@@ -113,6 +113,12 @@ Pour chaque router :
   `createInvoiceAccountingEntries()` / `createCreditNoteAccountingEntries()`
 - Migrer les tests correspondants
 
+## Documents
+
+- `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
+- `docs/dette-technique.md` — registre de dette (TD-001 : typage any des mappers server/routers).
+- `CHANGELOG.md` — journal des livraisons (v2.0.0 : premiere prod de la refonte, 2026-07-06).
+
 ## Tests
 - Convention : `test/unit/{module}.spec.ts`
 - Helper `test/helpers/test-caller.ts` : caller tRPC avec Prisma mocke
@@ -124,5 +130,5 @@ Pour chaque router :
 - Ne pas hardcoder `0.11` pour le taux TGC
 - Ne pas oublier `version` dans les appels a `invoices.updateStatus`
 - Ne pas creer de `parent_credits` dans les services comptables (c'est gere cote router)
-- Ne pas exposer le port PostgreSQL Supabase — utiliser le connection pooler (port 6543)
-- Ne pas utiliser `prisma migrate dev` sur Supabase en production — utiliser `prisma db push` ou `prisma migrate deploy`
+- Runtime BDD via le pooler pgbouncer Neon (POSTGRES_PRISMA_URL) ; la connexion directe (POSTGRES_URL_NON_POOLING) est reservee aux migrations
+- Ne pas utiliser `prisma migrate dev` sur Neon en production — SQL manuel repete sur clone + `db push` (procedure : docs/deploiement.md)
