@@ -117,7 +117,9 @@ Pour chaque router :
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
 - `docs/dette-technique.md` — registre de dette (TD-001 : typage any des mappers server/routers).
-- `CHANGELOG.md` — journal des livraisons (v2.0.0 : premiere prod de la refonte, 2026-07-06).
+- `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).
+- `docs/retros.md` — retros et post-mortems (incident pipeline orphelin, bugs campagne smoke).
+- `test/e2e-smoke/smoke.mjs` — campagne de tests reels rejouable (`pnpm smoke`, sur clone de prod uniquement).
 
 ## Tests
 - Convention : `test/unit/{module}.spec.ts`

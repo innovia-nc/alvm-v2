@@ -5,6 +5,35 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-07-06
+
+Correctifs issus du test du flux métier de bout en bout puis de la **campagne
+smoke E2E sur clone de prod** (41 vérifications — voir `docs/deploiement.md`
+§ campagne et `docs/retros.md`, addenda du 2026-07-06). Déployés en prod le jour même.
+
+### Fixed
+- **TGC facturée à tort (P0 légal)** : ALVM est exonérée (art. LP 492) mais la
+  catégorie `pricing` d'`app_settings` n'avait jamais été seedée en prod et le
+  fallback codé valait 11 %. Fallback et seed à 0, 7 clés `pricing` insérées en
+  prod (`tax_rate = 0` vérifié).
+- Validation d'une facture à 0 XPF : garde « montant nul » dans les écritures
+  comptables (plus de 500, aucune écriture 0/0 possible).
+- Création d'un parent sans code postal : 500 causé par un CHECK legacy
+  (5 caractères stricts) incompatible avec le contrat optionnel — contrainte
+  assouplie en prod (`''` OU 5) + validation Zod 5 chiffres si renseigné.
+- Création d'un enfant hors tranche 0–18 ans : message de validation clair au
+  lieu d'une erreur Postgres brute.
+- Remboursements : `create`/`delete` recalculent désormais `paid_amount` et le
+  statut de la facture (IMMEDIATE_REFUND uniquement — un FUTURE_CREDIT reste acquis).
+- Inscription payée : la confirmation (→ CONFIRMED) reste permise pour ne pas
+  bloquer les présences ; CANCELLED/WAITLIST toujours refusés.
+
+### Added
+- **Campagne de tests réels rejouable** : `pnpm smoke`
+  (`test/e2e-smoke/smoke.mjs`) — flux d'écriture métier complets + invariants
+  comptables + scoping par rôle, sur un clone de prod, à lancer avant chaque
+  mise en production significative.
+
 ## [2.0.0] — 2026-07-06
 
 **Première mise en production de la refonte monolithe** sur `alvm-v2.vercel.app`.
