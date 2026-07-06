@@ -6,6 +6,9 @@ import { auth } from '@/lib/auth';
 import { StaffProfilePDF } from '@/lib/pdf/staff-profile-pdf';
 import { getPdfSettings } from '@/server/helpers/pdf-settings.helper';
 
+// La génération PDF (@react-pdf/renderer) peut dépasser le timeout serverless par défaut.
+export const maxDuration = 60;
+
 export async function GET(
     _req: NextRequest,
     { params }: { params: Promise<{ staffid: string }> },

@@ -6,6 +6,9 @@ import { auth } from '@/lib/auth';
 import { ChildProfilePDF } from '@/lib/pdf/child-profile-pdf';
 import { getPdfSettings } from '@/server/helpers/pdf-settings.helper';
 
+// La génération PDF (@react-pdf/renderer) peut dépasser le timeout serverless par défaut.
+export const maxDuration = 60;
+
 type MedicalInfoShape = {
     allergies?: string[];
     medications?: string[];
