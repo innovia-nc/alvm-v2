@@ -18,6 +18,14 @@ côté association.
 ces 10 brouillons via l'app — les montants se préremplissent depuis les tarifs
 des camps. À faire avec l'ALVM avant la bascule en usage réel des paiements.
 
+**Script d'assainissement préparé** : `prisma/migrations-manual/2026-07-06-cancel-legacy-zero-invoices.sql`
+passe les 10 factures 0 XPF en CANCELLED (reproduit `invoices.updateStatus` :
+status + version++), idempotent, gardé (total=0, paid=0, DRAFT/SENT, 0 écriture).
+Les inscriptions restent CONFIRMED/UNPAID → refacturables au bon tarif ensuite.
+**Testé sur clone de prod le 2026-07-06** (10→CANCELLED, 15 inscriptions restées
+refacturables, re-run = 0). **Pas encore appliqué en prod** — en attente de
+validation ALVM (annuler vs refacturer story par story).
+
 ## TD-001 — Typage `any` des mappers dans `server/routers/**` — P2 — OPEN
 
 **Constat (2026-07-06, introduction d'ESLint)** : les fonctions de mapping
