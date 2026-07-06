@@ -169,7 +169,7 @@ export const usersRouter = router({
         phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/),
         address: z.string().optional(),
         city: z.string().optional(),
-        postalCode: z.string().optional(),
+        postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
       }).optional(),
       staffProfile: z.object({
         firstName: z.string().min(2).max(50),
@@ -262,7 +262,7 @@ export const usersRouter = router({
         phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/).optional(),
         address: z.string().optional(),
         city: z.string().optional(),
-        postalCode: z.string().optional(),
+        postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
       }).optional(),
       staffProfile: z.object({
         firstName: z.string().min(2).max(50).optional(),

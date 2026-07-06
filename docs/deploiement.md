@@ -59,3 +59,27 @@ Action : vérifier `vercel ls` (âge du dernier déploiement prod) dans les rout
 de supervision, et re-lier la connexion Git à chaque renommage/migration de repo.
 
 > Pipeline Git reconnecté et validé le 2026-07-06 (voir Incident 2025-11).
+
+## Campagne smoke E2E (tests réels sur clone de prod)
+
+Script : `test/e2e-smoke/smoke.mjs` (~40 vérifications). Déroule les flux
+d'écriture réels — création parent/enfant/camp, inscription parent, facture
+depuis inscription, validation, paiements, remboursement, avoir → crédit,
+présences, FEC, PDF — plus les invariants comptables globaux (grand livre
+équilibré, aucune écriture 0/0, `paid_amount` = paiements − remboursements)
+et le scoping par rôle. **Jamais contre la prod** (le script écrit).
+
+Mise en place du banc :
+1. `pg_dump` de la prod → restore dans un Postgres 17 local (port 5445,
+   db `neondb`, mdp `smoke`).
+2. Créer l'admin de test `smoke-admin@test.local` / `Smoke2026!` (user ADMIN +
+   account credentials bcrypt) et donner le mdp `SmokeParent2026!` à un parent
+   existant (export `SMOKE_PARENT_EMAIL`).
+3. `.env.local` → `postgresql://postgres:smoke@127.0.0.1:5445/neondb` (les
+   deux vars) + `AUTH_SECRET` quelconque, puis `pnpm dev`.
+4. `pnpm smoke` — code sortie 0 si tout passe.
+
+À lancer avant chaque mise en production significative. Bugs P0 déjà détectés
+par cette campagne le 2026-07-06 : TGC 11 % facturée à tort (settings pricing
+non seedés), 500 création parent (CHECK code postal), 500 enfant > 18 ans,
+remboursement sans recalcul du payé, deadlock confirmation d'inscription payée.

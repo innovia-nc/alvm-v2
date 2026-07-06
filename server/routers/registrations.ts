@@ -470,10 +470,16 @@ export const registrationsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
-      if (existing.paymentStatus === 'PAID') {
+      // Confirmer une inscription payée est légitime (le paiement vaut
+      // engagement) — sans quoi une inscription facturée en PENDING ne peut
+      // plus jamais être confirmée ni pointée en présence (deadlock détecté
+      // par la campagne smoke 2026-07-06). Annulation/waitlist restent
+      // bloquées ici : l'annulation d'une inscription payée passe par
+      // cancelWithAccounting (remboursement/avoir).
+      if (existing.paymentStatus === 'PAID' && input.status !== 'CONFIRMED') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a déjà été payée et ne peut plus être modifiée',
+          message: 'Cette inscription a déjà été payée : seule la confirmation est possible (annulation via le parcours remboursement)',
         });
       }
 

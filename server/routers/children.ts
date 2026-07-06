@@ -5,6 +5,18 @@ import type { Prisma, GenderType } from '@prisma/client';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
+
+// La BDD porte une contrainte CHECK (birth_date entre aujourd'hui − 18 ans et
+// aujourd'hui) : sans cette garde Zod, une date hors tranche provoquait un
+// 500 Postgres au lieu d'un message clair (campagne smoke 2026-07-06).
+const birthDateString = z.string().datetime().refine((v) => {
+  const d = new Date(v);
+  const now = new Date();
+  const min = new Date(now);
+  min.setFullYear(min.getFullYear() - 18);
+  return d <= now && d >= min;
+}, "La date de naissance doit correspondre à un enfant de moins de 18 ans");
+
 const relationshipEnum = z.enum([
   'mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other',
 ]);
@@ -207,7 +219,7 @@ export const childrenRouter = router({
     .input(z.object({
       firstName: z.string().min(2).max(50),
       lastName: z.string().min(2).max(50),
-      birthDate: z.string().datetime(),
+      birthDate: birthDateString,
       gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
       ecole: z.string().max(100).nullable().optional(),
       medicalInfo: medicalInfoSchema.optional().default({
@@ -279,7 +291,7 @@ export const childrenRouter = router({
     .input(z.object({
       firstName: z.string().min(2).max(50),
       lastName: z.string().min(2).max(50),
-      birthDate: z.string().datetime(),
+      birthDate: birthDateString,
       gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
       ecole: z.string().max(100).nullable().optional(),
       medicalInfo: medicalInfoSchema.optional().default({
@@ -340,7 +352,7 @@ export const childrenRouter = router({
       id: z.string().uuid(),
       firstName: z.string().min(2).max(50).optional(),
       lastName: z.string().min(2).max(50).optional(),
-      birthDate: z.string().datetime().optional(),
+      birthDate: birthDateString.optional(),
       gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
       ecole: z.string().max(100).nullable().optional(),
       medicalInfo: medicalInfoSchema.optional(),

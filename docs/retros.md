@@ -50,3 +50,26 @@ contraintes CHECK/triggers restants (`pg_constraint contype='c'`, `pg_trigger`)
 — ils encodent des règles métier que ni Prisma ni les tests unitaires mockés ne
 voient. Fix : garde « montant nul » dans les 4 fonctions d'écritures comptables
 + test anti-régression (`invoices.spec` : validation 0 XPF sans écriture).
+
+### Addendum 2026-07-06 (bis) — campagne de tests réels : 4 bugs P0/P1 en plus
+
+Campagne smoke E2E (`pnpm smoke`, banc = clone de prod) montée suite aux deux
+premiers P0. Résultat : 41/41 PASS après correction de :
+1. **TGC 11 % facturée à tort** (P0 légal) — settings `pricing` jamais seedés en
+   prod + fallback codé à 11 alors qu'ALVM est exonérée (LP 492).
+2. **500 création parent sans code postal** — CHECK legacy `length=5` sur
+   colonne NOT NULL vs contrat applicatif optionnel. Fix : contrainte assouplie
+   (`'' OU 5`), Zod 5 chiffres si renseigné.
+3. **500 enfant hors tranche d'âge** — CHECK `birth_date` (0–18 ans) non gardé
+   par Zod → erreur Postgres brute au lieu d'un message.
+4. **Remboursement sans effet sur la facture** — `refunds.create/delete` ne
+   recalculaient ni `paid_amount` ni le statut (invariant comptable violé).
+5. **Deadlock inscription payée** — facturée/payée en PENDING → confirmation
+   refusée → présences impossibles. Fix : payée ⇒ seule la confirmation reste
+   permise (annulation via cancelWithAccounting).
+
+**Leçons** : (a) les CHECK/triggers legacy invisibles pour Prisma sont une
+source systémique de 500 — inventaire fait, gardes Zod alignées ; (b) les
+règles métier « écrites des deux côtés » (BDD + code) doivent être testées en
+conditions réelles : les mocks unitaires ne voient rien de tout ça. La campagne
+est désormais rejouable avant chaque mise en prod (docs/deploiement.md).

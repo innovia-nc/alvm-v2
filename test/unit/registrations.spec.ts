@@ -827,12 +827,25 @@ describe('registrations.updateStatus', () => {
       );
     });
 
-    it('should reject when paymentStatus is PAID', async () => {
+    it('should reject CANCELLED/WAITLIST when paymentStatus is PAID', async () => {
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID' }));
 
       await expect(caller.registrations.updateStatus({ id: REG_ID, status: 'CANCELLED' })).rejects.toThrow(
-        'Cette inscription a déjà été payée et ne peut plus être modifiée',
+        'Cette inscription a déjà été payée',
       );
+      await expect(caller.registrations.updateStatus({ id: REG_ID, status: 'WAITLIST' })).rejects.toThrow(
+        'Cette inscription a déjà été payée',
+      );
+    });
+
+    it('should allow CONFIRMED when paymentStatus is PAID (anti-deadlock présences)', async () => {
+      // Une inscription facturée en PENDING puis payée doit rester confirmable,
+      // sinon elle n'est plus jamais pointable en présence (campagne smoke 2026-07-06).
+      mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID', status: 'PENDING' }));
+      mockPrisma.registration.update.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID', status: 'CONFIRMED' }));
+
+      const result = await caller.registrations.updateStatus({ id: REG_ID, status: 'CONFIRMED' });
+      expect(result.status).toBe('CONFIRMED');
     });
 
     it('should update to CONFIRMED status', async () => {

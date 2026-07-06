@@ -196,7 +196,16 @@ export const refundsRouter = router({
           where: { id: input.paymentId },
           include: {
             paymentMethod: { select: { accountingCode: true } },
-            invoice: { select: { invoiceNumber: true, parentId: true } },
+            invoice: {
+              select: {
+                id: true,
+                invoiceNumber: true,
+                parentId: true,
+                totalAmount: true,
+                paidAmount: true,
+                status: true,
+              },
+            },
           },
         });
         if (!payment) {
@@ -247,6 +256,20 @@ export const refundsRouter = router({
           userId: ctx.user.id,
         });
 
+        // Un remboursement immédiat rend de l'argent : la facture est moins
+        // payée (même recalcul que payments.create/delete). Un FUTURE_CREDIT
+        // devient un avoir — le paiement reste acquis sur cette facture.
+        if (input.refundMethod === 'IMMEDIATE_REFUND') {
+          const newPaidAmount = Math.max(0, toNum(payment.invoice.paidAmount) - input.amount);
+          const newStatus = newPaidAmount >= toNum(payment.invoice.totalAmount)
+            ? 'PAID'
+            : (payment.invoice.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
+          await tx.invoice.update({
+            where: { id: payment.invoice.id },
+            data: { paidAmount: newPaidAmount, status: newStatus },
+          });
+        }
+
         return mapRefund(refund);
       });
     }),
@@ -258,6 +281,13 @@ export const refundsRouter = router({
       return ctx.prisma.$transaction(async (tx) => {
         const refund = await tx.refund.findUnique({
           where: { id: input.id },
+          include: {
+            payment: {
+              select: {
+                invoice: { select: { id: true, totalAmount: true, paidAmount: true, status: true } },
+              },
+            },
+          },
         });
         if (!refund) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Remboursement non trouvé' });
@@ -267,6 +297,20 @@ export const refundsRouter = router({
         await cancelAccountingEntries(tx, { refundId: input.id }, ctx.user.id);
 
         await tx.refund.delete({ where: { id: input.id } });
+
+        // Symétrique de refunds.create : annuler un remboursement immédiat
+        // restitue le montant au payé de la facture.
+        if (refund.refundMethod === 'IMMEDIATE_REFUND' && refund.payment?.invoice) {
+          const inv = refund.payment.invoice;
+          const newPaidAmount = toNum(inv.paidAmount) + toNum(refund.amount);
+          const newStatus = newPaidAmount >= toNum(inv.totalAmount)
+            ? 'PAID'
+            : (inv.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
+          await tx.invoice.update({
+            where: { id: inv.id },
+            data: { paidAmount: newPaidAmount, status: newStatus },
+          });
+        }
 
         return { success: true };
       });

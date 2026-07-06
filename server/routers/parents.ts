@@ -185,7 +185,7 @@ export const parentsRouter = router({
       email: z.string().email().optional(),
       address: z.string().optional(),
       city: z.string().optional(),
-      postalCode: z.string().optional(),
+      postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
       employeur: z.string().max(100).nullable().optional(),
       fonction: z.string().max(100).nullable().optional(),
     }))
@@ -240,7 +240,7 @@ export const parentsRouter = router({
       workPhone: z.string().optional().or(z.literal('')),
       address: z.string().optional().or(z.literal('')),
       city: z.string().optional().or(z.literal('')),
-      postalCode: z.string().optional().or(z.literal('')),
+      postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
       employeur: z.string().max(100).nullable().optional(),
       fonction: z.string().max(100).nullable().optional(),
       password: z.string()
@@ -316,7 +316,7 @@ export const parentsRouter = router({
       email: z.string().email().optional(),
       address: z.string().optional(),
       city: z.string().optional(),
-      postalCode: z.string().optional(),
+      postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
       employeur: z.string().max(100).nullable().optional(),
       fonction: z.string().max(100).nullable().optional(),
     }))

@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "smoke": "node test/e2e-smoke/smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

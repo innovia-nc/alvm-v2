@@ -620,18 +620,24 @@ describe('refunds router', () => {
     });
 
     it('deletes a refund successfully as ADMIN', async () => {
-      mockPrisma.refund.findUnique.mockResolvedValue(makeRefundRow());
+      // Facture liée : 3000 remboursés à restituer au payé (25000 − 3000 = 22000 avant delete)
+      mockPrisma.refund.findUnique.mockResolvedValue(makeRefundRow({
+        payment: { invoice: { id: 'a0000000-0000-1000-a000-00000000000f', totalAmount: 25000, paidAmount: 22000, status: 'SENT' } },
+      }));
       mockPrisma.accountingEntry.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.refund.delete.mockResolvedValue(makeRefundRow());
+      mockPrisma.invoice.update.mockResolvedValue({});
 
       const result = await caller.refunds.delete({ id: REFUND_ID });
 
       expect(result).toEqual({ success: true });
-      expect(mockPrisma.refund.findUnique).toHaveBeenCalledWith({
-        where: { id: REFUND_ID },
-      });
       expect(mockPrisma.refund.delete).toHaveBeenCalledWith({
         where: { id: REFUND_ID },
+      });
+      // La suppression d'un remboursement immédiat restitue le montant : 22000 + 3000 = 25000 → PAID
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: 'a0000000-0000-1000-a000-00000000000f' },
+        data: { paidAmount: 25000, status: 'PAID' },
       });
     });
 
