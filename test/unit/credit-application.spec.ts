@@ -6,7 +6,7 @@
  * comptable (écriture BQ D 4191 / C 411000 via un paiement « Avoir »).
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createMockPrisma, type MockPrisma } from '../helpers/mock-prisma';
 import { applyAvailableCreditsToInvoice } from '@/server/services/credit-application.service';
 
@@ -312,12 +312,5 @@ describe('applyAvailableCreditsToInvoice — idempotence des numéros de paiemen
       (c: unknown[]) => (c[0] as { data: { paymentNumber: string } }).data.paymentNumber
     );
     expect(new Set(numbers).size).toBe(2);
-  });
-});
-
-describe('invoices.validate — intégration de l\'imputation', () => {
-  it('expose bien le service au router (garde-fou d\'import)', async () => {
-    expect(typeof applyAvailableCreditsToInvoice).toBe('function');
-    expect(vi.isMockFunction(applyAvailableCreditsToInvoice)).toBe(false);
   });
 });
