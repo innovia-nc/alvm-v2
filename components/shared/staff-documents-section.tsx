@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
@@ -44,17 +44,14 @@ const {
     refetch: refetchDocuments,
 } = trpc.staffDocuments.list.useQuery({ staffId });
 
-const {
-    data: count = 0,
-    refetch: refetchCount,
-} = trpc.staffDocuments.count.useQuery({ staffId });
+// US-PERS-02 : le compteur `staffDocuments.count` n'est plus affiché
+// (« Documents PDF liés à ce personnel (0) »). La requête est retirée avec lui.
 
 // Mutation pour la suppression
 const deleteMutation = trpc.staffDocuments.delete.useMutation({
     onSuccess: async () => {
     toast.success('Document supprimé');
     await refetchDocuments();
-    await refetchCount();
     },
     onError: (err) => toast.error(err.message || 'Erreur lors de la suppression'),
 });
@@ -104,9 +101,6 @@ return (
             <FileText className="h-5 w-5" />
             Documents
             </CardTitle>
-            <CardDescription>
-            Documents PDF liés à ce personnel ({count})
-            </CardDescription>
         </div>
 
         <div className="flex gap-2">
@@ -132,15 +126,15 @@ return (
         </div>
     </CardHeader>
 
+    {/* US-PERS-02 : fiche épurée — sans document, la carte se limite à son
+        en-tête (titre + bouton de génération). Plus de libellé « Aucun
+        document PDF pour ce personnel. ». */}
+    {(isLoadingDocs || documents.length > 0) && (
     <CardContent>
         {isLoadingDocs ? (
         <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-        ) : documents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-            Aucun document PDF pour ce personnel.
-        </p>
         ) : (
         <div className="space-y-3">
             {documents.map((doc: StaffDocument) => (
@@ -180,6 +174,7 @@ return (
         </div>
         )}
     </CardContent>
+    )}
     </Card>
 );
 }
