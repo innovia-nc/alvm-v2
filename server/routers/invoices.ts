@@ -746,13 +746,21 @@ export const invoicesRouter = router({
             },
           },
           payments: {
+            // Select whitelist : aucun champ sensible (référence bancaire,
+            // notes internes, opérateur de saisie) ne doit fuir dans le PDF.
             select: {
               amount: true,
               paymentDate: true,
               paymentMethod: {
                 select: { name: true },
               },
+              // Numéro de l'avoir imputé, pour les règlements par avoir
+              // (US-FACT-02 — traçabilité sur la facture).
+              creditNote: {
+                select: { invoiceNumber: true },
+              },
             },
+            orderBy: { paymentDate: 'asc' },
           },
         },
       });
@@ -797,6 +805,7 @@ export const invoicesRouter = router({
           amount: toNum(p.amount),
           paymentDate: p.paymentDate,
           paymentMethod: p.paymentMethod.name,
+          creditNoteNumber: p.creditNote?.invoiceNumber ?? null,
         })),
         subtotalHt: toNum(invoice.subtotalHt),
         taxAmount: toNum(invoice.taxAmount),

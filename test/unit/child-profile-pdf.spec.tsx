@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { ChildProfilePDF, generateChildProfilePDFBuffer } from '@/lib/pdf/child-profile-pdf';
 import { PDFFooter } from '@/lib/pdf/shared/pdf-footer';
+import { flattenTree, elementText } from '@/test/helpers/react-tree';
 
 const AUTHORIZATIONS =
   "1. J'autorise mon enfant à participer aux activités. " +
@@ -71,38 +72,15 @@ const DATA = {
   footerMention: AUTHORIZATIONS,
 };
 
-/** Aplatit l'arbre d'éléments React en une liste ordonnée (parcours préfixe). */
-function flatten(node: React.ReactNode, out: React.ReactElement[] = []) {
-  React.Children.forEach(node, (child) => {
-    if (!React.isValidElement(child)) return;
-    out.push(child);
-    flatten((child.props as { children?: React.ReactNode }).children, out);
-  });
-  return out;
-}
-
-/** Concatène tous les textes contenus dans un élément. */
-function textOf(node: React.ReactNode): string {
-  let acc = '';
-  React.Children.forEach(node, (child) => {
-    if (typeof child === 'string' || typeof child === 'number') acc += String(child);
-    else if (React.isValidElement(child)) {
-      acc += textOf((child.props as { children?: React.ReactNode }).children);
-    }
-  });
-  return acc;
-}
-
 describe('ChildProfilePDF — ordre signature / autorisations (US-UX-03)', () => {
-  const tree = flatten(ChildProfilePDF({ data: DATA }) as React.ReactNode);
+  const tree = flattenTree(ChildProfilePDF({ data: DATA }) as React.ReactNode);
 
   it('rend les autorisations APRÈS le bloc signature', () => {
     const signatureIndex = tree.findIndex((el) =>
-      textOf((el.props as { children?: React.ReactNode }).children) ===
-      'SIGNATURE DU REPRÉSENTANT LÉGAL'
+      elementText(el) === 'SIGNATURE DU REPRÉSENTANT LÉGAL'
     );
     const authorizationsIndex = tree.findIndex((el) =>
-      textOf((el.props as { children?: React.ReactNode }).children) === AUTHORIZATIONS
+      elementText(el) === AUTHORIZATIONS
     );
 
     expect(signatureIndex).toBeGreaterThanOrEqual(0);
@@ -119,8 +97,7 @@ describe('ChildProfilePDF — ordre signature / autorisations (US-UX-03)', () =>
 
   it('garde le bloc signature insécable (wrap={false})', () => {
     const signatureTitle = tree.findIndex((el) =>
-      textOf((el.props as { children?: React.ReactNode }).children) ===
-      'SIGNATURE DU REPRÉSENTANT LÉGAL'
+      elementText(el) === 'SIGNATURE DU REPRÉSENTANT LÉGAL'
     );
     // Le parent direct du titre est la View de section signature.
     const section = tree

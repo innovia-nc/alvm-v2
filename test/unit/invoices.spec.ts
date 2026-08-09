@@ -1504,7 +1504,7 @@ describe('invoices router', () => {
         // Les assertions portent sur le call Prisma, pas sur le PDF généré
       });
 
-      it('queries findFirst with payments select whitelist (amount, paymentDate, paymentMethod.name)', async () => {
+      it('queries findFirst with payments select whitelist (amount, paymentDate, paymentMethod.name, creditNote.invoiceNumber)', async () => {
         // Invoice manquante — on vérifie uniquement la shape du query
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
@@ -1518,6 +1518,9 @@ describe('invoices router', () => {
           amount: true,
           paymentDate: true,
           paymentMethod: { select: { name: true } },
+          // US-FACT-02 : numéro de l'avoir imputé, pour l'afficher comme mode
+          // de règlement sur le PDF. Aucun autre champ de l'avoir n'est exposé.
+          creditNote: { select: { invoiceNumber: true } },
         });
       });
 
