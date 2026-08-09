@@ -94,7 +94,7 @@ function textOf(node: React.ReactNode): string {
 }
 
 describe('ChildProfilePDF — ordre signature / autorisations (US-UX-03)', () => {
-  const tree = flatten(ChildProfilePDF({ data: DATA }));
+  const tree = flatten(ChildProfilePDF({ data: DATA }) as React.ReactNode);
 
   it('rend les autorisations APRÈS le bloc signature', () => {
     const signatureIndex = tree.findIndex((el) =>

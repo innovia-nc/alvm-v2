@@ -7,10 +7,17 @@
  * l'espace staff (`/dashboard/staff/users/staff/new`) — seul `listPath`
  * (redirection après création) diffère.
  *
- * Nouveauté : génération automatique du mot de passe. Si la case
- * « Générer automatiquement » est cochée (défaut), aucun mot de passe n'est
- * saisi : le serveur en génère un robuste et le renvoie en clair UNE SEULE
- * FOIS, affiché ici dans une boîte de dialogue pour transmission au membre.
+ * US-PERS-01 — génération automatique de mot de passe :
+ *  - un bouton « Générer un mot de passe » remplit le champ dédié ;
+ *  - le mot de passe généré est affiché EN CLAIR (pas masqué) pour permettre
+ *    la vérification et la copie ;
+ *  - un bouton « Copier » avec retour visuel (« Copié ! ») est disponible ;
+ *  - à la soumission, une modale BLOQUANTE rappelle que le mot de passe ne
+ *    sera plus affiché après la création, et exige une confirmation explicite.
+ *
+ * La génération se fait côté navigateur (`lib/password.ts`, Web Crypto). Le
+ * serveur revalide la politique et reste capable d'en générer un lui-même si
+ * le champ arrive vide.
  */
 
 import { useState } from 'react';
@@ -31,46 +38,46 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { trpc } from '@/lib/trpc/client';
-import { Check, Copy, Loader2 } from 'lucide-react';
+import { generatePassword } from '@/lib/password';
+import { PASSWORD_MIN_LENGTH } from '@/lib/password-policy';
+import { Copy, KeyRound, Loader2 } from 'lucide-react';
 
-const staffSchema = z
-  .object({
-    firstName: z.string().min(2, 'Minimum 2 caractères').max(50),
-    lastName: z.string().min(2, 'Minimum 2 caractères').max(50),
-    email: z.string().email('Email invalide'),
-    phone: z
-      .string()
-      .regex(/^[\d\s\-\(\)\+]*$/, 'Format téléphone invalide')
-      .optional()
-      .or(z.literal('')),
-    autoGeneratePassword: z.boolean(),
-    password: z.string().optional().or(z.literal('')),
-  })
-  // Si l'admin choisit de saisir le mot de passe, il doit respecter la politique.
-  .refine(
-    (data) =>
-      data.autoGeneratePassword ||
-      (!!data.password &&
-        data.password.length >= 8 &&
-        /[A-Z]/.test(data.password) &&
-        /[a-z]/.test(data.password) &&
-        /[0-9]/.test(data.password)),
-    {
-      message: '8 caractères min, avec majuscule, minuscule et chiffre',
-      path: ['password'],
-    }
-  );
+const staffSchema = z.object({
+  firstName: z.string().min(2, 'Minimum 2 caractères').max(50),
+  lastName: z.string().min(2, 'Minimum 2 caractères').max(50),
+  email: z.string().email('Email invalide'),
+  phone: z
+    .string()
+    .regex(/^[\d\s\-\(\)\+]*$/, 'Format téléphone invalide')
+    .optional()
+    .or(z.literal('')),
+  // Politique de saisie manuelle (inchangée) : 8 caractères, 3 classes.
+  // Un mot de passe généré (16 caractères, 4 classes) la satisfait largement.
+  password: z
+    .string()
+    .min(8, '8 caractères minimum')
+    .regex(/[A-Z]/, 'Au moins une majuscule')
+    .regex(/[a-z]/, 'Au moins une minuscule')
+    .regex(/[0-9]/, 'Au moins un chiffre'),
+});
 
 type StaffFormData = z.infer<typeof staffSchema>;
 
@@ -81,8 +88,9 @@ type StaffCreateFormProps = {
 
 export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
   const [error, setError] = useState<string | null>(null);
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Valeurs mises en attente pendant que la modale d'avertissement est ouverte.
+  const [pendingValues, setPendingValues] = useState<StaffFormData | null>(null);
   const router = useRouter();
   const createStaffMutation = trpc.staff.create.useMutation();
 
@@ -93,56 +101,68 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
       lastName: '',
       email: '',
       phone: '',
-      autoGeneratePassword: true,
       password: '',
     },
   });
 
-  const autoGenerate = form.watch('autoGeneratePassword');
-
-  async function onSubmit(values: StaffFormData) {
-    try {
-      setError(null);
-
-      const result = await createStaffMutation.mutateAsync({
-        firstName: values.firstName,
-        lastName: values.lastName,
-        email: values.email,
-        phone: values.phone,
-        // Mot de passe transmis uniquement en saisie manuelle.
-        password: values.autoGeneratePassword ? undefined : values.password,
-      });
-
-      // Si le serveur a généré un mot de passe, l'afficher une seule fois.
-      if (result.generatedPassword) {
-        setGeneratedPassword(result.generatedPassword);
-        return;
-      }
-
-      router.push(listPath);
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
-    }
-  }
-
-  function handleCloseDialog() {
-    setGeneratedPassword(null);
-    router.push(listPath);
-    router.refresh();
+  function handleGeneratePassword() {
+    form.setValue('password', generatePassword(), {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setCopied(false);
   }
 
   async function handleCopy() {
-    if (!generatedPassword) return;
+    const password = form.getValues('password');
+    if (!password) return;
+
     try {
-      await navigator.clipboard.writeText(generatedPassword);
+      await navigator.clipboard.writeText(password);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Presse-papier indisponible (contexte non sécurisé) : on ignore,
-      // le mot de passe reste sélectionnable manuellement.
+      // Presse-papier indisponible (contexte non sécurisé) : le mot de passe
+      // reste affiché en clair et sélectionnable à la main.
+      setError(
+        'Copie automatique indisponible. Sélectionnez le mot de passe pour le copier manuellement.'
+      );
     }
   }
+
+  /**
+   * Soumission : on n'écrit rien tant que l'administrateur n'a pas confirmé
+   * avoir noté le mot de passe. La modale est bloquante par construction — la
+   * création n'a lieu que dans `confirmCreate`.
+   */
+  function onSubmit(values: StaffFormData) {
+    setError(null);
+    setPendingValues(values);
+  }
+
+  async function confirmCreate() {
+    if (!pendingValues) return;
+
+    try {
+      setError(null);
+      await createStaffMutation.mutateAsync({
+        firstName: pendingValues.firstName,
+        lastName: pendingValues.lastName,
+        email: pendingValues.email,
+        phone: pendingValues.phone,
+        password: pendingValues.password,
+      });
+
+      setPendingValues(null);
+      router.push(listPath);
+      router.refresh();
+    } catch (err) {
+      setPendingValues(null);
+      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
+    }
+  }
+
+  const password = form.watch('password');
 
   return (
     <div className="space-y-6">
@@ -222,48 +242,58 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                 )}
               />
 
-              {/* Génération automatique du mot de passe */}
               <FormField
                 control={form.control}
-                name="autoGeneratePassword"
+                name="password"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start gap-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Générer automatiquement un mot de passe</FormLabel>
-                      <FormDescription>
-                        Un mot de passe robuste sera créé et affiché une seule
-                        fois après la création, à transmettre au membre.
-                      </FormDescription>
+                  <FormItem>
+                    <FormLabel>Mot de passe</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        {/* Volontairement `type="text"` : le mot de passe doit
+                            rester lisible pour être vérifié puis recopié. */}
+                        <Input type="text" autoComplete="off" spellCheck={false} {...field} />
+                      </FormControl>
+
+                      <TooltipProvider>
+                        <Tooltip open={copied || undefined}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={handleCopy}
+                              disabled={!password}
+                              aria-label="Copier le mot de passe"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{copied ? 'Copié !' : 'Copier'}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2"
+                      onClick={handleGeneratePassword}
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Générer un mot de passe
+                    </Button>
+
+                    <FormDescription>
+                      {PASSWORD_MIN_LENGTH} caractères minimum pour un mot de passe
+                      généré (majuscules, minuscules, chiffres et caractère spécial,
+                      sans caractère ambigu). Saisie manuelle : 8 caractères minimum
+                      avec majuscule, minuscule et chiffre.
+                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {/* Saisie manuelle (uniquement si génération auto décochée) */}
-              {!autoGenerate && (
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mot de passe</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        8 caractères min, avec majuscule, minuscule et chiffre.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
 
               <div className="flex gap-4">
                 <Button type="submit" disabled={createStaffMutation.isPending}>
@@ -286,41 +316,66 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
         </CardContent>
       </Card>
 
-      {/* Affichage unique du mot de passe généré */}
-      <Dialog
-        open={generatedPassword !== null}
-        onOpenChange={(open) => !open && handleCloseDialog()}
+      {/* Avertissement bloquant : le mot de passe n'est plus récupérable après
+          création (seul son hash bcrypt est conservé). */}
+      <AlertDialog
+        open={pendingValues !== null}
+        onOpenChange={(open) => {
+          if (!open && !createStaffMutation.isPending) setPendingValues(null);
+        }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Compte créé — mot de passe généré</DialogTitle>
-            <DialogDescription>
-              Communiquez ce mot de passe au membre du personnel. Il ne sera
-              plus affiché après la fermeture de cette fenêtre.
-            </DialogDescription>
-          </DialogHeader>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Avez-vous noté le mot de passe ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ce mot de passe ne sera plus affiché après la création du compte.
+              Merci de le copier ou de le noter avant de continuer. Aucune
+              récupération ultérieure n&apos;est possible : il faudrait alors
+              réinitialiser le mot de passe du membre.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
           <div className="flex items-center gap-2">
-            <code className="flex-1 select-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
-              {generatedPassword}
+            <code className="flex-1 select-all break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+              {pendingValues?.password}
             </code>
-            <Button type="button" variant="outline" size="icon" onClick={handleCopy}>
-              {copied ? (
-                <Check className="h-4 w-4 text-green-600" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-              <span className="sr-only">Copier</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={handleCopy}
+              aria-label="Copier le mot de passe"
+            >
+              <Copy className="h-4 w-4" />
             </Button>
           </div>
+          {copied && (
+            <p className="text-sm text-muted-foreground" role="status">
+              Copié !
+            </p>
+          )}
 
-          <DialogFooter>
-            <Button type="button" onClick={handleCloseDialog}>
-              J&apos;ai noté le mot de passe
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={createStaffMutation.isPending}>
+              Revenir au formulaire
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                // On garde la modale ouverte le temps de la mutation : la
+                // fermer avant la réponse ferait disparaître le mot de passe.
+                event.preventDefault();
+                void confirmCreate();
+              }}
+              disabled={createStaffMutation.isPending}
+            >
+              {createStaffMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              J&apos;ai noté le mot de passe, créer le compte
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
