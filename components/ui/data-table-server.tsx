@@ -4,7 +4,7 @@
  * Composant de table générique basé sur TanStack Table v8.
  * Fonctionnalités:
  * - Tri par colonne (clic sur header)
- * - Recherche globale (input avec debounce)
+ * - Recherche globale (déclenchée sur « Entrée » ou bouton « Rechercher »)
  * - **Pagination SERVER-SIDE** (limit/offset)
  * - Empty state personnalisable
  * - Loading state (skeleton)
@@ -53,6 +53,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   Pagination,
@@ -117,7 +118,8 @@ interface DataTableServerProps<TData, TValue> {
   pagination: UseServerPaginationReturn;
 
   /**
-   * Callback appelé quand le terme de recherche change (avec debounce)
+   * Callback appelé quand l'utilisateur VALIDE sa recherche (touche « Entrée »
+   * ou bouton « Rechercher »). Jamais appelé pendant la frappe.
    */
   onSearchChange?: (search: string) => void;
 
@@ -360,32 +362,32 @@ export function DataTableServer<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
 
-  // Debounce pour la recherche
+  // Recherche : la saisie (`searchValue`) est purement locale. Elle n'est
+  // remontée au serveur qu'à la VALIDATION explicite — touche « Entrée » ou
+  // bouton « Rechercher » (US-UX-01). Aucun debounce, donc aucun appel réseau
+  // pendant la frappe. `submittedSearch` porte le dernier terme réellement
+  // soumis : c'est lui qui pilote l'empty state et le message « aucun résultat ».
   const [searchValue, setSearchValue] = React.useState('');
-  // Ref pour mémoriser la dernière valeur debouncée sans en faire une dépendance
-  // du useEffect (évite une double exécution après chaque debounce).
-  const lastDebouncedRef = React.useRef('');
+  const [submittedSearch, setSubmittedSearch] = React.useState('');
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      const prev = lastDebouncedRef.current;
-      lastDebouncedRef.current = searchValue;
+  const submitSearch = React.useCallback(() => {
+    const term = searchValue.trim();
 
-      if (onSearchChange) {
-        onSearchChange(searchValue);
-      }
-      // Reset à la page 1 uniquement quand le terme change réellement
-      if (searchValue !== prev) {
-        pagination.setPage(1);
-      }
-    }, 500); // 500ms de debounce — laisse le temps de saisir avant le refetch
+    // Rien à faire si le terme soumis est identique au précédent : évite un
+    // refetch et un retour en page 1 intempestifs sur un « Entrée » répété.
+    if (term === submittedSearch) return;
 
-    return () => clearTimeout(timer);
-  // debouncedSearch retiré des deps : la ref lastDebouncedRef porte l'état
-  // précédent sans provoquer de re-exécution. pagination est stable grâce
-  // aux useCallback/useMemo de useServerPagination.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue, onSearchChange, pagination]);
+    setSubmittedSearch(term);
+    onSearchChange?.(term);
+    pagination.setPage(1);
+  }, [searchValue, submittedSearch, onSearchChange, pagination]);
+
+  function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return;
+    // Empêche la soumission du formulaire parent quand la table est imbriquée.
+    event.preventDefault();
+    submitSearch();
+  }
 
   const table = useReactTable({
     data,
@@ -420,19 +422,30 @@ export function DataTableServer<TData, TValue>({
     <div className={cn('space-y-4', className)}>
       {/* Search Input (toujours monté, jamais désactivé) */}
       {searchKey && (
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <Input
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            aria-label={searchPlaceholder}
             className="max-w-sm"
           />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={submitSearch}
+            aria-label="Rechercher"
+          >
+            <Search className="mr-2 h-4 w-4" />
+            Rechercher
+          </Button>
         </div>
       )}
 
       {isLoading ? (
         <DataTableSkeleton columns={columns.length} />
-      ) : totalCount === 0 && !searchValue ? (
+      ) : totalCount === 0 && !submittedSearch ? (
         emptyState ?? <DataTableEmpty />
       ) : (
         <>
@@ -507,7 +520,9 @@ export function DataTableServer<TData, TValue>({
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      Aucun résultat trouvé pour &quot;{searchValue}&quot;
+                      {submittedSearch
+                        ? `Aucun résultat pour « ${submittedSearch} »`
+                        : 'Aucun résultat'}
                     </TableCell>
                   </TableRow>
                 )}

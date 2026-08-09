@@ -5,7 +5,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.spec.ts'],
+    // .tsx autorisé pour les tests de composants React (docblock jsdom en tête
+    // de fichier — cf. CLAUDE.md § Tests). L'environnement global reste `node`.
+    include: ['test/**/*.spec.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

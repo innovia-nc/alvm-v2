@@ -28,6 +28,9 @@ export function StaffTableClient() {
   const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // Terme de recherche soumis (validation « Entrée » / bouton — US-UX-01).
+  const [search, setSearch] = useState('');
+
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
@@ -35,6 +38,7 @@ export function StaffTableClient() {
   const { data, isLoading } = trpc.staff.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
+    search,
   });
 
   const resetPasswordMutation = trpc.users.resetPassword.useMutation({
@@ -108,6 +112,7 @@ export function StaffTableClient() {
         pagination={pagination}
         searchKey="email"
         searchPlaceholder="Rechercher par nom, email ou téléphone..."
+        onSearchChange={setSearch}
       />
 
       {/* Dialog de confirmation de suppression */}
