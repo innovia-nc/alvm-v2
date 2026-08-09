@@ -53,6 +53,23 @@ Fonctions cles :
 - `createCreditNoteAccountingEntries()` — remplace le trigger `generate_credit_note_accounting_entries`
 - `createPaymentEntries()` / `createRefundEntries()` — migres depuis `accounting.helper.ts`
 
+### Imputation automatique des avoirs (US-FACT-02)
+`server/services/credit-application.service.ts` impute les credits disponibles
+d'un client sur une facture, en FIFO, lors de la validation (`invoices.validate`,
+DRAFT → SENT). Regle : du credit le plus ancien au plus recent, imputation
+partielle autorisee, reliquat conserve, credits expires et avoirs annules exclus.
+
+**Invariant comptable a ne pas casser** : une imputation N'A PAS de schema
+comptable propre. Elle cree un `Payment` porte par la methode de reglement
+`CREDIT_NOTE`, ce qui fait produire a `createPaymentEntries()` l'ecriture
+D 4191 / C 411000 — contrepartie exacte du C 4191 pose a l'emission de l'avoir
+(`createCreditNoteAccountingEntries` avec `isFutureCredit`). Ne jamais ecrire
+d'ecriture ad hoc pour une imputation d'avoir : le FEC serait desequilibre.
+
+Chaque imputation ecrit aussi une `CreditApplication` (historique metier affiche
+sur la fiche de l'avoir) et une `CreditNoteAllocation` (miroir du chemin manuel
+`payments.create`, qui agrege ce modele pour interdire une double consommation).
+
 ### Plus de RLS PostgreSQL
 Le filtrage est applicatif via Prisma extensions. Le `soft-delete.extension.ts`
 filtre automatiquement les enregistrements supprimes. Le filtrage par tenant/parent
@@ -116,7 +133,8 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers ; TD-002 10 factures brouillon legacy 0 XPF à nettoyer côté ALVM).
+- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 solde d'avoir non restaure a la suppression d'un paiement OPEN ; TD-A2 couverture PDF facture DONE).
+- `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).
 - `docs/retros.md` — retros et post-mortems (incident pipeline orphelin, bugs campagne smoke).
