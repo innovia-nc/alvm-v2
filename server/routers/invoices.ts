@@ -10,6 +10,7 @@ import { getTaxRateDecimal, getDefaultDueDate } from '@/server/helpers/settings'
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { createInvoiceAccountingEntries } from '@/server/services/accounting.service';
+import { applyAvailableCreditsToInvoice } from '@/server/services/credit-application.service';
 import { generateInvoiceNumber } from '@/server/helpers/invoice-number';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
@@ -606,7 +607,35 @@ export const invoicesRouter = router({
           userId: ctx.user.id,
         });
 
-        return updated;
+        // US-FACT-02 — imputation FIFO des avoirs disponibles du client, après
+        // les écritures VE (la facture doit exister au journal avant d'être
+        // partiellement soldée). Le service crée les paiements « Avoir »
+        // correspondants et leurs écritures BQ.
+        const credits = await applyAvailableCreditsToInvoice(tx, {
+          invoiceId: updated.id,
+          invoiceNumber: updated.invoiceNumber,
+          parentId: updated.parentId,
+          totalAmount: toNum(updated.totalAmount),
+          paidAmount: toNum(updated.paidAmount),
+          userId: ctx.user.id,
+        });
+
+        if (credits.totalApplied === 0) {
+          return updated;
+        }
+
+        // Le montant réglé et le statut sont portés ici (et non dans le
+        // service) : la décision de solder la facture appartient au router,
+        // seul détenteur de la machine à états.
+        const newPaidAmount = toNum(updated.paidAmount) + credits.totalApplied;
+
+        return tx.invoice.update({
+          where: { id: updated.id },
+          data: {
+            paidAmount: newPaidAmount,
+            status: credits.remainingDue <= 0 ? 'PAID' : updated.status,
+          },
+        });
       });
 
       return mapInvoice(invoice);
