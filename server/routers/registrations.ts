@@ -5,8 +5,8 @@ import {
   protectedProcedure,
   staffProcedure,
 } from '@/server/trpc/init';
-import type { Prisma, RegistrationStatus, InvoiceStatus } from '@prisma/client';
-import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/server/helpers/settings';
+import type { Prisma, RegistrationStatus } from '@prisma/client';
+import { getCreditExpiryDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';

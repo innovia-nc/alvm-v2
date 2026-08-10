@@ -6,7 +6,7 @@ import {
   protectedProcedure,
   staffProcedure,
 } from '@/server/trpc/init';
-import type { Prisma, CampStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 

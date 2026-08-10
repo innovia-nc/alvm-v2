@@ -1,6 +1,6 @@
 import { appRouter } from '@/server/trpc/router';
 import type { AuthUser } from '@/server/trpc/context';
-import { createMockPrisma, type MockPrisma } from './mock-prisma';
+import { createMockPrisma } from './mock-prisma';
 
 export const ADMIN_USER: AuthUser = {
   id: 'a0000000-0000-4000-a000-000000000001',

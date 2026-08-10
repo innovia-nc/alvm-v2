@@ -34,15 +34,6 @@ export const paymentMethodsRouter = router({
       });
     }),
 
-  getById: adminProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .output(paymentMethodSchema.nullable())
-    .query(async ({ ctx, input }) => {
-      return ctx.prisma.paymentMethod.findUnique({
-        where: { id: input.id },
-      });
-    }),
-
   create: adminProcedure
     .input(z.object({
       name: z.string().min(2).max(100),

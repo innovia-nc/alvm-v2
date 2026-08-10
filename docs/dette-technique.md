@@ -248,3 +248,72 @@ révélé deux bugs réels masqués par `any` : champ inexistant
 `selectedPayment.paymentMethod` affiché dans le formulaire de remboursement, et
 `new Date(null)` possible sur la période d'un camp dans le formulaire
 d'inscription.
+
+## TD-006 — Blobs orphelins : `deleteFromStorage` n'est jamais appelé — P2 — OPEN
+
+**Constat (2026-08-10, passe de code mort)** : `lib/storage/blob-storage.ts`
+exporte `uploadToStorage` **et** `deleteFromStorage`. Seul le premier a un
+appelant (`invoices.generatePdf`). Le second n'est appelé de nulle part.
+
+Conséquence : chaque suppression d'un document enfant, d'un document personnel
+ou du logo de l'association retire la ligne en base **sans jamais supprimer
+l'objet dans Vercel Blob**. Les fichiers s'accumulent indéfiniment, restent
+accessibles par URL publique (`access: 'public'`) après leur suppression
+fonctionnelle, et sont facturés au stockage.
+
+L'export a été **conservé volontairement** lors de la passe de code mort : ce
+n'est pas du code mort à supprimer, c'est du code qu'il faut câbler.
+
+**Résolution cible** : appeler `deleteFromStorage(url)` dans les procédures de
+suppression de `child-documents`, `staff-documents` et du logo
+(`settings.deleteLogo`), en tolérant l'échec (un blob déjà absent ne doit pas
+faire échouer la suppression métier).
+
+## TD-007 — PDF d'avoir complet mais non câblé — P3 — OPEN
+
+**Constat (2026-08-10, passe de code mort)** : `lib/pdf/credit-note-pdf.tsx`
+définit un document complet (`CreditNotePDF`), corrigé par TD-004 et couvert par
+`test/unit/pdf-footer-overlap.spec.tsx`, plus son générateur de buffer
+`generateCreditNotePDF`. **Aucun des deux n'a d'appelant applicatif** : il
+n'existe ni procédure `creditNotes.generatePdf` (l'équivalent facture existe :
+`invoices.generatePdf`), ni route `/api/generate/...`, ni bouton de
+téléchargement sur la fiche d'un avoir.
+
+Conservé volontairement lors de la passe de code mort : supprimer ces 300 lignes
+supprimerait une fonctionnalité prête à 90 %, pas de la dette.
+
+**Résolution cible** : dupliquer le chemin `invoices.generatePdf` (rendu →
+`uploadToStorage` → URL) pour les avoirs et ajouter le bouton de
+téléchargement, ou trancher explicitement que l'avoir ne s'imprime pas et
+supprimer alors le document *et* son test.
+
+## TD-008 — `invoices.sendEmail` : bouton actif sur une procédure non implémentée — P2 — OPEN
+
+**Constat (2026-08-10, passe de code mort)** : `invoices.sendEmail` lève
+inconditionnellement une `TRPCError` de code `'NOT_IMPLEMENTED' as any` — code
+qui **n'existe pas** dans l'énumération tRPC, d'où le `as any` : le mapping vers
+un statut HTTP est donc indéfini. La procédure n'est pas morte pour autant :
+elle est câblée à **deux boutons visibles** (`admin-invoices-table-client.tsx`
+et `invoice-details.tsx`), qui proposent donc à l'utilisateur une action qui
+échoue à tous les coups.
+
+**Résolution cible** : implémenter l'envoi (Phase 3, configuration email), ou
+masquer les deux boutons d'ici là. Dans l'intervalle, remplacer au minimum le
+code d'erreur invalide par un code tRPC réel (`PRECONDITION_FAILED`).
+
+## TD-009 — Aucune limitation de débit sur les endpoints d'authentification — P2 — OPEN
+
+**Constat (2026-08-10, passe de code mort)** : `lib/rate-limit.ts` fournissait
+`checkRateLimit` / `resetRateLimit` depuis l'origine du dépôt **sans un seul
+appelant**. Le module a été supprimé lors de la passe de code mort, pour deux
+raisons : il n'a jamais protégé quoi que ce soit, et son implémentation — une
+`Map` en mémoire de processus — ne peut pas fonctionner sur Vercel, où chaque
+invocation de fonction serverless peut démarrer un conteneur neuf.
+
+Le manque qu'il ne comblait pas, lui, subsiste : `/api/auth/*` (NextAuth) et les
+procédures publiques n'ont **aucune limitation de débit**. Le bruteforce de mot
+de passe n'est freiné que par le coût bcrypt (12 tours).
+
+**Résolution cible** : limitation de débit à état partagé — Vercel Firewall /
+rate limiting de la plateforme, ou compteur en base (une table `login_attempts`
+indexée sur email + IP). Ne pas réintroduire de compteur en mémoire de processus.

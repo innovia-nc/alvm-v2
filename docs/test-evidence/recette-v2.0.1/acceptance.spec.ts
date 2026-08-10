@@ -310,7 +310,6 @@ test.describe.serial('Recette ALVM v2.0.1', () => {
     await page.goto('/dashboard/parent/children');
     await expect(page.getByText(new RegExp(CHILD1.first, 'i')).first()).toBeVisible();
     // aucun enfant d'une autre famille (les enfants prod ne portent pas notre nom de recette)
-    const rows = page.locator('main tr, main [data-slot="card"], main li').filter({ hasText: /./ });
     await expect(page.getByText(new RegExp(PARENT_LAST)).first()).toBeVisible();
     await snap(page, 'PAR-scoping-enfants-01');
   });

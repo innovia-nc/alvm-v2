@@ -195,7 +195,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-005 trigger legacy « dernier parent » absent du depot OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-004 reserve du pied de page PDF DONE ; TD-006 blobs orphelins DONE ; TD-007 PDF d'avoir cable DONE ; TD-008 envoi d'email implemente DONE ; TD-A2 couverture PDF facture DONE).
+- `docs/dette-technique.md` — registre de dette (OPEN : TD-001 typage any des mappers ; TD-005 trigger legacy « dernier parent » absent du depot ; TD-009 aucune limitation de debit sur l'authentification. DONE : TD-002 factures legacy 0 XPF ; TD-003 divergence des deux vues du solde d'un avoir ; TD-004 reserve du pied de page PDF ; TD-006 blobs orphelins ; TD-007 PDF d'avoir cable ; TD-008 envoi d'email implemente ; TD-A2 couverture PDF facture).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).

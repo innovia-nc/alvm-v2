@@ -386,7 +386,7 @@ export default function AdminSettingsPage() {
 
       // 2. Supprimer l'URL des settings
       await deleteLogoMutation.mutateAsync();
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors de la suppression', {
         description: 'Impossible de supprimer le logo.',
       });
