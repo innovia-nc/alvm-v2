@@ -69,6 +69,13 @@ interface InvoiceData {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
+    // Le PDFFooter est positionné en absolu (bottom: 16) et occupe ~55pt avec
+    // ses 3 lignes de coordonnées + la mention légale + la ligne méta. Sans
+    // réserve suffisante, le contenu qui coule en bas de page passe DESSOUS
+    // (US-FACT-01-bis : au-delà de 4 règlements, le tableau des modes de
+    // règlement recouvrait le pied de page). 90pt garantissent la séparation
+    // et forcent le saut de page, le footer étant `fixed` donc répété.
+    paddingBottom: 90,
     fontSize: 10,
     fontFamily: 'Helvetica',
   },
@@ -197,17 +204,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#555',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    paddingTop: 10,
-    borderTop: '1 solid #ccc',
-    fontSize: 8,
-    color: '#666',
-    textAlign: 'justify',
-  },
 });
 
 // ============================================================================
@@ -308,8 +304,8 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
           ))}
         </View>
 
-        {/* Totals */}
-        <View style={styles.totalSection}>
+        {/* Totals — bloc indivisible : ne doit jamais être coupé par un saut de page */}
+        <View style={styles.totalSection} wrap={false}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Sous-total HT :</Text>
             <Text style={styles.totalValue}>{formatCurrency(data.subtotalHt)}</Text>
@@ -341,17 +337,23 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
         {/* Modes de règlement — la section est TOUJOURS rendue : une facture
             sans paiement doit porter la mention « Non réglée » (US-FACT-01). */}
         <View style={styles.paymentsSection}>
-          <Text style={styles.sectionTitle}>MODES DE RÈGLEMENT</Text>
+          {/* minPresenceAhead : le titre entraîne au moins une ligne du tableau
+              avec lui, sinon il resterait seul en bas de page. */}
+          <Text style={styles.sectionTitle} minPresenceAhead={40}>MODES DE RÈGLEMENT</Text>
 
           {data.payments && data.payments.length > 0 ? (
             <>
-              <View style={[styles.paymentsRow, { backgroundColor: '#f0f0f0', fontWeight: 'bold' }]}>
+              <View
+                style={[styles.paymentsRow, { backgroundColor: '#f0f0f0', fontWeight: 'bold' }]}
+                wrap={false}
+                minPresenceAhead={30}
+              >
                 <Text style={styles.paymentsColMethod}>Mode de règlement</Text>
                 <Text style={styles.paymentsColDate}>Date</Text>
                 <Text style={styles.paymentsColAmount}>Montant</Text>
               </View>
               {data.payments.map((payment, index) => (
-                <View key={index} style={styles.paymentsRow}>
+                <View key={index} style={styles.paymentsRow} wrap={false}>
                   <Text style={styles.paymentsColMethod}>
                     {payment.creditNoteNumber
                       ? `${payment.paymentMethod} (${payment.creditNoteNumber})`

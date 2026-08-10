@@ -105,6 +105,26 @@ au lieu d'un appel HTTP au backend. Le mot de passe hashé est stocké dans
 ### Soft-delete
 - Extension Prisma `soft-delete.ts` ajoute `deletedAt: null` automatiquement
 - Pour les enregistrements supprimes : `{ deletedAt: { not: null } }`
+- L'extension ne filtre que le `where` **de premier niveau** des lectures
+  (`findFirst`/`findMany`/`count`/`aggregate`/`groupBy`). Une relation lue en
+  `include`/`select` imbrique n'est PAS filtree : `children_parents` conserve
+  donc ses lignes vers des enfants archives, invisibles cote UI.
+
+### Un enfant a toujours au moins un parent
+Invariant porte par un **trigger legacy** de la BDD (absent du depot, donc
+invisible des tests mockes) : supprimer une ligne `children_parents` qui
+laisserait un enfant sans aucun parent leve
+`Impossible de retirer le dernier parent d'un enfant`. Le trigger ignore le
+soft-delete — un enfant archive compte comme un enfant.
+
+Consequences pour `parents.delete` :
+- verifier **avant** toute ecriture, enfant par enfant, s'il reste un autre
+  parent actif ; si non et que l'enfant est actif → refus explicite ;
+- ne supprimer que les liens des enfants qui conservent un autre parent ;
+  **conserver** les liens vers des enfants archives ;
+- ne jamais laisser remonter l'erreur brute de Prisma a l'utilisateur.
+
+Voir TD-005 dans `docs/dette-technique.md` (inventaire des triggers legacy).
 
 ### Optimistic locking
 - Champ `version` sur Invoice — `updateMany({ where: { id, version } })`
@@ -141,8 +161,8 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-A2 couverture PDF facture DONE).
-- `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches).
+- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-004 3 PDF sans reserve pour le pied de page OPEN ; TD-005 trigger legacy « dernier parent » absent du depot OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-A2 couverture PDF facture DONE).
+- `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).
 - `docs/retros.md` — retros et post-mortems (incident pipeline orphelin, bugs campagne smoke).

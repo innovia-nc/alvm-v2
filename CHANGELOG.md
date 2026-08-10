@@ -5,6 +5,40 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — retours de recette (2026-08-10)
+- **US-FACT-01-bis — le tableau des modes de règlement recouvrait le pied de
+  page.** Au-delà de 4 règlements, le contenu de la facture coulait *sous* le
+  `PDFFooter`, positionné en absolu : mesuré sur rendu réel, le bas du tableau
+  tombait à y=43,5 pour 5 règlements, alors que la bande du pied de page monte
+  jusqu'à y≈68. La page réserve désormais 90pt en bas (même correctif que
+  US-UX-03 sur la fiche enfant) ; les lignes de règlement et le bloc des totaux
+  sont insécables, et le titre de section entraîne au moins une ligne avec lui.
+  Une facture chargée bascule donc sur une seconde page plutôt que de se
+  superposer au pied de page.
+- **US-FACT-02-bis — aucune facture ne s'affichait à la création d'un avoir.**
+  Le formulaire demandait 500 factures alors que le routeur en plafonne 100 :
+  Zod rejetait la requête et la liste se rendait vide, **sans le moindre
+  message**, l'erreur de la query n'étant pas lue. La liste ne propose plus que
+  les factures réellement éligibles (émise, payée, en retard) et affiche
+  désormais l'erreur comme l'absence de facture éligible. `invoices.list`
+  accepte pour cela un filtre multi-statuts `statuses`.
+- **US-FAM-01 — suppression bloquée à tort pour un parent sans enfant.**
+  L'invariant « un enfant a toujours au moins un parent » est porté par un
+  trigger legacy de la base, que les tests mockés ne voient pas.
+  `parents.delete` supprimait tous les liens du parent d'un bloc, ce que le
+  trigger refuse dès qu'un enfant se retrouverait sans parent — y compris pour
+  un enfant **archivé**, dont le lien survit au soft-delete alors que l'enfant
+  n'est plus visible nulle part. Un tel lien ne bloque plus la suppression et
+  est désormais conservé (le retirer violerait l'invariant) ; seuls les liens
+  des enfants qui gardent un autre parent actif sont supprimés.
+- **US-FAM-02 — erreur technique brute affichée à l'utilisateur.** Quand la
+  suppression est légitimement refusée, le message nomme maintenant le ou les
+  enfants concernés et indique quoi faire, au lieu de l'erreur Prisma. La
+  vérification a lieu **avant** toute écriture, et l'erreur du trigger reste
+  interceptée en filet de sécurité. Conformément aux scénarios de recette, la
+  suppression du dernier parent d'un enfant actif est désormais **bloquée** —
+  auparavant l'enfant était archivé silencieusement.
+
 ### Fixed — TD-003 : solde des avoirs (2026-08-10)
 - **Un avoir consommé à la main pouvait être réimputé automatiquement.** Le
   solde d'un avoir se lisait de deux façons divergentes : le règlement manuel

@@ -67,11 +67,23 @@ export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
   const finalRedirectPath = redirectPath ?? `${basePath}/credit-notes`;
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
-  // Récupérer toutes les factures (pour le select)
-  const { data: invoicesData, isLoading: loadingInvoices } = trpc.invoices.list.useQuery({
-    limit: 500,
+  // Factures éligibles à un avoir : uniquement les factures émises.
+  // Une facture DRAFT est un devis (aucune écriture comptable) et une facture
+  // CANCELLED / CREDITED n'a plus rien à créditer.
+  // NB : `limit` est plafonné à 100 côté routeur — au-delà, la requête est
+  // rejetée par Zod et la liste revenait vide sans le moindre message
+  // (US-FACT-02-bis : cause exacte du bug constaté en recette).
+  const {
+    data: invoicesData,
+    isLoading: loadingInvoices,
+    error: invoicesError,
+  } = trpc.invoices.list.useQuery({
+    limit: 100,
     offset: 0,
+    statuses: ['SENT', 'PAID', 'OVERDUE'],
   });
+
+  const eligibleInvoices = invoicesData?.invoices ?? [];
 
   // Récupérer les détails de la facture sélectionnée
   const { data: invoiceDetails } = trpc.invoices.getById.useQuery(
@@ -167,17 +179,25 @@ export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
                 <FormItem>
                   <FormLabel>Facture *</FormLabel>
                   <Select
-                    disabled={loadingInvoices}
+                    disabled={loadingInvoices || eligibleInvoices.length === 0}
                     onValueChange={handleInvoiceChange}
                     value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez une facture" />
+                        <SelectValue
+                          placeholder={
+                            loadingInvoices
+                              ? 'Chargement des factures…'
+                              : eligibleInvoices.length === 0
+                                ? 'Aucune facture disponible'
+                                : 'Sélectionnez une facture'
+                          }
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {invoicesData?.invoices.map((invoice) => (
+                      {eligibleInvoices.map((invoice) => (
                         <SelectItem key={invoice.id} value={invoice.id}>
                           {invoice.invoiceNumber} - {invoice.parent.firstName}{' '}
                           {invoice.parent.lastName} -{' '}
@@ -186,6 +206,16 @@ export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                  {invoicesError ? (
+                    <FormDescription className="text-destructive">
+                      Impossible de charger les factures : {invoicesError.message}
+                    </FormDescription>
+                  ) : !loadingInvoices && eligibleInvoices.length === 0 ? (
+                    <FormDescription>
+                      Aucune facture éligible à un avoir. Seules les factures émises
+                      (envoyée, payée, en retard) peuvent faire l&apos;objet d&apos;un avoir.
+                    </FormDescription>
+                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}

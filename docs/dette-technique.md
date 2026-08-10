@@ -88,6 +88,44 @@ paiement, réglée en plusieurs paiements, partiellement réglée, soldée, et
 règlement par avoir. `test/helpers/react-tree.ts` fournit l'introspection
 d'arbre React nécessaire (les composants `@react-pdf` ne produisent pas de DOM).
 
+## TD-004 — Trois PDF partagent le pied de page sans réserver sa place — P3 — OPEN
+
+**Constat (2026-08-10, US-FACT-01-bis)** : `PDFFooter` est en
+`position: absolute` (`bottom: 16`) et occupe ~70pt une fois les coordonnées et
+la mention légale rendues. Une page ne lui laisse la place que si elle porte un
+`paddingBottom` supérieur à cette hauteur. Deux documents le font
+(`child-profile-pdf` depuis US-UX-03, `invoice-pdf` depuis US-FACT-01-bis) ;
+**trois ne le font pas** : `credit-note-pdf`, `staff-profile-pdf`,
+`attendance-list-pdf`.
+
+**Risque** : même défaut que celui remonté en recette sur la facture — dès que
+le contenu remplit la page (avoir à nombreuses lignes, liste de présences
+longue), il se superpose au pied de page. Non observé à ce jour sur ces trois
+documents, mais structurellement identique.
+
+**Résolution cible** : `paddingBottom: 90` sur le style `page` des trois
+documents, et exposer la valeur comme constante partagée depuis
+`lib/pdf/shared/pdf-footer.tsx` pour que la contrainte cesse d'être implicite.
+
+## TD-005 — Trigger legacy « dernier parent » absent du dépôt — P2 — OPEN
+
+**Constat (2026-08-10, US-FAM-01/02)** : l'invariant « un enfant a toujours au
+moins un parent » est appliqué par un trigger PostgreSQL sur `children_parents`
+qui **n'existe nulle part dans le dépôt** (héritage de la base d'origine,
+antérieur à la refonte). Les tests unitaires étant mockés, aucun d'eux ne le
+voit : `parents.delete` a pu être livré avec un chemin d'écriture que la base
+refuse systématiquement, découvert seulement en recette.
+
+**Risque** : d'autres triggers/CHECK legacy peuvent subsister et invalider du
+code qui passe tous les tests. La règle métier elle-même n'est ni documentée ni
+versionnée.
+
+**Résolution cible** : inventorier les triggers et contraintes réellement
+présents sur un clone de prod (`pg_trigger`, `pg_constraint`), les transcrire
+dans `prisma/migrations-manual/` pour trace, et décider pour chacun s'il reste
+en base ou passe en garde applicative — la convention du projet étant « plus de
+triggers SQL » (voir CLAUDE.md).
+
 ## TD-001 — Typage `any` des mappers dans `server/routers/**` — P2 — OPEN
 
 **Constat (2026-07-06, introduction d'ESLint)** : les fonctions de mapping

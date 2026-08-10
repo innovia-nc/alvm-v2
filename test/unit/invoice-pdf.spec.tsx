@@ -18,14 +18,14 @@ type Payment = {
   creditNoteNumber?: string | null;
 };
 
-function renderInvoice(overrides: {
+function buildInvoice(overrides: {
   payments?: Payment[];
   paidAmount?: number;
   totalAmount?: number;
 }) {
   const totalAmount = overrides.totalAmount ?? 10000;
 
-  const element = InvoicePDF({
+  return InvoicePDF({
     data: {
       invoiceNumber: 'FAC-2026-0042',
       issueDate: new Date('2026-08-01'),
@@ -51,8 +51,20 @@ function renderInvoice(overrides: {
       org: { name: 'ALVM' },
     },
   });
+}
 
-  return flattenTree(element as React.ReactNode).map(elementText);
+function renderInvoice(overrides: Parameters<typeof buildInvoice>[0]) {
+  return flattenTree(buildInvoice(overrides) as React.ReactNode).map(elementText);
+}
+
+function treeOf(overrides: Parameters<typeof buildInvoice>[0]) {
+  return flattenTree(buildInvoice(overrides) as React.ReactNode);
+}
+
+/** Aplatit un `style` react-pdf (objet ou tableau d'objets) en un seul objet. */
+function flatStyle(style: unknown): Record<string, unknown> {
+  if (Array.isArray(style)) return Object.assign({}, ...style.map(flatStyle));
+  return (style ?? {}) as Record<string, unknown>;
 }
 
 describe('InvoicePDF — modes de règlement (US-FACT-01)', () => {
@@ -133,5 +145,56 @@ describe('InvoicePDF — modes de règlement (US-FACT-01)', () => {
 
     expect(texts).toContain('Avoir (AVO-2026-0007)');
     expect(texts).toContain('Virement');
+  });
+});
+
+describe('InvoicePDF — mise en page des règlements (US-FACT-01-bis)', () => {
+  const sixPayments: Payment[] = Array.from({ length: 6 }, (_, i) => ({
+    amount: 1000,
+    paymentDate: new Date('2026-08-05'),
+    paymentMethod: `Règlement ${i + 1}`,
+  }));
+
+  it('rend intégralement les règlements au-delà de 4', () => {
+    const texts = renderInvoice({ payments: sixPayments, paidAmount: 6000 });
+
+    for (let i = 1; i <= 6; i++) {
+      expect(texts).toContain(`Règlement ${i}`);
+    }
+  });
+
+  it('réserve en bas de page la place occupée par le pied de page', () => {
+    // Le PDFFooter est en position absolue (bottom: 16) et occupe ~55pt. Sans
+    // cette réserve, le tableau des règlements coulait DESSOUS le pied de page.
+    const page = treeOf({ payments: sixPayments, paidAmount: 6000 }).find(
+      (el) => (el.props as { size?: string }).size === 'A4',
+    );
+
+    expect(page).toBeDefined();
+    const style = flatStyle((page!.props as { style?: unknown }).style);
+    expect(Number(style.paddingBottom)).toBeGreaterThanOrEqual(90);
+  });
+
+  it('interdit la coupure d\'une ligne de règlement par un saut de page', () => {
+    const rows = treeOf({ payments: sixPayments, paidAmount: 6000 }).filter((el) => {
+      const style = flatStyle((el.props as { style?: unknown }).style);
+      return style.padding === 6 && style.flexDirection === 'row';
+    });
+
+    // 1 en-tête + 6 lignes de règlement
+    expect(rows).toHaveLength(7);
+    for (const row of rows) {
+      expect((row.props as { wrap?: boolean }).wrap).toBe(false);
+    }
+  });
+
+  it('garde le bloc des totaux insécable', () => {
+    const totals = treeOf({ payments: sixPayments, paidAmount: 6000 }).find((el) => {
+      const style = flatStyle((el.props as { style?: unknown }).style);
+      return style.alignItems === 'flex-end' && style.marginTop === 20;
+    });
+
+    expect(totals).toBeDefined();
+    expect((totals!.props as { wrap?: boolean }).wrap).toBe(false);
   });
 });

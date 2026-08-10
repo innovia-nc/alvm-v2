@@ -385,36 +385,86 @@ export const parentsRouter = router({
         });
       }
 
-      await ctx.prisma.$transaction(async (tx) => {
-        const result = await tx.parent.updateMany({
-          where: { userId: input.id, deletedAt: null },
-          data: { deletedAt: new Date() },
+      // US-FAM-01 / US-FAM-02 — invariant « un enfant a toujours au moins un
+      // parent », porté aussi par un trigger legacy sur `children_parents`.
+      // On ne peut donc PAS supprimer aveuglement tous les liens du parent :
+      // il faut d'abord savoir, enfant par enfant, s'il reste un autre parent.
+      const childLinks = await ctx.prisma.childParent.findMany({
+        where: { parentId: input.id },
+        select: {
+          childId: true,
+          child: { select: { firstName: true, lastName: true, deletedAt: true } },
+        },
+      });
+
+      // Un parent déjà archivé ne « compte » pas comme parent restant.
+      const siblingLinks = childLinks.length > 0
+        ? await ctx.prisma.childParent.findMany({
+            where: {
+              childId: { in: childLinks.map((l) => l.childId) },
+              parentId: { not: input.id },
+              parent: { deletedAt: null },
+            },
+            select: { childId: true },
+          })
+        : [];
+
+      const childrenWithAnotherParent = new Set(siblingLinks.map((l) => l.childId));
+
+      // Enfants encore actifs dont ce parent est le dernier parent : blocage.
+      const blockingChildren = childLinks
+        .filter((l) => !childrenWithAnotherParent.has(l.childId) && l.child.deletedAt === null)
+        .map((l) => `${l.child.firstName} ${l.child.lastName}`);
+
+      if (blockingChildren.length > 0) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message:
+            blockingChildren.length === 1
+              ? `Impossible de supprimer ce parent : il est le dernier parent rattaché à ${blockingChildren[0]}. Rattachez un autre parent à cet enfant, ou supprimez d'abord l'enfant.`
+              : `Impossible de supprimer ce parent : il est le dernier parent rattaché à ${blockingChildren.join(', ')}. Rattachez un autre parent à ces enfants, ou supprimez-les d'abord.`,
         });
+      }
 
-        if (result.count === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
-        }
+      // Seuls les liens des enfants qui conservent un autre parent sont
+      // supprimables. Les liens vers des enfants déjà archivés sont conservés :
+      // les retirer violerait l'invariant (le trigger legacy les refuse) et ils
+      // gardent la trace du rattachement historique.
+      const removableChildIds = childLinks
+        .filter((l) => childrenWithAnotherParent.has(l.childId))
+        .map((l) => l.childId);
 
-        // Soft delete children where this parent is the only parent
-        const childLinks = await tx.childParent.findMany({
-          where: { parentId: input.id },
-          select: { childId: true },
-        });
-
-        for (const link of childLinks) {
-          const parentCount = await tx.childParent.count({
-            where: { childId: link.childId },
+      try {
+        await ctx.prisma.$transaction(async (tx) => {
+          const result = await tx.parent.updateMany({
+            where: { userId: input.id, deletedAt: null },
+            data: { deletedAt: new Date() },
           });
-          if (parentCount === 1) {
-            await tx.child.update({
-              where: { id: link.childId },
-              data: { deletedAt: new Date() },
+
+          if (result.count === 0) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
+          }
+
+          if (removableChildIds.length > 0) {
+            await tx.childParent.deleteMany({
+              where: { parentId: input.id, childId: { in: removableChildIds } },
             });
           }
+        });
+      } catch (err) {
+        if (err instanceof TRPCError) throw err;
+        // Filet de sécurité : si l'invariant est malgré tout violé côté BDD
+        // (course entre la vérification et l'écriture), on renvoie un message
+        // métier et jamais l'erreur technique brute de Prisma (US-FAM-02).
+        if (err instanceof Error && err.message.includes('dernier parent')) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message:
+              "Impossible de supprimer ce parent : il est le dernier parent rattaché à un enfant. Rattachez un autre parent à cet enfant, ou supprimez d'abord l'enfant.",
+          });
         }
-
-        await tx.childParent.deleteMany({ where: { parentId: input.id } });
-      });
+        throw err;
+      }
 
       return { success: true };
     }),
