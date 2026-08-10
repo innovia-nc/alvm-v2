@@ -71,6 +71,22 @@ export function AdminCreditNotesTableClient() {
     },
   });
 
+  // Mutation de génération du PDF (TD-007) : archive le document puis l'ouvre.
+  const generatePDFMutation = trpc.creditNotes.generatePDF.useMutation({
+    onSuccess: (result) => {
+      toast.success("PDF de l'avoir généré avec succès");
+      utils.creditNotes.list.invalidate();
+      router.refresh();
+      if (result?.pdfUrl) {
+        window.open(result.pdfUrl, '_blank');
+      }
+    },
+    onError: (err) => {
+      setError(err.message || 'Erreur lors de la génération du PDF');
+      toast.error(err.message || 'Erreur lors de la génération du PDF');
+    },
+  });
+
   // Mutation de mise à jour de statut
   const updateStatusMutation = trpc.creditNotes.updateStatus.useMutation({
     onSuccess: () => {
@@ -121,6 +137,10 @@ export function AdminCreditNotesTableClient() {
             onDelete={setDeletingItem}
             onUpdateStatus={(item: AdminCreditNoteType, status: 'SENT' | 'CANCELLED') => {
               setUpdatingStatus({ item, status });
+            }}
+            onGeneratePDF={(item: AdminCreditNoteType) => {
+              setError(null);
+              generatePDFMutation.mutate({ id: item.id });
             }}
           />
         ),

@@ -1,5 +1,21 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
+
+// Rendu PDF et upload Blob interceptés : les tests portent sur la chaîne
+// (requête, pièce jointe, persistance de l'URL), pas sur @react-pdf/renderer.
+const generateInvoicePDF = vi.fn();
+const uploadToStorage = vi.fn();
+
+vi.mock('@/lib/pdf/invoice-pdf', () => ({
+  generateInvoicePDF: (...args: unknown[]) => generateInvoicePDF(...args),
+}));
+
+vi.mock('@/lib/storage/blob-storage', () => ({
+  uploadToStorage: (...args: unknown[]) => uploadToStorage(...args),
+  deleteFromStorage: vi.fn(),
+  deleteFromStorageBestEffort: vi.fn().mockResolvedValue(true),
+}));
+
 import {
   createTestCaller,
   ADMIN_USER,
@@ -1703,7 +1719,74 @@ describe('invoices router', () => {
   // sendEmail
   // =========================================================================
 
-  describe('sendEmail', () => {
+  describe('sendEmail (TD-008)', () => {
+    const PDF_URL = 'https://store.blob.vercel-storage.com/invoices/FAC-2026-0001.pdf';
+    let fetchMock: ReturnType<typeof vi.fn>;
+
+    /** Facture complète telle que la lit `generateAndStoreInvoicePdf`. */
+    function makeInvoiceForPdf(overrides: Record<string, any> = {}) {
+      return {
+        // Facture émise par défaut : le cas brouillon (« devis ») a son test.
+        ...makeInvoiceRow({ status: 'SENT' }),
+        parent: {
+          firstName: 'Jean',
+          lastName: 'Dupont',
+          email: 'jean.dupont@example.nc',
+          address: '15 Rue de la Baie',
+          city: 'Noumea',
+          postalCode: '98800',
+        },
+        lines: [
+          {
+            description: 'Camp ete',
+            quantity: 1,
+            unitPrice: 10000,
+            totalPrice: 10000,
+          },
+        ],
+        payments: [],
+        ...overrides,
+      };
+    }
+
+    function arrangeHappyPath(invoice: Record<string, any> = makeInvoiceForPdf()) {
+      mockPrisma.invoice.findFirst.mockResolvedValue(invoice);
+      mockPrisma.invoice.update.mockResolvedValue({});
+      mockPrisma.appSetting.findUnique.mockResolvedValue(null);
+      mockPrisma.appSetting.findMany.mockResolvedValue([
+        { category: 'organization', key: 'short_name', value: '"ALVM"' },
+        { category: 'email', key: 'from_name', value: '"ALVM"' },
+        { category: 'email', key: 'from_email', value: '"noreply@alvm.nc"' },
+        { category: 'email', key: 'reply_to', value: '"contact@alvm.nc"' },
+      ]);
+      generateInvoicePDF.mockResolvedValue(Buffer.from('%PDF-facture'));
+      uploadToStorage.mockResolvedValue({ pathname: 'invoices/x.pdf', url: PDF_URL });
+    }
+
+    /** Corps JSON envoyé au fournisseur d'email. */
+    function sentPayload() {
+      return JSON.parse(fetchMock.mock.calls[0]![1].body);
+    }
+
+    beforeEach(() => {
+      ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
+      generateInvoicePDF.mockReset();
+      uploadToStorage.mockReset();
+      process.env.RESEND_API_KEY = 'resend_test_key';
+      fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 'email_123' }),
+        text: async () => '',
+      });
+      vi.stubGlobal('fetch', fetchMock);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      delete process.env.RESEND_API_KEY;
+    });
+
     it('rejects PARENT users', async () => {
       const { caller: parentCaller } = createTestCaller(PARENT_USER);
       await expect(
@@ -1711,12 +1794,111 @@ describe('invoices router', () => {
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
-    it('throws NOT_IMPLEMENTED for ADMIN users', async () => {
-      ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
+    it('fails with an explicit precondition error when email is not configured', async () => {
+      delete process.env.RESEND_API_KEY;
 
       await expect(
         caller.invoices.sendEmail({ id: INVOICE_ID }),
-      ).rejects.toThrow(TRPCError);
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+
+      // Aucun PDF généré, aucun appel réseau : on s'arrête avant.
+      expect(generateInvoicePDF).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('throws NOT_FOUND when the invoice does not exist', async () => {
+      mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+      await expect(
+        caller.invoices.sendEmail({ id: INVOICE_ID }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('sends the invoice with its PDF attached', async () => {
+      arrangeHappyPath();
+
+      const result = await caller.invoices.sendEmail({ id: INVOICE_ID });
+
+      expect(result).toEqual({ success: true, sentTo: 'jean.dupont@example.nc' });
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      const payload = sentPayload();
+      expect(payload.to).toEqual(['jean.dupont@example.nc']);
+      expect(payload.from).toBe('ALVM <noreply@alvm.nc>');
+      expect(payload.reply_to).toBe('contact@alvm.nc');
+      expect(payload.subject).toContain('FAC-2026-0001');
+      expect(payload.attachments).toHaveLength(1);
+      expect(payload.attachments[0].filename).toBe('facture-FAC-2026-0001.pdf');
+      expect(Buffer.from(payload.attachments[0].content, 'base64').toString()).toBe(
+        '%PDF-facture',
+      );
+    });
+
+    it('archives the freshly generated PDF on the invoice', async () => {
+      arrangeHappyPath();
+
+      await caller.invoices.sendEmail({ id: INVOICE_ID });
+
+      expect(uploadToStorage).toHaveBeenCalledOnce();
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: INVOICE_ID },
+        data: { pdfUrl: PDF_URL },
+      });
+    });
+
+    it('announces a quote (devis) while the invoice is still a draft', async () => {
+      arrangeHappyPath(makeInvoiceForPdf({ status: 'DRAFT' }));
+
+      await caller.invoices.sendEmail({ id: INVOICE_ID });
+
+      const payload = sentPayload();
+      expect(payload.subject).toContain('devis');
+      expect(payload.attachments[0].filename).toBe('devis-FAC-2026-0001.pdf');
+    });
+
+    it('refuses to send when the client has no email address', async () => {
+      arrangeHappyPath(
+        makeInvoiceForPdf({
+          parent: {
+            firstName: 'Jean',
+            lastName: 'Dupont',
+            email: null,
+            address: '15 Rue de la Baie',
+            city: 'Noumea',
+            postalCode: '98800',
+          },
+        }),
+      );
+
+      await expect(
+        caller.invoices.sendEmail({ id: INVOICE_ID }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('surfaces a provider failure as a readable error', async () => {
+      arrangeHappyPath();
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 422,
+        text: async () => 'domain is not verified',
+        json: async () => ({}),
+      });
+
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: expect.stringContaining('422'),
+      });
+    });
+
+    it('allows STAFF to send', async () => {
+      ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+      arrangeHappyPath();
+
+      const result = await caller.invoices.sendEmail({ id: INVOICE_ID });
+
+      expect(result.success).toBe(true);
     });
   });
 

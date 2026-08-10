@@ -123,9 +123,15 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
     },
   });
 
+  // TD-008 : l'envoi est réellement branché, mais dépend d'une configuration
+  // d'environnement. On interroge son état pour ne pas proposer un bouton qui
+  // échouerait à coup sûr.
+  const { data: emailStatus } = trpc.settings.isEmailConfigured.useQuery();
+  const emailConfigured = emailStatus?.configured ?? true;
+
   const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
-    onSuccess: () => {
-      toast.success('Facture envoyée par email au parent');
+    onSuccess: (data) => {
+      toast.success(`Facture envoyée par email à ${data.sentTo}`);
       utils.invoices.getById.invalidate({ id: invoice.id });
       setIsSendingEmail(false);
       router.refresh();
@@ -262,7 +268,12 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                 variant="outline"
                 size="sm"
                 onClick={handleSendEmail}
-                disabled={isSendingEmail || invoice.status === 'DRAFT'}
+                disabled={isSendingEmail || invoice.status === 'DRAFT' || !emailConfigured}
+                title={
+                  emailConfigured
+                    ? undefined
+                    : "Envoi d'email non configuré sur cet environnement"
+                }
               >
                 {isSendingEmail ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

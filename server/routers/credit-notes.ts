@@ -44,6 +44,9 @@ const creditNoteSchema = z.object({
   status: creditNoteStatusEnum,
   isFutureCredit: z.boolean(),
   notes: z.string().nullable(),
+  // URL du PDF archivé sur le store Blob, `null` tant qu'il n'a pas été
+  // généré (TD-007).
+  pdfUrl: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -131,6 +134,7 @@ function mapCreditNoteWithDetails(cn: any) {
     status: cn.status as CreditNoteStatus,
     isFutureCredit: cn.isFutureCredit ?? false,
     notes: cn.notes,
+    pdfUrl: cn.pdfUrl ?? null,
     createdAt: cn.createdAt,
     updatedAt: cn.updatedAt,
     originalInvoice: cn.creditedInvoice
@@ -182,6 +186,7 @@ function mapCreditNote(cn: any) {
     status: cn.status as CreditNoteStatus,
     isFutureCredit: cn.isFutureCredit ?? false,
     notes: cn.notes,
+    pdfUrl: cn.pdfUrl ?? null,
     createdAt: cn.createdAt,
     updatedAt: cn.updatedAt,
   };
@@ -486,5 +491,89 @@ export const creditNotesRouter = router({
       });
 
       return { success: true };
+    }),
+
+  /**
+   * Génère (ou régénère) le PDF de l'avoir, l'archive sur le store Blob et
+   * mémorise son URL sur la ligne — même chaîne que `invoices.generatePDF`
+   * (TD-007 : le composant `CreditNotePDF` existait sans point d'entrée).
+   *
+   * Les montants sont stockés négatifs en base (avoir) alors que le document
+   * pose lui-même le signe « - » devant chaque montant : on lui passe donc des
+   * valeurs absolues, sinon le PDF afficherait « --12 000 XPF ».
+   */
+  generatePDF: staffProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean(), pdfUrl: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const creditNote = await ctx.prisma.invoice.findFirst({
+        where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
+        include: {
+          creditedInvoice: {
+            select: { invoiceNumber: true },
+          },
+          parent: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              address: true,
+              city: true,
+              postalCode: true,
+            },
+          },
+          lines: {
+            select: {
+              description: true,
+              quantity: true,
+              unitPrice: true,
+              totalPrice: true,
+              totalHt: true,
+            },
+          },
+        },
+      });
+
+      if (!creditNote) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouvé' });
+      }
+
+      const { getPdfSettings } = await import('@/server/helpers/pdf-settings.helper');
+      const pdfSettings = await getPdfSettings(ctx.prisma);
+
+      const { generateCreditNotePDF } = await import('@/lib/pdf/credit-note-pdf');
+      const { uploadToStorage } = await import('@/lib/storage/blob-storage');
+
+      const pdfBuffer = await generateCreditNotePDF({
+        creditNoteNumber: creditNote.invoiceNumber,
+        issueDate: creditNote.issueDate,
+        // Un avoir peut être autonome (crédit commercial sans facture d'origine).
+        invoiceNumber: creditNote.creditedInvoice?.invoiceNumber ?? 'Aucune',
+        parent: creditNote.parent,
+        lines: creditNote.lines.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: Math.abs(toNum(l.unitPrice)),
+          totalPrice: Math.abs(toNum(l.totalHt ?? l.totalPrice)),
+        })),
+        totalAmount: Math.abs(toNum(creditNote.totalAmount)),
+        reason: creditNote.notes ?? '',
+        org: pdfSettings.org,
+        footerMention: pdfSettings.mentions.creditNote || undefined,
+      });
+
+      const pathname = `credit-notes/${creditNote.invoiceNumber}-${creditNote.id}.pdf`;
+
+      const { url } = await uploadToStorage(pdfBuffer, {
+        pathname,
+        contentType: 'application/pdf',
+      });
+
+      await ctx.prisma.invoice.update({
+        where: { id: creditNote.id },
+        data: { pdfUrl: url },
+      });
+
+      return { success: true, pdfUrl: url };
     }),
 });

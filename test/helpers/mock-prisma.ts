@@ -33,6 +33,7 @@ export function createMockPrisma() {
     child: createModelMock(),
     childParent: createModelMock(),
     childDocument: createModelMock(),
+    staffDocument: createModelMock(),
     camp: createModelMock(),
     campDay: createModelMock(),
     attendance: createModelMock(),

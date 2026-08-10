@@ -14,6 +14,7 @@ import {
   CheckCircle,
   XCircle,
   Trash2,
+  Download,
 } from 'lucide-react';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -32,6 +33,8 @@ export type AdminCreditNoteType = {
   notes: string | null;
   status: 'DRAFT' | 'SENT' | 'CANCELLED';
   isFutureCredit: boolean;
+  /** URL du PDF archivé, `null` tant qu'il n'a pas été généré (TD-007). */
+  pdfUrl: string | null;
   originalInvoice: {
     invoiceNumber: string;
     totalAmount: number;
@@ -147,6 +150,7 @@ export const adminCreditNoteColumns: ColumnDef<AdminCreditNoteType>[] = [
           item={row.original}
           onDelete={() => {}}
           onUpdateStatus={() => {}}
+          onGeneratePDF={() => {}}
         />
       );
     },
@@ -161,13 +165,25 @@ interface AdminCreditNoteActionsProps {
   item: AdminCreditNoteType;
   onDelete?: (item: AdminCreditNoteType) => void;
   onUpdateStatus?: (item: AdminCreditNoteType, status: 'SENT' | 'CANCELLED') => void;
+  /** Demande la génération du PDF quand l'avoir n'en a pas encore (TD-007). */
+  onGeneratePDF?: (item: AdminCreditNoteType) => void;
 }
 
 export function AdminCreditNoteActions({
   item,
   onDelete,
   onUpdateStatus,
+  onGeneratePDF,
 }: AdminCreditNoteActionsProps) {
+  const handleDownloadPDF = () => {
+    // PDF déjà archivé : téléchargement direct, sinon on le génère d'abord.
+    if (item.pdfUrl) {
+      window.open(item.pdfUrl, '_blank');
+    } else {
+      onGeneratePDF?.(item);
+    }
+  };
+
   return (
     <div className="text-right">
       <DropdownMenu>
@@ -183,6 +199,11 @@ export function AdminCreditNoteActions({
               <Eye className="mr-2 h-4 w-4" />
               Voir détails
             </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={handleDownloadPDF}>
+            <Download className="mr-2 h-4 w-4" />
+            Télécharger le PDF
           </DropdownMenuItem>
 
           {item.status === 'DRAFT' && (

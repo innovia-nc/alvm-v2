@@ -20,7 +20,12 @@
 | `AUTH_SECRET` | NextAuth v5 — **obligatoire**, fail-closed au boot en prod |
 | `POSTGRES_PRISMA_URL` | URL poolée pgbouncer — runtime Prisma (`schema.prisma url`) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe — migrations / `prisma migrate diff` (`directUrl`) |
-| `BLOB_READ_WRITE_TOKEN` | Upload des PDF de factures |
+| `BLOB_READ_WRITE_TOKEN` | Upload et suppression des PDF (factures, avoirs, documents) |
+| `RESEND_API_KEY` | Envoi des factures/devis par email (TD-008) — **optionnel** : sans elle, les écrans désactivent l'envoi et l'expliquent |
+
+L'identité d'expédition des emails (nom, adresse, reply-to) n'est **pas** une
+variable d'environnement : elle se règle dans /dashboard/admin/settings, section
+Email. Seul le domaine d'envoi doit être vérifié côté Resend.
 
 Vars legacy présentes mais inutilisées par le code : `NEXTAUTH_*`, `STACK_*`,
 `PG*`, `NEON_PROJECT_ID`, `DATABASE_URL` — nettoyage possible après stabilité.

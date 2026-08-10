@@ -1,5 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
+
+// TD-006 : la suppression d'un document doit retirer le blob associé.
+const deleteFromStorageBestEffort = vi.fn().mockResolvedValue(true);
+vi.mock('@/lib/storage/blob-storage', () => ({
+  uploadToStorage: vi.fn(),
+  deleteFromStorage: vi.fn(),
+  deleteFromStorageBestEffort: (...args: unknown[]) =>
+    deleteFromStorageBestEffort(...args),
+}));
+
 import {
   createTestCaller,
   ADMIN_USER,
@@ -69,6 +79,8 @@ describe('childDocuments router', () => {
     admin = createTestCaller(ADMIN_USER);
     staff = createTestCaller(STAFF_USER);
     parent = createTestCaller(PARENT_USER);
+    deleteFromStorageBestEffort.mockClear();
+    deleteFromStorageBestEffort.mockResolvedValue(true);
   });
 
   // =========================================================================
@@ -362,6 +374,47 @@ describe('childDocuments router', () => {
         where: { id: DOC_ID_1 },
         data: { deletedAt: expect.any(Date) },
       });
+    });
+
+    // TD-006 — blobs orphelins
+    it('should delete the stored blob alongside the row', async () => {
+      admin.mockPrisma.childDocument.findFirst.mockResolvedValue(
+        makeDocument({ fileUrl: 'https://store.blob.vercel-storage.com/doc-1.pdf' }),
+      );
+      admin.mockPrisma.child.findFirst.mockResolvedValue(makeChildRecord());
+      admin.mockPrisma.childDocument.update.mockResolvedValue(
+        makeDocument({ deletedAt: new Date() }),
+      );
+
+      await admin.caller.childDocuments.delete({ documentId: DOC_ID_1 });
+
+      expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
+        'https://store.blob.vercel-storage.com/doc-1.pdf',
+        expect.any(String),
+      );
+    });
+
+    it('should still succeed when the blob store fails', async () => {
+      admin.mockPrisma.childDocument.findFirst.mockResolvedValue(makeDocument());
+      admin.mockPrisma.child.findFirst.mockResolvedValue(makeChildRecord());
+      admin.mockPrisma.childDocument.update.mockResolvedValue(
+        makeDocument({ deletedAt: new Date() }),
+      );
+      deleteFromStorageBestEffort.mockResolvedValue(false);
+
+      const result = await admin.caller.childDocuments.delete({ documentId: DOC_ID_1 });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should not touch the blob store when the document is not found', async () => {
+      admin.mockPrisma.childDocument.findFirst.mockResolvedValue(null);
+
+      await expect(
+        admin.caller.childDocuments.delete({ documentId: DOC_ID_1 }),
+      ).rejects.toThrow(TRPCError);
+
+      expect(deleteFromStorageBestEffort).not.toHaveBeenCalled();
     });
 
     it('should soft-delete a document for STAFF', async () => {
