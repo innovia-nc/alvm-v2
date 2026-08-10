@@ -70,6 +70,14 @@ Chaque imputation ecrit aussi une `CreditApplication` (historique metier affiche
 sur la fiche de l'avoir) et une `CreditNoteAllocation` (miroir du chemin manuel
 `payments.create`, qui agrege ce modele pour interdire une double consommation).
 
+**Second invariant (TD-003)** : le solde d'un avoir a DEUX representations —
+`ParentCredit.amountRemaining` et la somme des `CreditNoteAllocation`. Les deux
+chemins d'imputation (automatique et manuel via `payments.create`) doivent
+mettre a jour les DEUX, et `payments.delete` doit les restituer via
+`restoreCreditOnPaymentDeletion()`. Si un chemin n'en met qu'une a jour, un
+avoir consomme peut etre reimpute par le FIFO et le compte 4191 se retrouve
+debite plus qu'il n'a ete credite.
+
 ### Plus de RLS PostgreSQL
 Le filtrage est applicatif via Prisma extensions. Le `soft-delete.extension.ts`
 filtre automatiquement les enregistrements supprimes. Le filtrage par tenant/parent
@@ -133,7 +141,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 solde d'avoir non restaure a la suppression d'un paiement OPEN ; TD-A2 couverture PDF facture DONE).
+- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-A2 couverture PDF facture DONE).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).

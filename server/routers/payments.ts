@@ -8,6 +8,7 @@ import {
 } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 import { createPaymentEntries, cancelAccountingEntries } from '@/server/services/accounting.service';
+import { restoreCreditOnPaymentDeletion } from '@/server/services/credit-application.service';
 import { toNum } from '@/server/helpers/decimal';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 
@@ -310,6 +311,42 @@ export const paymentsRouter = router({
             },
           });
 
+          // Le solde d'un avoir se lisait jusqu'ici de DEUX façons divergentes :
+          // ce chemin manuel agrégeait les `CreditNoteAllocation`, tandis que
+          // l'imputation automatique (US-FACT-02) s'appuie sur
+          // `ParentCredit.amountRemaining` — que ce chemin ne décrémentait pas.
+          // Un avoir consommé à la main restait donc « plein » pour le FIFO, qui
+          // pouvait le réimputer sur une autre facture : le compte 4191 se
+          // retrouvait débité de plus qu'il n'avait été crédité.
+          // Les deux vues sont désormais tenues à jour par les deux chemins.
+          const parentCredit = await tx.parentCredit.findFirst({
+            where: { creditNoteId: input.creditNoteId },
+          });
+
+          if (parentCredit) {
+            const remaining = toNum(parentCredit.amountRemaining);
+
+            await tx.parentCredit.update({
+              where: { id: parentCredit.id },
+              // Plancher à 0 plutôt qu'une erreur : le garde-fou du chemin
+              // manuel reste le solde calculé sur les allocations (ci-dessus,
+              // comportement inchangé). Ce plancher évite qu'un écart hérité
+              // ne bloque une saisie légitime.
+              data: { amountRemaining: Math.max(0, remaining - input.amount) },
+            });
+
+            // Historique uniforme quel que soit le chemin d'imputation.
+            await tx.creditApplication.create({
+              data: {
+                parentCreditId: parentCredit.id,
+                invoiceId: input.invoiceId,
+                amountUsed: input.amount,
+                appliedBy: userId,
+                notes: input.notes || `Imputation manuelle sur la facture ${invoice.invoiceNumber}`,
+              },
+            });
+          }
+
           creditNoteIsFutureCredit = creditNote.isFutureCredit ?? false;
         }
 
@@ -382,6 +419,18 @@ export const paymentsRouter = router({
 
         // Cancel associated accounting entries
         await cancelAccountingEntries(tx, { paymentId: input.id }, ctx.user.id);
+
+        // TD-003 — restituer le crédit avant de supprimer le paiement.
+        // Supprimer un règlement par avoir annulait bien les écritures, mais
+        // laissait l'avoir compté comme consommé : ni l'allocation, ni
+        // l'application, ni le solde n'étaient repris.
+        if (payment.creditNoteId) {
+          await restoreCreditOnPaymentDeletion(tx, {
+            creditNoteId: payment.creditNoteId,
+            invoiceId: payment.invoiceId,
+            amount: toNum(payment.amount),
+          });
+        }
 
         // Delete payment
         await tx.payment.delete({ where: { id: input.id } });

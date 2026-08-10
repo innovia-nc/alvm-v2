@@ -5,6 +5,24 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — TD-003 : solde des avoirs (2026-08-10)
+- **Un avoir consommé à la main pouvait être réimputé automatiquement.** Le
+  solde d'un avoir se lisait de deux façons divergentes : le règlement manuel
+  agrégeait les allocations sans jamais décrémenter
+  `ParentCredit.amountRemaining`, sur lequel s'appuie le FIFO de US-FACT-02. Un
+  avoir réglé manuellement restait donc « plein » pour l'imputation automatique,
+  qui pouvait le consommer une seconde fois — le compte 4191 se retrouvant
+  débité de plus qu'il n'avait été crédité. Les deux chemins tiennent désormais
+  les deux vues à jour, et le règlement manuel écrit lui aussi son historique de
+  consommation.
+- **Supprimer un règlement par avoir restitue le crédit.** L'allocation est
+  décrémentée ou supprimée, la ligne d'historique retirée et le solde recrédité
+  (plafonné au montant initial, pour qu'une double suppression ne gonfle pas
+  l'avoir). Auparavant les écritures étaient bien annulées mais l'avoir restait
+  compté comme utilisé.
+- Diagnostic en lecture seule des données antérieures :
+  `prisma/migrations-manual/2026-08-10-diagnostic-solde-avoirs.sql`.
+
 ### Added — backlog MIKADO (2026-08-09)
 - **US-FACT-02 — déduction automatique des avoirs sur la facture suivante.**
   À l'émission d'une facture (DRAFT → SENT), les crédits disponibles du client

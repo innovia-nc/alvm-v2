@@ -31,26 +31,50 @@ garde-fou ; 15 inscriptions CONFIRMED/UNPAID préservées et refacturables.
 **Reste (action ALVM)** : refacturer au bon tarif les inscriptions concernées
 via l'app (les montants se préremplissent depuis les tarifs des camps).
 
-## TD-003 — Suppression d'un paiement par avoir : allocation non reprise — P3 — OPEN
+## TD-003 — Solde d'un avoir : deux vues divergentes — P2 — DONE (2026-08-10)
 
-**Constat (2026-08-09, US-FACT-02)** : `payments.delete` supprime le paiement,
-annule ses écritures et recalcule `paid_amount`, mais ne supprime ni la
-`CreditNoteAllocation` ni la `CreditApplication` associées, et ne recrédite pas
-`ParentCredit.amountRemaining`. Un avoir consommé puis « dé-consommé » par
-suppression du paiement reste donc compté comme utilisé.
+**Constat initial (2026-08-09, US-FACT-02)** : `payments.delete` supprime le
+paiement, annule ses écritures et recalcule `paid_amount`, mais ne reprenait ni
+la `CreditNoteAllocation`, ni la `CreditApplication`, ni
+`ParentCredit.amountRemaining`. Un avoir « dé-consommé » restait compté comme
+utilisé.
 
-**Antériorité** : le défaut existe depuis le chemin manuel de règlement par
-avoir (`payments.create`) — il n'est pas introduit par l'imputation automatique,
-qui écrit exactement les mêmes enregistrements. US-FACT-02 le rend simplement
-plus fréquent, puisque les imputations deviennent automatiques.
+**Défaut plus large trouvé au traitement (P2, pas P3)** : le solde d'un avoir se
+lisait de **deux façons divergentes**.
 
-**Impact** : solde d'avoir sous-évalué après une suppression de paiement. Aucun
-impact comptable (les écritures BQ, elles, sont bien annulées).
+| Vue | Alimentée par | Lue par |
+|-----|---------------|---------|
+| `ABS(total_amount) - SUM(credit_note_allocations)` | chemin manuel `payments.create` | contrôle de solde du chemin manuel |
+| `ParentCredit.amountRemaining` | imputation automatique uniquement | FIFO de `applyAvailableCreditsToInvoice` |
 
-**Résolution cible** : dans `payments.delete`, si `creditNoteId` est renseigné,
-supprimer l'allocation et l'application correspondantes et ré-incrémenter
-`amountRemaining`, le tout dans la transaction existante. Prévoir un test
-« imputer → supprimer le paiement → solde restauré ».
+Le chemin manuel ne décrémentait **jamais** `amountRemaining`. Un avoir consommé
+à la main restait donc « plein » aux yeux du FIFO, qui pouvait le réimputer sur
+une facture suivante. Scénario : avoir de 5 000 appliqué manuellement sur la
+facture A, puis facture B validée → 5 000 réimputés. Le compte **4191 se
+retrouve débité de 10 000 pour 5 000 crédités** — déséquilibre de fond au FEC.
+
+Ce second volet n'était pas visible avant US-FACT-02 : tant que personne ne
+lisait `amountRemaining`, sa dérive était sans conséquence.
+
+**✅ Résolu (2026-08-10)** :
+- `payments.create` décrémente `amountRemaining` (plancher à 0) et écrit une
+  `CreditApplication`, pour que l'historique soit uniforme quel que soit le
+  chemin. Le garde-fou du chemin manuel reste le solde calculé sur les
+  allocations : comportement inchangé, aucun risque de régression.
+- `restoreCreditOnPaymentDeletion()` (`credit-application.service.ts`), appelé
+  par `payments.delete` avant la suppression : décrémente ou supprime
+  l'allocation, retire la ligne d'historique, recrédite `amountRemaining`
+  plafonné au montant initial (une double suppression ne peut pas gonfler
+  l'avoir).
+- Tests : 8 cas de service (dont le cycle imputation → suppression →
+  redisponibilité) et 7 cas de router. Vérifiés en échec sans le correctif.
+
+**Reste à faire côté données** : les avoirs consommés à la main **avant** ce
+correctif peuvent porter un `amount_remaining` surévalué. Diagnostic en lecture
+seule fourni : `prisma/migrations-manual/2026-08-10-diagnostic-solde-avoirs.sql`
+(la requête de réalignement est commentée dans le même fichier, à n'exécuter
+qu'après lecture des écarts). Volume attendu proche de zéro — les paiements
+réels sont quasi inexistants en prod à ce jour (cf. TD-002).
 
 ## TD-A2 — Couverture de test du PDF facture — P3 — DONE (2026-08-09)
 
