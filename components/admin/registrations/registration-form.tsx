@@ -311,7 +311,7 @@ export function RegistrationForm() {
 
                     {/* Dropdown de résultats */}
                     {showChildDropdown && filteredChildren.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground border rounded-md shadow-lg max-h-60 overflow-auto">
                         {filteredChildren.map((child) => (
                           <button
                             key={child.id}
@@ -322,8 +322,8 @@ export function RegistrationForm() {
                               setShowChildDropdown(false);
                             }}
                             className={cn(
-                              'w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none',
-                              field.value === child.id && 'bg-gray-50'
+                              'w-full px-3 py-2 text-left text-sm hover:bg-muted focus:bg-muted focus:outline-none',
+                              field.value === child.id && 'bg-muted'
                             )}
                           >
                             <div className="flex items-center justify-between">
@@ -334,7 +334,7 @@ export function RegistrationForm() {
                                 <Check className="h-4 w-4 text-green-600" />
                               )}
                             </div>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR')}
                             </span>
                           </button>
@@ -343,7 +343,7 @@ export function RegistrationForm() {
                     )}
 
                     {showChildDropdown && childSearch && filteredChildren.length === 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-3 text-sm text-gray-500">
+                      <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground border rounded-md shadow-lg p-3 text-sm text-muted-foreground">
                         Aucun enfant trouvé pour "{childSearch}"
                       </div>
                     )}

@@ -987,6 +987,116 @@ describe('invoices router', () => {
         expect(mockPrisma.accountingEntry.create).not.toHaveBeenCalled();
       });
     });
+
+    // -----------------------------------------------------------------------
+    // US-FACT-02 — imputation automatique des avoirs à l'émission
+    // -----------------------------------------------------------------------
+    describe('US-FACT-02 — déduction automatique des avoirs', () => {
+      beforeEach(() => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.paymentMethod.findFirst.mockResolvedValue({
+          id: 'd0000000-0000-1000-a000-000000000009',
+          code: 'CREDIT_NOTE',
+          accountingCode: '411000',
+        });
+        mockPrisma.payment.create.mockResolvedValue({ id: PAYMENT_ID });
+      });
+
+      /** Prépare une facture DRAFT de 10 000 XPF prête à être validée. */
+      function arrangeDraftInvoice() {
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'DRAFT' }));
+        mockPrisma.invoice.update.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
+        mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
+          ...makeRawInvoice({ status: 'SENT' }),
+          lines: [],
+        });
+      }
+
+      function makeCredit(id: string, creditNoteId: string, amount: number) {
+        return {
+          id,
+          creditNoteId,
+          parentId: PARENT_USER.id,
+          amountOriginal: amount,
+          amountRemaining: amount,
+          expiresAt: null,
+          creditNote: {
+            id: creditNoteId,
+            invoiceNumber: 'AVO-2026-0001',
+            status: 'SENT',
+            isFutureCredit: true,
+          },
+        };
+      }
+
+      it('laisse la facture en SENT quand le client n\'a aucun avoir', async () => {
+        arrangeDraftInvoice();
+        mockPrisma.parentCredit.findMany.mockResolvedValue([]);
+
+        const result = await caller.invoices.validate({ id: INVOICE_ID });
+
+        expect(result.status).toBe('SENT');
+        expect(mockPrisma.payment.create).not.toHaveBeenCalled();
+      });
+
+      it('impute un avoir partiel et laisse la facture en SENT', async () => {
+        arrangeDraftInvoice();
+        mockPrisma.parentCredit.findMany.mockResolvedValue([
+          makeCredit('cr1', 'cn1', 2000),
+        ]);
+        // Second update : paidAmount porté à 2 000, statut inchangé.
+        mockPrisma.invoice.update
+          .mockResolvedValueOnce(makeRawInvoice({ status: 'SENT' }))
+          .mockResolvedValueOnce(makeRawInvoice({ status: 'SENT', paidAmount: 2000 }));
+
+        const result = await caller.invoices.validate({ id: INVOICE_ID });
+
+        expect(result.status).toBe('SENT');
+        expect(result.paidAmount).toBe(2000);
+
+        const lastUpdate = mockPrisma.invoice.update.mock.calls.at(-1)![0];
+        expect(lastUpdate.data).toEqual({ paidAmount: 2000, status: 'SENT' });
+      });
+
+      it('bascule la facture en PAID quand les avoirs la couvrent entièrement', async () => {
+        arrangeDraftInvoice();
+        mockPrisma.parentCredit.findMany.mockResolvedValue([
+          makeCredit('cr1', 'cn1', 15000),
+        ]);
+        mockPrisma.invoice.update
+          .mockResolvedValueOnce(makeRawInvoice({ status: 'SENT' }))
+          .mockResolvedValueOnce(makeRawInvoice({ status: 'PAID', paidAmount: 10000 }));
+
+        const result = await caller.invoices.validate({ id: INVOICE_ID });
+
+        expect(result.status).toBe('PAID');
+
+        const lastUpdate = mockPrisma.invoice.update.mock.calls.at(-1)![0];
+        expect(lastUpdate.data).toEqual({ paidAmount: 10000, status: 'PAID' });
+        // Le reliquat de 5 000 reste disponible pour une facture ultérieure.
+        expect(mockPrisma.parentCredit.update).toHaveBeenCalledWith({
+          where: { id: 'cr1' },
+          data: { amountRemaining: 5000 },
+        });
+      });
+
+      it('impute les avoirs APRÈS les écritures VE de la facture', async () => {
+        arrangeDraftInvoice();
+        mockPrisma.parentCredit.findMany.mockResolvedValue([
+          makeCredit('cr1', 'cn1', 2000),
+        ]);
+
+        await caller.invoices.validate({ id: INVOICE_ID });
+
+        // Les 2 premières écritures sont les VE (D 411000 / C 706000 + TGC),
+        // les suivantes la BQ de l'imputation.
+        const journals = mockPrisma.accountingEntry.create.mock.calls.map(
+          (c: any[]) => c[0].data.journalCode,
+        );
+        expect(journals[0]).toBe('VE');
+        expect(journals.at(-1)).toBe('BQ');
+      });
+    });
   });
 
   // =========================================================================
@@ -1504,7 +1614,7 @@ describe('invoices router', () => {
         // Les assertions portent sur le call Prisma, pas sur le PDF généré
       });
 
-      it('queries findFirst with payments select whitelist (amount, paymentDate, paymentMethod.name)', async () => {
+      it('queries findFirst with payments select whitelist (amount, paymentDate, paymentMethod.name, creditNote.invoiceNumber)', async () => {
         // Invoice manquante — on vérifie uniquement la shape du query
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
@@ -1518,6 +1628,9 @@ describe('invoices router', () => {
           amount: true,
           paymentDate: true,
           paymentMethod: { select: { name: true } },
+          // US-FACT-02 : numéro de l'avoir imputé, pour l'afficher comme mode
+          // de règlement sur le PDF. Aucun autre champ de l'avoir n'est exposé.
+          creditNote: { select: { invoiceNumber: true } },
         });
       });
 

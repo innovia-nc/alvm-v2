@@ -69,6 +69,11 @@ interface ChildProfileData {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
+    // Le PDFFooter est positionné en absolu (bottom: 16) et occupe ~55pt avec
+    // ses 3 lignes de coordonnées + la ligne méta. Sans réserve suffisante, le
+    // contenu qui coule en bas de page passe DESSOUS (US-UX-03 : le bloc
+    // signature se retrouvait recouvert). 90pt garantissent la séparation.
+    paddingBottom: 90,
     fontSize: 10,
     fontFamily: 'Helvetica',
   },
@@ -211,6 +216,17 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#666',
     marginTop: 10,
+  },
+  authorizations: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: '1 solid #e0e0e0',
+  },
+  authorizationsText: {
+    fontSize: 8,
+    color: '#444',
+    textAlign: 'justify',
+    lineHeight: 1.4,
   },
   footer: {
     position: 'absolute',
@@ -512,8 +528,10 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
           )}
         </View>
 
-        {/* Section signature */}
-        <View style={styles.signatureSection}>
+        {/* Section signature — `wrap={false}` garde le titre, le cadre et la
+            ligne de date solidaires : le bloc bascule en entier sur la page
+            suivante plutôt que d'être coupé au milieu. */}
+        <View style={styles.signatureSection} wrap={false}>
           <Text style={styles.signatureTitle}>SIGNATURE DU REPRÉSENTANT LÉGAL</Text>
           <View style={styles.signatureBox}>
             {/* Espace vide pour signature manuscrite */}
@@ -523,12 +541,22 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
           </Text>
         </View>
 
-        {/* Footer partagé */}
-        <PDFFooter
-          org={org}
-          mention={footerMention}
-          generatedAt={new Date()}
-        />
+        {/* Autorisations — rendues DANS LE FLUX, après la signature.
+            Auparavant ce texte était passé en `mention` au PDFFooter, qui est
+            positionné en absolu (bottom) : sur une fiche remplie, il se
+            superposait au cadre de signature. En le laissant couler après le
+            bloc signature, l'ordre exigé est garanti (signature puis
+            autorisations) et plus rien ne recouvre la zone à signer. */}
+        {footerMention && footerMention.trim() && (
+          <View style={styles.authorizations}>
+            <Text style={styles.authorizationsText}>{footerMention}</Text>
+          </View>
+        )}
+
+        {/* Footer partagé — coordonnées de l'association uniquement.
+            `mention` volontairement omis : les autorisations sont dans le flux
+            ci-dessus (cf. US-UX-03). */}
+        <PDFFooter org={org} generatedAt={new Date()} />
       </Page>
     </Document>
   );

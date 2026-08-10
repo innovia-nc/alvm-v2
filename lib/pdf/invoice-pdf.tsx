@@ -29,6 +29,12 @@ interface InvoicePayment {
   amount: number;
   paymentDate: Date;
   paymentMethod: string;
+  /**
+   * Numéro de l'avoir consommé, quand le règlement provient d'un avoir
+   * (US-FACT-02). Affiché entre parenthèses derrière le mode de règlement
+   * pour que la facture porte la trace de l'avoir imputé.
+   */
+  creditNoteNumber?: string | null;
 }
 
 interface InvoiceData {
@@ -185,6 +191,12 @@ const styles = StyleSheet.create({
     width: '25%',
     textAlign: 'right',
   },
+  paymentsNotice: {
+    marginTop: 6,
+    fontSize: 10,
+    fontStyle: 'italic',
+    color: '#555',
+  },
   footer: {
     position: 'absolute',
     bottom: 30,
@@ -326,24 +338,39 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
           </View>
         </View>
 
-        {/* Modes de règlement */}
-        {data.payments && data.payments.length > 0 && (
-          <View style={styles.paymentsSection}>
-            <Text style={styles.sectionTitle}>MODES DE RÈGLEMENT</Text>
-            <View style={[styles.paymentsRow, { backgroundColor: '#f0f0f0', fontWeight: 'bold' }]}>
-              <Text style={styles.paymentsColMethod}>Mode de paiement</Text>
-              <Text style={styles.paymentsColDate}>Date</Text>
-              <Text style={styles.paymentsColAmount}>Montant</Text>
-            </View>
-            {data.payments.map((payment, index) => (
-              <View key={index} style={styles.paymentsRow}>
-                <Text style={styles.paymentsColMethod}>{payment.paymentMethod}</Text>
-                <Text style={styles.paymentsColDate}>{formatDate(payment.paymentDate)}</Text>
-                <Text style={styles.paymentsColAmount}>{formatCurrency(payment.amount)}</Text>
+        {/* Modes de règlement — la section est TOUJOURS rendue : une facture
+            sans paiement doit porter la mention « Non réglée » (US-FACT-01). */}
+        <View style={styles.paymentsSection}>
+          <Text style={styles.sectionTitle}>MODES DE RÈGLEMENT</Text>
+
+          {data.payments && data.payments.length > 0 ? (
+            <>
+              <View style={[styles.paymentsRow, { backgroundColor: '#f0f0f0', fontWeight: 'bold' }]}>
+                <Text style={styles.paymentsColMethod}>Mode de règlement</Text>
+                <Text style={styles.paymentsColDate}>Date</Text>
+                <Text style={styles.paymentsColAmount}>Montant</Text>
               </View>
-            ))}
-          </View>
-        )}
+              {data.payments.map((payment, index) => (
+                <View key={index} style={styles.paymentsRow}>
+                  <Text style={styles.paymentsColMethod}>
+                    {payment.creditNoteNumber
+                      ? `${payment.paymentMethod} (${payment.creditNoteNumber})`
+                      : payment.paymentMethod}
+                  </Text>
+                  <Text style={styles.paymentsColDate}>{formatDate(payment.paymentDate)}</Text>
+                  <Text style={styles.paymentsColAmount}>{formatCurrency(payment.amount)}</Text>
+                </View>
+              ))}
+              {remainingAmount > 0 && (
+                <Text style={styles.paymentsNotice}>
+                  Partiellement réglée — reste à payer {formatCurrency(remainingAmount)}.
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={styles.paymentsNotice}>Non réglée</Text>
+          )}
+        </View>
 
         {/* Footer partagé */}
         <PDFFooter

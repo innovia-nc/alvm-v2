@@ -33,11 +33,15 @@ export function InvoicesTableClient() {
   const [paymentDialogItem, setPaymentDialogItem] = useState<StaffInvoiceType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Terme de recherche soumis (validation « Entrée » / bouton — US-UX-01).
+  const [search, setSearch] = useState('');
+
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   const { data, isLoading } = trpc.invoices.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
+    search,
   });
 
   const utils = trpc.useUtils();
@@ -149,6 +153,7 @@ export function InvoicesTableClient() {
         pagination={pagination}
         searchKey="invoiceNumber"
         searchPlaceholder="Rechercher par numéro ou statut..."
+        onSearchChange={setSearch}
       />
 
       <AlertDialog

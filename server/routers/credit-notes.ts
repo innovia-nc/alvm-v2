@@ -61,6 +61,20 @@ const creditNoteWithDetailsSchema = creditNoteSchema.extend({
   }),
   lines: z.array(creditNoteLineSchema),
   availableCredit: z.number().nullable(),
+  /** Montant initial du crédit (null si l'avoir n'ouvre pas de crédit futur). */
+  creditOriginalAmount: z.number().nullable(),
+  /** Date d'expiration du crédit, si elle est paramétrée. */
+  creditExpiresAt: z.date().nullable(),
+  /** Historique des imputations du crédit sur des factures (US-FACT-02). */
+  creditApplications: z.array(
+    z.object({
+      id: z.string().uuid(),
+      amountUsed: z.number(),
+      appliedAt: z.date(),
+      invoiceId: z.string().uuid().nullable(),
+      invoiceNumber: z.string().nullable(),
+    })
+  ),
 });
 
 const creditNoteInclude = {
@@ -82,7 +96,22 @@ const creditNoteInclude = {
     },
   },
   parentCredits: {
-    select: { amountRemaining: true },
+    select: {
+      amountOriginal: true,
+      amountRemaining: true,
+      expiresAt: true,
+      // Historique de consommation (US-FACT-02) : une ligne par imputation,
+      // du plus ancien au plus récent.
+      applications: {
+        select: {
+          id: true,
+          amountUsed: true,
+          appliedAt: true,
+          invoice: { select: { id: true, invoiceNumber: true } },
+        },
+        orderBy: { appliedAt: 'asc' },
+      },
+    },
     take: 1,
   },
 } as const;
@@ -124,6 +153,17 @@ function mapCreditNoteWithDetails(cn: any) {
     availableCredit: cn.parentCredits?.[0]
       ? toNum(cn.parentCredits[0].amountRemaining)
       : null,
+    creditOriginalAmount: cn.parentCredits?.[0]
+      ? toNum(cn.parentCredits[0].amountOriginal)
+      : null,
+    creditExpiresAt: cn.parentCredits?.[0]?.expiresAt ?? null,
+    creditApplications: (cn.parentCredits?.[0]?.applications ?? []).map((a: any) => ({
+      id: a.id,
+      amountUsed: toNum(a.amountUsed),
+      appliedAt: a.appliedAt,
+      invoiceId: a.invoice?.id ?? null,
+      invoiceNumber: a.invoice?.invoiceNumber ?? null,
+    })),
   };
 }
 

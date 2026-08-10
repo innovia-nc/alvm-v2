@@ -5,6 +5,47 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — backlog MIKADO (2026-08-09)
+- **US-FACT-02 — déduction automatique des avoirs sur la facture suivante.**
+  À l'émission d'une facture (DRAFT → SENT), les crédits disponibles du client
+  sont imputés en FIFO (du plus ancien au plus récent), avec imputation
+  partielle et report du reliquat. Crédits expirés et avoirs annulés exclus.
+  Chaque imputation est matérialisée par un paiement « Avoir », qui produit
+  l'écriture BQ D 4191 / C 411000 — contrepartie exacte du C 4191 posé à
+  l'émission de l'avoir : **aucun schéma comptable nouveau**. Historique de
+  consommation (date, facture, montant) et solde restant visibles sur la fiche
+  de l'avoir. Réactive FEAT-005, abandonnée en juin faute de cadrage comptable.
+- **US-PERS-01 — génération de mot de passe du personnel.** Bouton « Générer un
+  mot de passe » (Web Crypto, 12 caractères minimum, 4 classes, sans caractère
+  ambigu), champ affiché en clair, bouton « Copier », et modale bloquante
+  rappelant à la création que le mot de passe ne sera plus affiché.
+- **US-FACT-01 (complément) — mention « Non réglée »** sur le PDF facture, et
+  « Partiellement réglée — reste à payer X » quand un solde subsiste. Les
+  règlements par avoir affichent le numéro de l'avoir imputé.
+
+### Changed — backlog MIKADO (2026-08-09)
+- **US-UX-01 — la recherche ne se déclenche plus pendant la frappe.** Le
+  debounce des tables serveur est remplacé par une validation explicite
+  (touche « Entrée » ou bouton « Rechercher »), sur les ~19 tables du produit.
+
+### Fixed — backlog MIKADO (2026-08-09)
+- **US-UX-01 (volet caché) — 6 barres de recherche totalement inertes**
+  réactivées : Personnel (admin et staff), Factures, Avoirs, Remboursements et
+  Paiements côté staff. Le `searchKey` était posé mais ni `onSearchChange` ni le
+  paramètre `search` n'étaient transmis ; les routers l'acceptaient déjà.
+- **US-UX-02 — contraste du sélecteur d'enfant en mode sombre** (Inscription >
+  Nouvelle inscription) : couleurs codées en dur remplacées par les tokens du
+  design system, qui sont déclinés dans la palette sombre.
+- **US-UX-03 — bloc signature de la fiche enfant recouvert.** Les 5 points
+  d'autorisation étaient passés au footer PDF, positionné en absolu, et se
+  superposaient au cadre de signature. Ils sont désormais rendus dans le flux,
+  après la signature, avec une marge basse réservée.
+- **US-PERS-02 — fiche détail du personnel épurée** : suppression de
+  « Documents PDF liés à ce personnel (0) » et « Aucun document PDF pour ce
+  personnel. ».
+- `pnpm lint` était cassé (dépendance `@eslint/eslintrc` absente du manifeste) :
+  la gate lint n'était pas exécutable. Rétabli — 0 erreur.
+
 ### Fixed
 - Assainissement données (TD-002) : les 10 factures brouillon legacy à 0 XPF
   (importées de l'ancienne app, non payables) sont passées en **Annulée** en

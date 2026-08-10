@@ -20,6 +20,7 @@ import { BreadcrumbProvider } from '@/components/layout/breadcrumb-provider';
 import { CreditNoteActions } from '@/components/admin/credit-notes/credit-note-actions';
 import { StatusBadge } from '@/components/shared/status-badge';
 import Link from 'next/link';
+import { CreditConsumptionCard } from '@/components/shared/credit-consumption-card';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -130,6 +131,15 @@ export default async function CreditNoteDetailsPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Historique de consommation du crédit (US-FACT-02) */}
+      <CreditConsumptionCard
+        availableCredit={creditNote.availableCredit}
+        creditOriginalAmount={creditNote.creditOriginalAmount}
+        creditExpiresAt={creditNote.creditExpiresAt}
+        creditApplications={creditNote.creditApplications}
+        invoiceBasePath="/dashboard/admin/invoices"
+      />
 
       {/* Lignes */}
       <Card>

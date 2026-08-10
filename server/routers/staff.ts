@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
 import { router, staffProcedure } from '@/server/trpc/init';
+import { generatePassword, BCRYPT_ROUNDS } from '@/server/helpers/password';
 import type { Prisma } from '@prisma/client';
 
 // Output schemas use plain z.string() for email (no .email()) to avoid
@@ -114,13 +115,19 @@ export const staffRouter = router({
       lastName: z.string().min(2).max(50),
       email: z.string().email(),
       phone: z.string().regex(/^[\d\s\-\(\)\+]*$/).optional().or(z.literal('')),
+      // Optionnel : si absent/vide, le serveur génère un mot de passe robuste
+      // et renvoie le clair une seule fois (champ `generatedPassword`).
       password: z.string()
         .min(8)
         .regex(/[A-Z]/)
         .regex(/[a-z]/)
-        .regex(/[0-9]/),
+        .regex(/[0-9]/)
+        .optional()
+        .or(z.literal('')),
     }))
-    .output(staffMemberSchema)
+    // `generatedPassword` n'est renseigné QUE si le mot de passe a été généré
+    // côté serveur (saisie admin laissée vide). Sinon `null`.
+    .output(staffMemberSchema.extend({ generatedPassword: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
       const existingUser = await ctx.prisma.user.findUnique({
         where: { email: input.email },
@@ -142,7 +149,14 @@ export const staffRouter = router({
         });
       }
 
-      const hashedPassword = await hash(input.password, 12);
+      // Si l'admin n'a pas saisi de mot de passe, on en génère un et on le
+      // renverra en clair une seule fois pour transmission au membre.
+      const providedPassword = input.password && input.password.trim() !== ''
+        ? input.password
+        : null;
+      const wasGenerated = providedPassword === null;
+      const plainPassword = providedPassword ?? generatePassword();
+      const hashedPassword = await hash(plainPassword, BCRYPT_ROUNDS);
 
       const result = await ctx.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -184,6 +198,7 @@ export const staffRouter = router({
         phone: result.phone,
         createdAt: result.createdAt,
         updatedAt: result.updatedAt,
+        generatedPassword: wasGenerated ? plainPassword : null,
       };
     }),
 

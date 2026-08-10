@@ -2,19 +2,10 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
 import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
+import { generatePassword, BCRYPT_ROUNDS } from '@/server/helpers/password';
 import type { Prisma, UserRole } from '@prisma/client';
 
 type Role = 'PARENT' | 'STAFF' | 'ADMIN';
-
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const segments = [3, 4, 2];
-  return segments
-    .map((length) =>
-      Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join(''),
-    )
-    .join('-');
-}
 
 // Output schema: lenient on email (z.string()) to tolerate legacy malformed
 // rows. Input/mutation schemas keep z.string().email().
@@ -193,7 +184,7 @@ export const usersRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Le profil staff est requis pour les utilisateurs STAFF' });
       }
 
-      const hashedPassword = await hash(input.password, 12);
+      const hashedPassword = await hash(input.password, BCRYPT_ROUNDS);
 
       const user = await ctx.prisma.$transaction(async (tx) => {
         const newUser = await tx.user.create({
@@ -418,8 +409,8 @@ export const usersRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
-      const tempPassword = input.newPassword || generateTempPassword();
-      const hashedPassword = await hash(tempPassword, 12);
+      const tempPassword = input.newPassword || generatePassword();
+      const hashedPassword = await hash(tempPassword, BCRYPT_ROUNDS);
 
       const updated = await ctx.prisma.account.updateMany({
         where: { userId: input.userId, provider: 'credentials' },

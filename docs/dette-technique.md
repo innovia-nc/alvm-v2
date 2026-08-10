@@ -31,6 +31,39 @@ garde-fou ; 15 inscriptions CONFIRMED/UNPAID préservées et refacturables.
 **Reste (action ALVM)** : refacturer au bon tarif les inscriptions concernées
 via l'app (les montants se préremplissent depuis les tarifs des camps).
 
+## TD-003 — Suppression d'un paiement par avoir : allocation non reprise — P3 — OPEN
+
+**Constat (2026-08-09, US-FACT-02)** : `payments.delete` supprime le paiement,
+annule ses écritures et recalcule `paid_amount`, mais ne supprime ni la
+`CreditNoteAllocation` ni la `CreditApplication` associées, et ne recrédite pas
+`ParentCredit.amountRemaining`. Un avoir consommé puis « dé-consommé » par
+suppression du paiement reste donc compté comme utilisé.
+
+**Antériorité** : le défaut existe depuis le chemin manuel de règlement par
+avoir (`payments.create`) — il n'est pas introduit par l'imputation automatique,
+qui écrit exactement les mêmes enregistrements. US-FACT-02 le rend simplement
+plus fréquent, puisque les imputations deviennent automatiques.
+
+**Impact** : solde d'avoir sous-évalué après une suppression de paiement. Aucun
+impact comptable (les écritures BQ, elles, sont bien annulées).
+
+**Résolution cible** : dans `payments.delete`, si `creditNoteId` est renseigné,
+supprimer l'allocation et l'application correspondantes et ré-incrémenter
+`amountRemaining`, le tout dans la transaction existante. Prévoir un test
+« imputer → supprimer le paiement → solde restauré ».
+
+## TD-A2 — Couverture de test du PDF facture — P3 — DONE (2026-08-09)
+
+**Constat (2026-06-08, QA Lot A)** : FEAT-001 n'était couvert que sur la shape
+de la requête `generatePDF` ; ni le mapping des paiements ni le rendu du bloc
+PDF n'étaient testés.
+
+**✅ Résolu (US-FACT-01)** : `test/unit/invoice-pdf.spec.tsx` (7 cas) couvre le
+rendu du bloc « MODES DE RÈGLEMENT » — facture non réglée, réglée en un
+paiement, réglée en plusieurs paiements, partiellement réglée, soldée, et
+règlement par avoir. `test/helpers/react-tree.ts` fournit l'introspection
+d'arbre React nécessaire (les composants `@react-pdf` ne produisent pas de DOM).
+
 ## TD-001 — Typage `any` des mappers dans `server/routers/**` — P2 — OPEN
 
 **Constat (2026-07-06, introduction d'ESLint)** : les fonctions de mapping

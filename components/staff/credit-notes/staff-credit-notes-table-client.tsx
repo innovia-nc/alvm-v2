@@ -16,6 +16,9 @@ import {
 export function StaffCreditNotesTableClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // Terme de recherche soumis (validation « Entrée » / bouton — US-UX-01).
+  const [search, setSearch] = useState('');
+
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
@@ -23,6 +26,7 @@ export function StaffCreditNotesTableClient() {
   const { data, isLoading } = trpc.creditNotes.list.useQuery({
     limit: pagination.limit,
     offset: pagination.offset,
+    search,
   });
 
   // Filtrer les données par statut côté client
@@ -56,6 +60,7 @@ export function StaffCreditNotesTableClient() {
         pagination={pagination}
         searchKey="creditNoteNumber"
         searchPlaceholder="Rechercher par numéro, facture, parent ou raison..."
+        onSearchChange={setSearch}
       />
     </div>
   );
