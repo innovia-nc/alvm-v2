@@ -7,7 +7,7 @@ import {
     StyleSheet,
     Image,
 } from '@react-pdf/renderer';
-import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
+import { PDFFooter, PDF_FOOTER_RESERVED_SPACE, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -43,6 +43,10 @@ type StaffProfileData = {
 const styles = StyleSheet.create({
     page: {
         padding: 40,
+        // TD-004 : le pied de page est hors du flux, il faut lui réserver sa
+        // place sous peine de voir le bloc signature le recouvrir (US-UX-03
+        // sur la fiche enfant, structurellement identique).
+        paddingBottom: PDF_FOOTER_RESERVED_SPACE,
         fontSize: 10,
         fontFamily: 'Helvetica',
     },
@@ -110,17 +114,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 3,
         borderRadius: 10,
-    },
-    footer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 40,
-        right: 40,
-        paddingTop: 10,
-        borderTop: '1 solid #e5e7eb',
-        fontSize: 8,
-        color: '#9ca3af',
-        textAlign: 'center',
     },
     signatureSection: {
         marginTop: 40,

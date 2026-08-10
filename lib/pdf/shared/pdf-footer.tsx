@@ -29,6 +29,22 @@ export interface OrgInfo {
   legalForm?: string; // ex: "Association loi 1901", "SAS", "SARL"
 }
 
+/**
+ * Place à réserver en bas de page (`paddingBottom` du style `page`) pour tout
+ * document qui rend un `PDFFooter`.
+ *
+ * Le footer est en `position: absolute` (`bottom: 16`) : il est donc hors du
+ * flux, et le contenu qui coule en bas de page passe DESSOUS si la page ne lui
+ * réserve pas la place. Avec ses 3 lignes de coordonnées, la mention légale et
+ * la ligne méta, il occupe ~70pt — davantage dès qu'une ligne se replie.
+ * 90pt couvrent ce cas avec une marge de sécurité.
+ *
+ * Deux incidents de recette ont eu cette même cause racine : US-UX-03 (bloc
+ * signature de la fiche enfant recouvert) et US-FACT-01-bis (tableau des modes
+ * de règlement recouvert au-delà de 4 règlements). Voir TD-004.
+ */
+export const PDF_FOOTER_RESERVED_SPACE = 90;
+
 export interface PDFFooterProps {
   org: OrgInfo;
   /** Mention spécifique au document (depuis settings/documents) */

@@ -87,6 +87,80 @@ frequente par elle. Voir `docs/dette-technique.md`.
 
 ---
 
+## Retours de recette — livre le 2026-08-10
+
+Source : `Backlog MIKADO 2` (retours de tests, compte `admin@alvm.nc`). 4 US,
+~5 SP estimes. Toutes livrees.
+
+| ID | Titre | Est. | Etat | Notes de livraison |
+|----|-------|------|------|--------------------|
+| US-FACT-01-bis | Chevauchement des modes de reglement au-dela de 4 | 1 SP | ✅ DONE | Meme cause racine que US-UX-03 : footer PDF en `position: absolute` sans reserve de place. `paddingBottom: 90` + lignes insecables. |
+| US-FACT-02-bis | Liste des factures vide a la creation d'un avoir | 2 SP | ✅ DONE | Le formulaire demandait `limit: 500` alors que le routeur plafonne a 100 : la requete etait rejetee par Zod et l'erreur n'etait pas affichee. |
+| US-FAM-01 | Suppression bloquee a tort pour un parent sans enfant | 1 SP | ✅ DONE | Lien orphelin vers un enfant **archive** : le lien survivait au soft-delete et declenchait le trigger legacy. |
+| US-FAM-02 | Message d'erreur technique brut a la suppression | 1 SP | ✅ DONE | Verification metier en amont + interception de l'erreur BDD en filet de securite. |
+
+### Causes racines (diagnostic)
+
+- **US-FACT-01-bis.** Le `PDFFooter` partage est en `position: absolute`
+  (`bottom: 16`) et occupe ~70pt une fois les coordonnees et la mention legale
+  rendues. La page facture ne reservait que ses 40pt de padding : le contenu
+  qui coule en bas de page passait **sous** le pied de page. Mesure sur rendu
+  reel (2 lignes de facture) : a 4 reglements le bas du tableau tombait a
+  y=67,5 et a 5 reglements a y=43,5, soit **dans** la bande du pied de page
+  (dont la ligne haute est a y=61,7). Correctif identique a celui de US-UX-03
+  sur la fiche enfant : `paddingBottom: 90`, plus `wrap={false}` sur les lignes
+  de reglement et sur le bloc des totaux, et `minPresenceAhead` sur le titre
+  de section pour qu'il ne reste pas seul en bas de page. Contrepartie assumee :
+  une facture chargee bascule sur une 2e page un peu plus tot qu'avant — le
+  scenario Gherkin autorise explicitement le saut de page.
+
+- **US-FACT-02-bis.** `credit-note-form.tsx` appelait
+  `invoices.list({ limit: 500 })` alors que l'input du routeur est plafonne a
+  `max(100)`. Zod rejetait la requete, `data` restait `undefined` et le
+  `Select` se rendait vide — **sans aucun message**, l'erreur de la query
+  n'etant pas lue. Correctif : `limit: 100`, filtre explicite sur les statuts
+  eligibles, et affichage de l'erreur comme de l'etat vide.
+
+- **US-FAM-01 / US-FAM-02.** L'invariant « un enfant a toujours au moins un
+  parent » est porte par un **trigger legacy** de la BDD (absent du depot, donc
+  invisible des tests unitaires mockes). `parents.delete` supprimait *tous* les
+  liens du parent (`childParent.deleteMany`) apres avoir archive les enfants
+  dont il etait le seul parent — le trigger, lui, ne se soucie pas du
+  soft-delete et refusait la suppression du dernier lien. Consequence :
+  l'erreur brute de Prisma remontait telle quelle jusqu'a l'utilisateur, y
+  compris pour un parent **sans aucun enfant visible** — cas ou un enfant
+  archive conservait son lien (le soft-delete masque l'enfant dans
+  `children.list`, mais la ligne `children_parents` subsiste).
+
+### Arbitrages retenus (points laisses ouverts par les DoR)
+
+- **US-FACT-01-bis — comportement au-dela de 4 lignes.** Saut de page
+  automatique (option explicitement ouverte par le Gherkin), et non
+  redimensionnement : reduire la police du tableau des reglements degraderait
+  la lisibilite d'un document comptable.
+- **US-FACT-02-bis — statuts eligibles a un avoir.** Retenu : **SENT, PAID,
+  OVERDUE**. `DRAFT` est un devis (aucune ecriture comptable emise, le PDF
+  porte d'ailleurs le titre « DEVIS ») et `CANCELLED` / `CREDITED` n'ont plus
+  rien a crediter. **A confirmer avec le metier** : le filtre est pose sur le
+  selecteur ; `creditNotes.create` reste volontairement permissif pour ne pas
+  invalider des avoirs existants tant que l'arbitrage n'est pas confirme.
+- **US-FAM-01 / US-FAM-02 — sort des enfants du dernier parent.** Le
+  comportement precedent (archiver silencieusement l'enfant) est remplace par
+  un **blocage explicite**, conformement aux deux scenarios Gherkin. Un lien
+  vers un enfant **deja archive** ne bloque plus mais est **conserve** :
+  le supprimer violerait l'invariant.
+
+### Ecart constate
+
+- **Perimetre du chevauchement PDF.** Trois autres documents partagent le meme
+  `PDFFooter` sans reserver de place en bas de page : `credit-note-pdf`,
+  `staff-profile-pdf`, `attendance-list-pdf`. Ils portaient donc le meme defaut
+  latent. → **Traite le 2026-08-10** (TD-004) : les 5 documents declarent
+  desormais la reserve partagee `PDF_FOOTER_RESERVED_SPACE`, verrouillee par un
+  test sur PDF reellement rendu.
+
+---
+
 ## Priorisation — synthese
 
 **Quick wins (faire en premier, Valeur >= effort, tous READY) :**

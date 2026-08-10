@@ -14,7 +14,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer';
-import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
+import { PDFFooter, PDF_FOOTER_RESERVED_SPACE, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -47,6 +47,10 @@ export interface AttendanceListData {
 const styles = StyleSheet.create({
   page: {
     padding: 30,
+    // TD-004 : le pied de page est hors du flux, il faut lui réserver sa place
+    // sous peine de voir les dernières lignes du tableau le recouvrir — le cas
+    // le plus exposé du produit, la liste croissant avec l'effectif du camp.
+    paddingBottom: PDF_FOOTER_RESERVED_SPACE,
     fontSize: 9,
     fontFamily: 'Helvetica',
   },
@@ -166,18 +170,6 @@ const styles = StyleSheet.create({
     color: '#888',
     padding: 12,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 16,
-    left: 30,
-    right: 30,
-    paddingTop: 6,
-    borderTop: '1 solid #ccc',
-    fontSize: 8,
-    color: '#666',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
 });
 
 // ============================================================================
@@ -255,8 +247,10 @@ export const AttendanceListPDF: React.FC<{ data: AttendanceListData }> = ({ data
 
         {/* Tableau */}
         <View style={styles.table}>
-          {/* En-tête */}
-          <View style={styles.tableHeaderRow}>
+          {/* En-tête — `fixed` : répété en haut du tableau sur chaque page,
+              sans quoi les pages suivantes montrent des colonnes de dates
+              anonymes. */}
+          <View style={styles.tableHeaderRow} fixed wrap={false}>
             <View style={styles.nameCellHeader}>
               <Text>Enfant</Text>
             </View>
@@ -280,7 +274,11 @@ export const AttendanceListPDF: React.FC<{ data: AttendanceListData }> = ({ data
             </View>
           ) : (
             sortedRows.map((row, idx) => (
-              <View key={`${row.childLastName}-${row.childFirstName}-${idx}`} style={styles.tableRow}>
+              <View
+                key={`${row.childLastName}-${row.childFirstName}-${idx}`}
+                style={styles.tableRow}
+                wrap={false}
+              >
                 <View style={styles.nameCell}>
                   <Text style={styles.cellText}>
                     {row.childLastName.toUpperCase()} {row.childFirstName}

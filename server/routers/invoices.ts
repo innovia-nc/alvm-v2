@@ -211,6 +211,12 @@ export const invoicesRouter = router({
       offset: z.number().min(0).default(0),
       parentId: z.string().uuid().optional(),
       status: invoiceStatusEnum.optional(),
+      /**
+       * Filtre multi-statuts, pour les sélecteurs qui n'exposent qu'un
+       * sous-ensemble de factures (ex. factures éligibles à un avoir).
+       * Ignoré si `status` est fourni.
+       */
+      statuses: z.array(invoiceStatusEnum).min(1).optional(),
       search: z.string().optional(),
       sortBy: z.enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent']).default('issueDate'),
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
@@ -220,7 +226,7 @@ export const invoicesRouter = router({
       total: z.number(),
     }))
     .query(async ({ ctx, input }) => {
-      const { limit, offset, parentId, status, search, sortBy, sortOrder } = input;
+      const { limit, offset, parentId, status, statuses, search, sortBy, sortOrder } = input;
 
       const where: Prisma.InvoiceWhereInput = {
         deletedAt: null,
@@ -234,6 +240,7 @@ export const invoicesRouter = router({
       }
 
       if (status) where.status = status;
+      else if (statuses && statuses.length > 0) where.status = { in: statuses };
 
       if (search && search.trim().length > 0) {
         const q = search.trim();

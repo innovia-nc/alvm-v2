@@ -39,6 +39,22 @@ function makeParent(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Lien parent→enfant tel que le lit `parents.delete` (avec l'état de l'enfant). */
+function makeChildLink(
+  childId: string,
+  child: { firstName?: string; lastName?: string; deletedAt?: Date | null } = {},
+) {
+  return {
+    childId,
+    child: {
+      firstName: 'Enfant',
+      lastName: 'Dupont',
+      deletedAt: null,
+      ...child,
+    },
+  };
+}
+
 function makeParentWithUser(overrides: Record<string, unknown> = {}) {
   return {
     ...makeParent(),
@@ -860,58 +876,136 @@ describe('parents router', () => {
       ).rejects.toThrow('Parent non trouvé');
     });
 
-    it('should soft-delete orphan children (only this parent)', async () => {
+    // -----------------------------------------------------------------------
+    // US-FAM-01 / US-FAM-02 — invariant « un enfant a toujours >= 1 parent »
+    // -----------------------------------------------------------------------
+
+    it('should block deletion when the parent is the last parent of an active child (US-FAM-02)', async () => {
+      admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([makeChildLink(CHILD_ID_A, { firstName: 'Léa', lastName: 'Dupont' })])
+        .mockResolvedValueOnce([]); // aucun autre parent actif
+
+      await expect(
+        admin.caller.parents.delete({ id: PARENT_ID }),
+      ).rejects.toThrow('il est le dernier parent rattaché à Léa Dupont');
+
+      // Rien n'est écrit : ni archivage du parent, ni suppression de lien
+      expect(admin.mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(admin.mockPrisma.childParent.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('should list every blocking child in the error message (US-FAM-02)', async () => {
+      admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([
+          makeChildLink(CHILD_ID_A, { firstName: 'Léa', lastName: 'Dupont' }),
+          makeChildLink(CHILD_ID_B, { firstName: 'Tom', lastName: 'Dupont' }),
+        ])
+        .mockResolvedValueOnce([]);
+
+      await expect(
+        admin.caller.parents.delete({ id: PARENT_ID }),
+      ).rejects.toThrow('Léa Dupont, Tom Dupont');
+    });
+
+    it('should NOT block when the only linked child is already archived (US-FAM-01)', async () => {
+      // Cas constaté en recette : plus aucun enfant visible côté UI, mais le
+      // lien vers l'enfant archivé subsiste et faisait remonter l'erreur BDD.
       admin.mockPrisma.registration.count.mockResolvedValue(0);
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
-      admin.mockPrisma.childParent.findMany.mockResolvedValue([
-        { childId: CHILD_ID_A },
-        { childId: CHILD_ID_B },
-      ]);
-      // CHILD_ID_A has only 1 parent (orphan) — CHILD_ID_B has 2 parents (not orphan)
-      admin.mockPrisma.childParent.count
-        .mockResolvedValueOnce(1) // CHILD_ID_A — orphan
-        .mockResolvedValueOnce(2); // CHILD_ID_B — not orphan
-      admin.mockPrisma.child.update.mockResolvedValue({});
-      admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 2 });
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([makeChildLink(CHILD_ID_A, { deletedAt: new Date('2025-01-01') })])
+        .mockResolvedValueOnce([]);
 
       const result = await admin.caller.parents.delete({ id: PARENT_ID });
 
       expect(result.success).toBe(true);
-      // Only CHILD_ID_A should be soft-deleted (orphan)
-      expect(admin.mockPrisma.child.update).toHaveBeenCalledTimes(1);
-      expect(admin.mockPrisma.child.update).toHaveBeenCalledWith({
-        where: { id: CHILD_ID_A },
-        data: { deletedAt: expect.any(Date) },
+      // Le lien vers l'enfant archivé est CONSERVÉ : le supprimer violerait
+      // l'invariant (l'enfant se retrouverait sans aucun parent).
+      expect(admin.mockPrisma.childParent.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('should delete only the links of children that keep another parent', async () => {
+      admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([
+          makeChildLink(CHILD_ID_A),
+          makeChildLink(CHILD_ID_B, { deletedAt: new Date('2025-01-01') }),
+        ])
+        // CHILD_ID_A garde un autre parent actif, CHILD_ID_B non (mais archivé)
+        .mockResolvedValueOnce([{ childId: CHILD_ID_A }]);
+      admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await admin.caller.parents.delete({ id: PARENT_ID });
+
+      expect(result.success).toBe(true);
+      expect(admin.mockPrisma.childParent.deleteMany).toHaveBeenCalledWith({
+        where: { parentId: PARENT_ID, childId: { in: [CHILD_ID_A] } },
       });
     });
 
-    it('should not soft-delete children that have other parents', async () => {
+    it('should only count non-archived parents as remaining parents', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
-      admin.mockPrisma.childParent.findMany.mockResolvedValue([
-        { childId: CHILD_ID_A },
-      ]);
-      // Child has 2 parents — not orphan
-      admin.mockPrisma.childParent.count
-        .mockResolvedValueOnce(2);
-      admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 1 });
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([makeChildLink(CHILD_ID_A)])
+        .mockResolvedValueOnce([]);
 
-      await admin.caller.parents.delete({ id: PARENT_ID });
+      await expect(
+        admin.caller.parents.delete({ id: PARENT_ID }),
+      ).rejects.toThrow('dernier parent');
 
-      expect(admin.mockPrisma.child.update).not.toHaveBeenCalled();
+      expect(admin.mockPrisma.childParent.findMany).toHaveBeenLastCalledWith({
+        where: {
+          childId: { in: [CHILD_ID_A] },
+          parentId: { not: PARENT_ID },
+          parent: { deletedAt: null },
+        },
+        select: { childId: true },
+      });
     });
 
-    it('should clean childParent links', async () => {
+    it('should translate the legacy DB trigger error into a business message (US-FAM-02)', async () => {
+      admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([makeChildLink(CHILD_ID_A)])
+        .mockResolvedValueOnce([{ childId: CHILD_ID_A }]);
+      admin.mockPrisma.$transaction.mockRejectedValueOnce(
+        new Error(
+          'Invalid `prisma.childParent.deleteMany()` invocation: ' +
+            "Impossible de retirer le dernier parent d'un enfant",
+        ),
+      );
+
+      await expect(
+        admin.caller.parents.delete({ id: PARENT_ID }),
+      ).rejects.toThrow(
+        'Impossible de supprimer ce parent : il est le dernier parent rattaché à un enfant.',
+      );
+    });
+
+    it('should not swallow unrelated database errors', async () => {
+      admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.childParent.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      admin.mockPrisma.$transaction.mockRejectedValueOnce(new Error('connection reset'));
+
+      await expect(
+        admin.caller.parents.delete({ id: PARENT_ID }),
+      ).rejects.toThrow('connection reset');
+    });
+
+    it('should not delete any link when the parent has no child', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
-      admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });
 
-      await admin.caller.parents.delete({ id: PARENT_ID });
+      const result = await admin.caller.parents.delete({ id: PARENT_ID });
 
-      expect(admin.mockPrisma.childParent.deleteMany).toHaveBeenCalledWith({
-        where: { parentId: PARENT_ID },
-      });
+      expect(result.success).toBe(true);
+      expect(admin.mockPrisma.childParent.deleteMany).not.toHaveBeenCalled();
     });
 
     it('should check registrations with CONFIRMED status and deletedAt null', async () => {

@@ -184,6 +184,41 @@ describe('invoices router', () => {
         expect(call.where.status).toBe('PAID');
       });
 
+      // US-FACT-02-bis — sélecteur de facture du formulaire d'avoir
+      it('filters by multiple statuses when `statuses` is provided', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({ statuses: ['SENT', 'PAID', 'OVERDUE'] });
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.status).toEqual({ in: ['SENT', 'PAID', 'OVERDUE'] });
+      });
+
+      it('gives precedence to `status` over `statuses`', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({ status: 'PAID', statuses: ['SENT', 'OVERDUE'] });
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.status).toBe('PAID');
+      });
+
+      it('leaves the status filter open when neither is provided', async () => {
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.count.mockResolvedValue(0);
+
+        await caller.invoices.list({});
+
+        const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+        expect(call.where.status).toBeUndefined();
+      });
+
+      it('rejects an empty `statuses` array', async () => {
+        await expect(caller.invoices.list({ statuses: [] })).rejects.toThrow();
+      });
+
       it('applies parentId filter for non-PARENT users when provided', async () => {
         mockPrisma.invoice.findMany.mockResolvedValue([]);
         mockPrisma.invoice.count.mockResolvedValue(0);
