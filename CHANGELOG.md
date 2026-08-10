@@ -5,6 +5,41 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — TD-007 : le PDF d'avoir est enfin accessible (2026-08-10)
+- **Le document existait, personne ne pouvait l'obtenir.** `CreditNotePDF` était
+  complet et testé, mais sans procédure ni bouton. `creditNotes.generatePDF`
+  reprend la chaîne de la facture (settings partagées, archivage Blob, `pdfUrl`
+  mémorisé) et le PDF se télécharge depuis la fiche de l'avoir comme depuis la
+  liste.
+- **Montants au bon signe** : les montants d'un avoir sont stockés négatifs et
+  le document pose lui-même le « - » — la procédure transmet des valeurs
+  absolues, sans quoi le PDF aurait affiché `--12 000 XPF`.
+
+### Fixed — TD-008 : l'envoi par email fonctionne (2026-08-10)
+- **Deux boutons proposaient une action qui échouait à tous les coups.**
+  `invoices.sendEmail` levait une `TRPCError` de code `'NOT_IMPLEMENTED' as any`
+  — un code absent de l'énumération tRPC, que le `as any` cachait au
+  compilateur. L'envoi est désormais réellement implémenté : la facture (ou le
+  **devis**, tant qu'elle est en brouillon) part au parent avec son PDF en pièce
+  jointe.
+- **La pièce jointe ne peut pas diverger du PDF téléchargeable** : la génération
+  est extraite dans un service partagé par les deux chemins.
+- **Erreurs honnêtes** : environnement sans clé d'envoi → `PRECONDITION_FAILED`
+  avec un message explicite ; client sans adresse → `BAD_REQUEST` ; refus du
+  fournisseur → statut et motif remontés. `settings.isEmailConfigured` permet
+  aux écrans de désactiver le bouton plutôt que de laisser l'utilisateur
+  découvrir l'échec.
+
+### Fixed — TD-006 : blobs orphelins (2026-08-10)
+- **Un document supprimé restait téléchargeable.** `deleteFromStorage` n'était
+  appelé nulle part : supprimer un document enfant, un document personnel ou le
+  logo retirait la ligne en base sans supprimer le fichier, qui restait
+  accessible par son URL publique — et facturé. Les trois chemins (plus le
+  remplacement du logo) suppriment maintenant l'objet.
+- **En best effort, dans le bon ordre** : la suppression métier fait autorité ;
+  un store injoignable est tracé mais ne fait pas échouer l'opération, et ne
+  ressuscite pas un document que l'utilisateur croit supprimé.
+
 ### Fixed — TD-004 : pied de page des PDF (2026-08-10)
 - **Trois documents pouvaient écrire sous leur pied de page.** Le défaut
   remonté en recette sur la facture (US-FACT-01-bis) était structurel : le pied

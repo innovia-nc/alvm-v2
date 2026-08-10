@@ -1,5 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
+
+// TD-007 : le PDF d'avoir est câblé — on intercepte le rendu et l'upload pour
+// vérifier les données transmises au document sans lancer @react-pdf/renderer.
+const generateCreditNotePDF = vi.fn().mockResolvedValue(Buffer.from('%PDF-'));
+const uploadToStorage = vi.fn();
+
+vi.mock('@/lib/pdf/credit-note-pdf', () => ({
+  generateCreditNotePDF: (...args: unknown[]) => generateCreditNotePDF(...args),
+}));
+
+vi.mock('@/lib/storage/blob-storage', () => ({
+  uploadToStorage: (...args: unknown[]) => uploadToStorage(...args),
+  deleteFromStorage: vi.fn(),
+  deleteFromStorageBestEffort: vi.fn().mockResolvedValue(true),
+}));
+
 import {
   createTestCaller,
   ADMIN_USER,
@@ -71,6 +87,13 @@ describe('creditNotes router', () => {
     admin = createTestCaller(ADMIN_USER);
     staff = createTestCaller(STAFF_USER);
     parent = createTestCaller(PARENT_USER);
+    generateCreditNotePDF.mockClear();
+    generateCreditNotePDF.mockResolvedValue(Buffer.from('%PDF-'));
+    uploadToStorage.mockClear();
+    uploadToStorage.mockResolvedValue({
+      pathname: 'credit-notes/AVO-2025-0001.pdf',
+      url: 'https://store.blob.vercel-storage.com/credit-notes/AVO-2025-0001.pdf',
+    });
   });
 
   // --- Access control ---
@@ -281,5 +304,151 @@ describe('creditNotes router', () => {
 
     const result = await staff.caller.creditNotes.delete({ id: creditNoteId });
     expect(result.success).toBe(true);
+  });
+  // =========================================================================
+  // generatePDF (TD-007)
+  // =========================================================================
+
+  describe('generatePDF', () => {
+    const pdfCreditNote = {
+      ...fakeCreditNote,
+      creditedInvoice: { invoiceNumber: 'FAC-2025-0001' },
+      parent: {
+        firstName: 'Jean',
+        lastName: 'Dupont',
+        email: 'jean@test.com',
+        address: '15 Rue de la Baie',
+        city: 'Noumea',
+        postalCode: '98800',
+      },
+      lines: [
+        {
+          description: 'Remboursement partiel',
+          quantity: 1,
+          unitPrice: 10000,
+          totalPrice: 10000,
+          totalHt: -10000,
+        },
+      ],
+    };
+
+    it('should deny PARENT access', async () => {
+      await expect(
+        parent.caller.creditNotes.generatePDF({ id: creditNoteId }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('should throw NOT_FOUND when the credit note does not exist', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+      await expect(
+        admin.caller.creditNotes.generatePDF({ id: creditNoteId }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      expect(uploadToStorage).not.toHaveBeenCalled();
+    });
+
+    it('should only look for credit notes (not invoices)', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+      await expect(
+        admin.caller.creditNotes.generatePDF({ id: creditNoteId }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      expect(admin.mockPrisma.invoice.findFirst.mock.calls[0]![0].where).toMatchObject({
+        id: creditNoteId,
+        invoiceType: 'CREDIT_NOTE',
+        deletedAt: null,
+      });
+    });
+
+    it('should generate, upload and persist the PDF URL', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue(pdfCreditNote);
+      admin.mockPrisma.invoice.update.mockResolvedValue({});
+
+      const result = await admin.caller.creditNotes.generatePDF({ id: creditNoteId });
+
+      expect(result).toEqual({
+        success: true,
+        pdfUrl: 'https://store.blob.vercel-storage.com/credit-notes/AVO-2025-0001.pdf',
+      });
+      expect(uploadToStorage).toHaveBeenCalledWith(expect.anything(), {
+        pathname: `credit-notes/AVO-2025-0001-${creditNoteId}.pdf`,
+        contentType: 'application/pdf',
+      });
+      expect(admin.mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: creditNoteId },
+        data: {
+          pdfUrl: 'https://store.blob.vercel-storage.com/credit-notes/AVO-2025-0001.pdf',
+        },
+      });
+    });
+
+    it('should pass absolute amounts to the document (it prints the minus sign itself)', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue(pdfCreditNote);
+      admin.mockPrisma.invoice.update.mockResolvedValue({});
+
+      await admin.caller.creditNotes.generatePDF({ id: creditNoteId });
+
+      const data = generateCreditNotePDF.mock.calls[0]![0];
+      expect(data.totalAmount).toBe(11100);
+      expect(data.lines).toEqual([
+        {
+          description: 'Remboursement partiel',
+          quantity: 1,
+          unitPrice: 10000,
+          totalPrice: 10000,
+        },
+      ]);
+    });
+
+    it('should carry the credit note metadata (number, credited invoice, reason)', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue(pdfCreditNote);
+      admin.mockPrisma.invoice.update.mockResolvedValue({});
+
+      await admin.caller.creditNotes.generatePDF({ id: creditNoteId });
+
+      const data = generateCreditNotePDF.mock.calls[0]![0];
+      expect(data.creditNoteNumber).toBe('AVO-2025-0001');
+      expect(data.invoiceNumber).toBe('FAC-2025-0001');
+      expect(data.reason).toBe('Annulation partielle');
+      expect(data.parent.postalCode).toBe('98800');
+      expect(data.org.name).toBe('ALVM');
+    });
+
+    it('should label a standalone credit note as having no original invoice', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue({
+        ...pdfCreditNote,
+        creditedInvoiceId: null,
+        creditedInvoice: null,
+      });
+      admin.mockPrisma.invoice.update.mockResolvedValue({});
+
+      await admin.caller.creditNotes.generatePDF({ id: creditNoteId });
+
+      expect(generateCreditNotePDF.mock.calls[0]![0].invoiceNumber).toBe('Aucune');
+    });
+
+    it('should use the credit note footer mention from settings', async () => {
+      admin.mockPrisma.invoice.findFirst.mockResolvedValue(pdfCreditNote);
+      admin.mockPrisma.invoice.update.mockResolvedValue({});
+      admin.mockPrisma.appSetting.findMany.mockResolvedValue([
+        { category: 'documents', key: 'credit_note_footer', value: '"Avoir sans TGC"' },
+        { category: 'documents', key: 'invoice_footer', value: '"Mention facture"' },
+      ]);
+
+      await admin.caller.creditNotes.generatePDF({ id: creditNoteId });
+
+      expect(generateCreditNotePDF.mock.calls[0]![0].footerMention).toBe('Avoir sans TGC');
+    });
+
+    it('should allow STAFF to generate the PDF', async () => {
+      staff.mockPrisma.invoice.findFirst.mockResolvedValue(pdfCreditNote);
+      staff.mockPrisma.invoice.update.mockResolvedValue({});
+
+      const result = await staff.caller.creditNotes.generatePDF({ id: creditNoteId });
+
+      expect(result.success).toBe(true);
+    });
   });
 });

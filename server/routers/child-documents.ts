@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '@/server/trpc/init';
+import { deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
 
 const childDocumentSchema = z.object({
   id: z.string().uuid(),
@@ -125,6 +126,11 @@ export const childDocumentsRouter = router({
         where: { id: input.documentId },
         data: { deletedAt: new Date() },
       });
+
+      // TD-006 : sans cet appel, le PDF reste accessible par son URL publique
+      // (et facturé) après sa suppression fonctionnelle. Best effort : un
+      // échec côté store ne doit pas ressusciter le document.
+      await deleteFromStorageBestEffort(doc.fileUrl, 'document enfant');
 
       return { success: true };
     }),

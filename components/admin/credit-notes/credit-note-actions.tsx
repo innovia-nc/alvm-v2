@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle, XCircle, Trash2, MoreHorizontal, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, MoreHorizontal, Loader2, Download } from 'lucide-react';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 
 interface CreditNote {
@@ -29,6 +29,8 @@ interface CreditNote {
   creditNoteNumber: string;
   status: 'DRAFT' | 'SENT' | 'CANCELLED';
   isFutureCredit: boolean;
+  /** URL du PDF archivé, `null` tant qu'il n'a pas été généré (TD-007). */
+  pdfUrl: string | null;
 }
 
 interface CreditNoteActionsProps {
@@ -51,6 +53,20 @@ export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
     onError: (error) => {
       toast.error(error.message || 'Erreur lors de la mise à jour');
       setStatusDialogOpen(false);
+    },
+  });
+
+  // TD-007 : génération/archivage du PDF de l'avoir, puis ouverture.
+  const generatePDFMutation = trpc.creditNotes.generatePDF.useMutation({
+    onSuccess: (data) => {
+      toast.success("PDF de l'avoir généré avec succès");
+      router.refresh();
+      if (data?.pdfUrl) {
+        window.open(data.pdfUrl, '_blank');
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erreur lors de la génération du PDF');
     },
   });
 
@@ -81,6 +97,15 @@ export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
     deleteMutation.mutate({ id: creditNote.id });
   };
 
+  const handleDownloadPDF = () => {
+    // PDF déjà archivé : on l'ouvre directement, sans régénérer.
+    if (creditNote.pdfUrl) {
+      window.open(creditNote.pdfUrl, '_blank');
+      return;
+    }
+    generatePDFMutation.mutate({ id: creditNote.id });
+  };
+
   const getStatusActionLabel = (status: 'SENT' | 'CANCELLED') => {
     switch (status) {
       case 'SENT':
@@ -93,6 +118,20 @@ export function CreditNoteActions({ creditNote }: CreditNoteActionsProps) {
   return (
     <>
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownloadPDF}
+          disabled={generatePDFMutation.isPending}
+        >
+          {generatePDFMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
+          Télécharger le PDF
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon">

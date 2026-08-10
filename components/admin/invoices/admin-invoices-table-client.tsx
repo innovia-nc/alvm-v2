@@ -95,10 +95,15 @@ export function AdminInvoicesTableClient() {
     },
   });
 
+  // TD-008 : état de la configuration email — le dialogue de confirmation le
+  // dit explicitement plutôt que de laisser l'envoi échouer.
+  const { data: emailStatus } = trpc.settings.isEmailConfigured.useQuery();
+  const emailConfigured = emailStatus?.configured ?? true;
+
   // Mutation d'envoi email
   const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
-    onSuccess: () => {
-      toast.success('Email envoyé avec succès');
+    onSuccess: (data) => {
+      toast.success(`Email envoyé à ${data.sentTo}`);
       setSendingEmailItem(null);
       utils.invoices.list.invalidate();
       router.refresh();
@@ -303,6 +308,12 @@ export function AdminInvoicesTableClient() {
               Numéro : <strong>{sendingEmailItem?.invoiceNumber}</strong>
               <br />
               Destinataire : <strong>{sendingEmailItem?.parent.email}</strong>
+              {!emailConfigured && (
+                <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-yellow-900">
+                  <strong>Envoi indisponible :</strong> la configuration email de
+                  l'environnement est incomplète. Contactez l'administrateur.
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -311,7 +322,7 @@ export function AdminInvoicesTableClient() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSendEmail}
-              disabled={sendEmailMutation.isPending}
+              disabled={sendEmailMutation.isPending || !emailConfigured}
             >
               {sendEmailMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

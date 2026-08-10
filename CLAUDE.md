@@ -119,6 +119,31 @@ recette : US-UX-03 puis US-FACT-01-bis). Ajouter aussi le nouveau document a
 `test/unit/pdf-footer-overlap.spec.tsx` — le defaut n'apparait qu'au calcul de
 mise en page, un test d'arbre React ne le voit pas.
 
+### PDF d'avoir — montants en valeur absolue
+Un avoir stocke ses montants **negatifs** en base, mais `CreditNotePDF` pose
+lui-meme le signe « - » devant chaque valeur. `creditNotes.generatePDF` transmet
+donc des `Math.abs(...)` — sinon le document affiche `--12 000 XPF`. Ne pas
+"corriger" ces `Math.abs` sans regarder le composant.
+
+### Supprimer un fichier : la ligne ET le blob (TD-006)
+Toute suppression d'un enregistrement qui porte une URL de fichier
+(`ChildDocument.fileUrl`, `StaffDocument.fileUrl`, `organization.logo_url`) doit
+appeler `deleteFromStorageBestEffort(url, contexte)` **apres** l'ecriture en
+base. Deux regles :
+- la base d'abord — sinon un echec de suppression en base laisse une ligne qui
+  pointe vers un objet disparu ;
+- best effort — un store injoignable est trace, jamais propage : un document que
+  l'utilisateur a supprime ne doit pas ressusciter parce que Vercel Blob a
+  hoquete.
+
+### Envoi d'email (TD-008)
+`server/services/email.service.ts` est le seul point d'envoi (API REST Resend).
+La cle vit dans l'environnement (`RESEND_API_KEY`), l'identite d'expedition dans
+les settings `email`. Un environnement sans cle n'est pas un bug : les
+procedures levent `PRECONDITION_FAILED` et les ecrans desactivent le bouton via
+`settings.isEmailConfigured`. Ne jamais inventer de code d'erreur tRPC — c'est
+exactement ce que faisait le `'NOT_IMPLEMENTED' as any` supprime par TD-008.
+
 ### Un enfant a toujours au moins un parent
 Invariant porte par un **trigger legacy** de la BDD (absent du depot, donc
 invisible des tests mockes) : supprimer une ligne `children_parents` qui
@@ -170,7 +195,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-005 trigger legacy « dernier parent » absent du depot OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-004 reserve du pied de page PDF DONE ; TD-A2 couverture PDF facture DONE).
+- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-005 trigger legacy « dernier parent » absent du depot OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-004 reserve du pied de page PDF DONE ; TD-006 blobs orphelins DONE ; TD-007 PDF d'avoir cable DONE ; TD-008 envoi d'email implemente DONE ; TD-A2 couverture PDF facture DONE).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).

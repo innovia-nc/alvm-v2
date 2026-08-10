@@ -1,5 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
+
+// TD-006 : le blob du logo doit suivre la ligne en base (suppression, remplacement).
+const deleteFromStorageBestEffort = vi.fn().mockResolvedValue(true);
+vi.mock('@/lib/storage/blob-storage', () => ({
+  uploadToStorage: vi.fn(),
+  deleteFromStorage: vi.fn(),
+  deleteFromStorageBestEffort: (...args: unknown[]) =>
+    deleteFromStorageBestEffort(...args),
+}));
+
 import {
   createTestCaller,
   ADMIN_USER,
@@ -26,6 +36,8 @@ describe('settings router', () => {
   beforeEach(() => {
     admin = createTestCaller(ADMIN_USER);
     staff = createTestCaller(STAFF_USER);
+    deleteFromStorageBestEffort.mockClear();
+    deleteFromStorageBestEffort.mockResolvedValue(true);
   });
 
   it('should deny unauthenticated access to getAll', async () => {
@@ -141,5 +153,106 @@ describe('settings router', () => {
     admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
     const result = await admin.caller.settings.deleteLogoUrl();
     expect(result.success).toBe(true);
+  });
+
+  // TD-008 — l'UI doit savoir si l'envoi d'email est opérationnel
+  describe('isEmailConfigured (TD-008)', () => {
+    afterEach(() => {
+      delete process.env.RESEND_API_KEY;
+    });
+
+    it('should report not configured when the provider key is missing', async () => {
+      delete process.env.RESEND_API_KEY;
+
+      await expect(staff.caller.settings.isEmailConfigured()).resolves.toEqual({
+        configured: false,
+        fromEmail: null,
+      });
+      // Aucune lecture de settings inutile dans ce cas.
+      expect(staff.mockPrisma.appSetting.findMany).not.toHaveBeenCalled();
+    });
+
+    it('should report the sender address when configured', async () => {
+      process.env.RESEND_API_KEY = 'resend_test_key';
+      staff.mockPrisma.appSetting.findMany.mockResolvedValue([
+        { key: 'from_email', value: '"facturation@alvm.nc"' },
+      ]);
+
+      await expect(staff.caller.settings.isEmailConfigured()).resolves.toEqual({
+        configured: true,
+        fromEmail: 'facturation@alvm.nc',
+      });
+    });
+
+    it('should deny PARENT access', async () => {
+      const { caller } = createTestCaller(PARENT_USER);
+      await expect(caller.settings.isEmailConfigured()).rejects.toThrow(TRPCError);
+    });
+  });
+
+  // TD-006 — blobs orphelins
+  describe('logo — nettoyage du blob (TD-006)', () => {
+    it('should delete the blob when the logo is removed', async () => {
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
+        value: '"https://store.blob.vercel-storage.com/logo.png"',
+      });
+      admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
+
+      await admin.caller.settings.deleteLogoUrl();
+
+      expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
+        'https://store.blob.vercel-storage.com/logo.png',
+        expect.any(String),
+      );
+    });
+
+    it('should not call the store when no logo was set', async () => {
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue(null);
+      admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 0 });
+
+      await admin.caller.settings.deleteLogoUrl();
+
+      expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(undefined, expect.any(String));
+    });
+
+    it('should delete the previous blob when the logo is replaced', async () => {
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
+        value: '"https://store.blob.vercel-storage.com/old-logo.png"',
+      });
+      admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
+
+      await admin.caller.settings.setLogoUrl({
+        url: 'https://store.blob.vercel-storage.com/new-logo.png',
+      });
+
+      expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
+        'https://store.blob.vercel-storage.com/old-logo.png',
+        expect.any(String),
+      );
+    });
+
+    it('should not delete the blob when the same URL is re-saved', async () => {
+      const url = 'https://store.blob.vercel-storage.com/logo.png';
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
+        value: JSON.stringify(url),
+      });
+      admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
+
+      await admin.caller.settings.setLogoUrl({ url });
+
+      expect(deleteFromStorageBestEffort).not.toHaveBeenCalled();
+    });
+
+    it('should still succeed when the blob store fails', async () => {
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
+        value: '"https://store.blob.vercel-storage.com/logo.png"',
+      });
+      admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
+      deleteFromStorageBestEffort.mockResolvedValue(false);
+
+      const result = await admin.caller.settings.deleteLogoUrl();
+
+      expect(result.success).toBe(true);
+    });
   });
 });

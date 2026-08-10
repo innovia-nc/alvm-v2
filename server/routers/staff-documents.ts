@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '@/server/trpc/init';
+import { deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
 
 const staffDocumentSchema = z.object({
     id: z.string().uuid(),
@@ -98,6 +99,11 @@ export const staffDocumentsRouter = router({
                 where: { id: input.documentId },
                 data: { deletedAt: new Date() },
             });
+
+            // TD-006 : idem documents enfants — le blob doit suivre la ligne
+            // en base, sinon un document personnel supprimé reste lisible par
+            // quiconque connaît son URL.
+            await deleteFromStorageBestEffort(doc.fileUrl, 'document personnel');
 
             return { success: true };
         }),

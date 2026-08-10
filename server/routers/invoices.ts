@@ -12,6 +12,7 @@ import { toNum } from '@/server/helpers/decimal';
 import { createInvoiceAccountingEntries } from '@/server/services/accounting.service';
 import { applyAvailableCreditsToInvoice } from '@/server/services/credit-application.service';
 import { generateInvoiceNumber } from '@/server/helpers/invoice-number';
+import { generateAndStoreInvoicePdf } from '@/server/services/invoice-pdf.service';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
@@ -759,124 +760,106 @@ export const invoicesRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean(), pdfUrl: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const invoice = await ctx.prisma.invoice.findFirst({
-        where: { id: input.id, deletedAt: null },
-        include: {
-          parent: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              address: true,
-              city: true,
-              postalCode: true,
-            },
-          },
-          lines: {
-            where: { deletedAt: null },
-            select: {
-              description: true,
-              quantity: true,
-              unitPrice: true,
-              totalPrice: true,
-            },
-          },
-          payments: {
-            // Select whitelist : aucun champ sensible (référence bancaire,
-            // notes internes, opérateur de saisie) ne doit fuir dans le PDF.
-            select: {
-              amount: true,
-              paymentDate: true,
-              paymentMethod: {
-                select: { name: true },
-              },
-              // Numéro de l'avoir imputé, pour les règlements par avoir
-              // (US-FACT-02 — traçabilité sur la facture).
-              creditNote: {
-                select: { invoiceNumber: true },
-              },
-            },
-            orderBy: { paymentDate: 'asc' },
-          },
-        },
-      });
-      if (!invoice) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+      const { pdfUrl } = await generateAndStoreInvoicePdf(ctx.prisma, input.id);
+      return { success: true, pdfUrl };
+    }),
+
+  /**
+   * Envoie la facture (ou le devis, tant qu'elle est en brouillon) au parent,
+   * PDF en pièce jointe (TD-008).
+   *
+   * Le PDF est régénéré à chaque envoi : la pièce jointe reflète donc l'état
+   * du document au moment de l'envoi, et l'URL archivée est rafraîchie au
+   * passage.
+   */
+  sendEmail: staffProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean(), sentTo: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const {
+        isEmailConfigured,
+        getEmailSender,
+        sendEmail: sendTransactionalEmail,
+        escapeHtml,
+      } = await import('@/server/services/email.service');
+
+      if (!isEmailConfigured()) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message:
+            "L'envoi d'email n'est pas configuré sur cet environnement (clé RESEND_API_KEY absente). Contactez l'administrateur.",
+        });
+      }
+
+      const { invoice, pdfBuffer } = await generateAndStoreInvoicePdf(
+        ctx.prisma,
+        input.id,
+      );
+
+      const recipient: string | null = invoice.parent?.email ?? null;
+      if (!recipient) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: "Ce client n'a pas d'adresse email : impossible de lui envoyer le document.",
+        });
       }
 
       const { getPdfSettings } = await import('@/server/helpers/pdf-settings.helper');
-      const pdfSettings = await getPdfSettings(ctx.prisma);
+      const [pdfSettings, sender] = await Promise.all([
+        getPdfSettings(ctx.prisma),
+        getEmailSender(ctx.prisma),
+      ]);
 
-      const logoSetting = await ctx.prisma.appSetting.findUnique({
-        where: { category_key: { category: 'organization', key: 'logo_url' } },
-        select: { value: true },
-      });
-      const logoUrl: string | undefined = (() => {
-        const raw = logoSetting?.value;
-        if (!raw) return undefined;
-        try {
-          const parsed = JSON.parse(raw);
-          return typeof parsed === 'string' ? parsed : undefined;
-        } catch {
-          return raw;
-        }
-      })();
+      // Un brouillon n'est pas encore une facture : c'est le devis que les
+      // écrans admin proposent d'envoyer (« Envoyer le devis »).
+      const isQuote = invoice.status === 'DRAFT';
+      const label = isQuote ? 'devis' : 'facture';
+      const orgName = pdfSettings.org.shortName || pdfSettings.org.name;
+      const amount = `${toNum(invoice.totalAmount).toLocaleString('fr-FR')} XPF`;
+      const dueDate = new Date(invoice.dueDate).toLocaleDateString('fr-FR');
+      const greeting = `${invoice.parent.firstName} ${invoice.parent.lastName}`.trim();
 
-      const { generateInvoicePDF } = await import('@/lib/pdf/invoice-pdf');
-      const { uploadToStorage } = await import('@/lib/storage/blob-storage');
+      const subject = isQuote
+        ? `Votre devis ${invoice.invoiceNumber} — ${orgName}`
+        : `Votre facture ${invoice.invoiceNumber} — ${orgName}`;
 
-      const pdfBuffer = await generateInvoicePDF({
-        invoiceNumber: invoice.invoiceNumber,
-        issueDate: invoice.issueDate,
-        dueDate: invoice.dueDate,
-        status: invoice.status as 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED',
-        parent: invoice.parent,
-        lines: invoice.lines.map((l) => ({
-          description: l.description,
-          quantity: l.quantity,
-          unitPrice: toNum(l.unitPrice),
-          totalPrice: toNum(l.totalPrice),
-        })),
-        payments: invoice.payments.map((p) => ({
-          amount: toNum(p.amount),
-          paymentDate: p.paymentDate,
-          paymentMethod: p.paymentMethod.name,
-          creditNoteNumber: p.creditNote?.invoiceNumber ?? null,
-        })),
-        subtotalHt: toNum(invoice.subtotalHt),
-        taxAmount: toNum(invoice.taxAmount),
-        taxRate: toNum(invoice.taxRate) * 100,
-        totalAmount: toNum(invoice.totalAmount),
-        paidAmount: toNum(invoice.paidAmount),
-        org: pdfSettings.org,
-        footerMention: pdfSettings.mentions.invoice || undefined,
-        logoUrl,
-      });
+      const lines = [
+        `Bonjour ${greeting},`,
+        isQuote
+          ? `Vous trouverez en pièce jointe votre devis ${invoice.invoiceNumber} d'un montant de ${amount}.`
+          : `Vous trouverez en pièce jointe votre facture ${invoice.invoiceNumber} d'un montant de ${amount}, à régler avant le ${dueDate}.`,
+        `Pour toute question, répondez simplement à cet email.`,
+        `Cordialement,`,
+        orgName,
+      ];
 
-      const pathname = `invoices/${invoice.invoiceNumber}-${invoice.id}.pdf`;
-
-      const { url } = await uploadToStorage(pdfBuffer, {
-        pathname,
-        contentType: 'application/pdf',
-      });
-
-      await ctx.prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { pdfUrl: url },
+      await sendTransactionalEmail(
+        {
+          to: recipient,
+          subject,
+          text: lines.join('\n\n'),
+          html: lines
+            .map((line) => `<p>${escapeHtml(line)}</p>`)
+            .join('\n'),
+          attachments: [
+            {
+              filename: `${label}-${invoice.invoiceNumber}.pdf`,
+              content: pdfBuffer,
+            },
+          ],
+        },
+        sender,
+      ).catch((error: unknown) => {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message:
+            error instanceof Error
+              ? `Envoi impossible : ${error.message}`
+              : "Envoi impossible : erreur inconnue du fournisseur d'email.",
+        });
       });
 
-      return { success: true, pdfUrl: url };
-    }),
-
-  sendEmail: staffProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .output(z.object({ success: z.boolean() }))
-    .mutation(async ({ ctx, input }) => {
-      // TODO: Email sending will be implemented in Phase 3 (email setup)
-      throw new TRPCError({
-        code: 'NOT_IMPLEMENTED' as any,
-        message: "L'envoi d'email sera implémenté lors de la configuration email",
-      });
+      return { success: true, sentTo: recipient };
     }),
 
   fetchUnpaidRegistrations: staffProcedure

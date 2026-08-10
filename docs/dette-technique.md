@@ -125,6 +125,88 @@ la ligne haute est à y=61,7).
 n'existe qu'après calcul de mise en page. Tout nouveau document PDF doit donc
 être ajouté à ce spec, faute de quoi il n'est pas couvert.
 
+## TD-006 — Blobs orphelins : `deleteFromStorage` jamais appelé — P2 — DONE (2026-08-10)
+
+**Constat (2026-08-10)** : `lib/storage/blob-storage.ts` exportait
+`deleteFromStorage` sans qu'aucun appelant ne l'utilise. Toute suppression d'un
+document enfant, d'un document personnel ou du logo retirait la ligne en base
+sans supprimer l'objet correspondant sur Vercel Blob. Le remplacement du logo
+avait le même effet.
+
+**Risque** : les fichiers restaient **accessibles par leur URL publique après
+leur suppression fonctionnelle** (un certificat médical « supprimé » reste
+lisible de quiconque a gardé le lien) — et continuaient d'être facturés.
+
+**✅ Résolu (2026-08-10)** :
+- `deleteFromStorageBestEffort(url, contexte)` ajouté au module de stockage :
+  supprime l'objet, **avale** l'erreur du store (log `console.error`) et
+  retourne un booléen. La suppression métier fait autorité — un store
+  injoignable ne doit pas ressusciter un document que l'utilisateur a supprimé,
+  et l'ordre inverse (blob d'abord) laisserait une ligne pointant vers le vide.
+- Câblé dans `childDocuments.delete`, `staffDocuments.delete`,
+  `settings.deleteLogoUrl` et `settings.setLogoUrl` (ancien logo remplacé, sauf
+  ré-enregistrement de la même URL).
+- `deleteFromStorage` échoue désormais explicitement si `BLOB_READ_WRITE_TOKEN`
+  est absent, comme `uploadToStorage` le faisait déjà.
+- Tests : `test/unit/blob-storage.spec.ts` (contrat best-effort) et couverture
+  des trois chemins d'appel dans les specs des routers concernés.
+
+**Reste (action d'exploitation)** : les blobs déjà orphelins d'avant ce
+correctif ne sont pas rattrapés par le code — inventaire et purge à faire une
+fois sur le store.
+
+## TD-007 — PDF d'avoir complet mais non câblé — P2 — DONE (2026-08-10)
+
+**Constat (2026-08-10)** : `lib/pdf/credit-note-pdf.tsx` était complet, corrigé
+par TD-004 et couvert par `pdf-footer-overlap.spec.tsx`, mais aucun point
+d'entrée ne l'appelait : ni procédure tRPC, ni bouton. Une fonctionnalité prête
+à 90 %, pas de la dette à jeter.
+
+**✅ Résolu (2026-08-10)** :
+- `creditNotes.generatePDF` (staff) reprend la chaîne de `invoices.generatePDF` :
+  settings PDF partagées, rendu, archivage sur le store Blob sous
+  `credit-notes/{numéro}-{id}.pdf`, `pdfUrl` mémorisé sur la ligne.
+- **Signe des montants** : les montants d'un avoir sont stockés négatifs alors
+  que le document pose lui-même le « - » devant chaque valeur — la procédure
+  transmet donc des valeurs absolues, sinon le PDF afficherait `--12 000 XPF`.
+  Un test verrouille ce point.
+- Un avoir autonome (sans facture d'origine) affiche « Aucune » en face de
+  « Facture concernée » plutôt qu'un champ vide.
+- UI : bouton « Télécharger le PDF » sur la fiche de l'avoir et entrée
+  correspondante dans le menu de la liste — PDF déjà archivé ouvert directement,
+  généré à la volée sinon (même comportement que la facture).
+
+## TD-008 — `invoices.sendEmail` levait une erreur inexistante — P1 — DONE (2026-08-10)
+
+**Constat (2026-08-10)** : la procédure levait inconditionnellement une
+`TRPCError` de code `'NOT_IMPLEMENTED' as any` — code absent de l'énumération
+tRPC, d'où le `as any` qui masquait le problème au compilateur. Elle n'était pas
+morte : **deux boutons visibles** l'appelaient (« Envoyer par email » sur la
+fiche facture, « Envoyer le devis » dans la liste). L'application proposait donc
+une action qui échouait à tous les coups.
+
+**✅ Résolu (2026-08-10)** :
+- `server/services/email.service.ts` — envoi transactionnel via l'API REST de
+  Resend (`fetch`, aucun SDK dans le bundle serverless). La **clé** vient de
+  l'environnement (`RESEND_API_KEY`, comme tout secret), l'**identité
+  d'expédition** des settings `email` déjà administrables.
+- `server/services/invoice-pdf.service.ts` — la génération du PDF de facture est
+  extraite du router pour que l'envoi joigne **exactement** le document
+  téléchargeable (même requête, même rendu, même objet archivé).
+- `invoices.sendEmail` envoie la facture — ou le **devis**, tant qu'elle est en
+  brouillon — au parent, PDF en pièce jointe, et retourne le destinataire.
+  Erreurs typées : `PRECONDITION_FAILED` si l'environnement n'a pas de clé,
+  `BAD_REQUEST` si le client n'a pas d'adresse, `INTERNAL_SERVER_ERROR` avec le
+  statut et le corps renvoyés par le fournisseur.
+- `settings.isEmailConfigured` expose l'état de configuration (booléen +
+  adresse d'expédition, aucun secret) : le bouton de la fiche est désactivé et
+  la boîte de dialogue de la liste explique l'indisponibilité au lieu de laisser
+  l'envoi échouer.
+
+**Prérequis d'exploitation** : renseigner `RESEND_API_KEY` sur Vercel et
+vérifier le domaine d'envoi côté Resend (voir `docs/deploiement.md`). Sans
+cela, l'application ne casse pas — elle dit que l'envoi est indisponible.
+
 ## TD-005 — Trigger legacy « dernier parent » absent du dépôt — P2 — OPEN
 
 **Constat (2026-08-10, US-FAM-01/02)** : l'invariant « un enfant a toujours au
