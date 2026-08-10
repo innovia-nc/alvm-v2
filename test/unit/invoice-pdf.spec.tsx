@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { InvoicePDF } from '@/lib/pdf/invoice-pdf';
+import { PDF_FOOTER_RESERVED_SPACE } from '@/lib/pdf/shared/pdf-footer';
 import { flattenTree, elementText } from '@/test/helpers/react-tree';
 
 type Payment = {
@@ -164,15 +165,17 @@ describe('InvoicePDF — mise en page des règlements (US-FACT-01-bis)', () => {
   });
 
   it('réserve en bas de page la place occupée par le pied de page', () => {
-    // Le PDFFooter est en position absolue (bottom: 16) et occupe ~55pt. Sans
-    // cette réserve, le tableau des règlements coulait DESSOUS le pied de page.
+    // Le PDFFooter est en position absolue : sans cette réserve, le tableau des
+    // règlements coulait DESSOUS le pied de page. Le contrôle sur le PDF
+    // réellement rendu est dans `pdf-footer-overlap.spec.tsx` (TD-004) ; ici on
+    // verrouille simplement que la facture déclare bien la réserve partagée.
     const page = treeOf({ payments: sixPayments, paidAmount: 6000 }).find(
       (el) => (el.props as { size?: string }).size === 'A4',
     );
 
     expect(page).toBeDefined();
     const style = flatStyle((page!.props as { style?: unknown }).style);
-    expect(Number(style.paddingBottom)).toBeGreaterThanOrEqual(90);
+    expect(style.paddingBottom).toBe(PDF_FOOTER_RESERVED_SPACE);
   });
 
   it('interdit la coupure d\'une ligne de règlement par un saut de page', () => {

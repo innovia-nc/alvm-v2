@@ -12,7 +12,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
-import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
+import { PDFFooter, PDF_FOOTER_RESERVED_SPACE, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -69,13 +69,10 @@ interface InvoiceData {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    // Le PDFFooter est positionné en absolu (bottom: 16) et occupe ~55pt avec
-    // ses 3 lignes de coordonnées + la mention légale + la ligne méta. Sans
-    // réserve suffisante, le contenu qui coule en bas de page passe DESSOUS
-    // (US-FACT-01-bis : au-delà de 4 règlements, le tableau des modes de
-    // règlement recouvrait le pied de page). 90pt garantissent la séparation
-    // et forcent le saut de page, le footer étant `fixed` donc répété.
-    paddingBottom: 90,
+    // US-FACT-01-bis : au-delà de 4 règlements, le tableau des modes de
+    // règlement recouvrait le pied de page. La réserve force le saut de page,
+    // le footer étant `fixed` donc répété. Voir PDF_FOOTER_RESERVED_SPACE.
+    paddingBottom: PDF_FOOTER_RESERVED_SPACE,
     fontSize: 10,
     fontFamily: 'Helvetica',
   },

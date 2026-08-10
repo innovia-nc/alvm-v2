@@ -11,7 +11,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer';
-import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
+import { PDFFooter, PDF_FOOTER_RESERVED_SPACE, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -50,6 +50,9 @@ interface CreditNoteData {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
+    // TD-004 : le pied de page est hors du flux, il faut lui réserver sa place
+    // sous peine de voir le tableau des lignes le recouvrir.
+    paddingBottom: PDF_FOOTER_RESERVED_SPACE,
     fontSize: 10,
     fontFamily: 'Helvetica',
   },
@@ -144,15 +147,6 @@ const styles = StyleSheet.create({
     borderTop: '2 solid #dc2626',
     color: '#dc2626',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    textAlign: 'center',
-    fontSize: 8,
-    color: '#666',
-  },
   watermark: {
     position: 'absolute',
     top: '50%',
@@ -227,7 +221,7 @@ export const CreditNotePDF: React.FC<{ data: CreditNoteData }> = ({ data }) => {
           <Text style={styles.sectionTitle}>DÉTAILS DE L'AVOIR</Text>
 
           {/* Table Header */}
-          <View style={styles.tableHeader}>
+          <View style={styles.tableHeader} wrap={false} minPresenceAhead={30}>
             <Text style={styles.col1}>Description</Text>
             <Text style={styles.col2}>Quantité</Text>
             <Text style={styles.col3}>Prix unitaire</Text>
@@ -236,7 +230,7 @@ export const CreditNotePDF: React.FC<{ data: CreditNoteData }> = ({ data }) => {
 
           {/* Table Rows */}
           {data.lines.map((line, index) => (
-            <View key={index} style={styles.tableRow}>
+            <View key={index} style={styles.tableRow} wrap={false}>
               <Text style={styles.col1}>{line.description}</Text>
               <Text style={styles.col2}>{line.quantity}</Text>
               <Text style={styles.col3}>{formatCurrency(line.unitPrice)}</Text>
@@ -245,8 +239,8 @@ export const CreditNotePDF: React.FC<{ data: CreditNoteData }> = ({ data }) => {
           ))}
         </View>
 
-        {/* Total */}
-        <View style={styles.totalSection}>
+        {/* Total — bloc indivisible */}
+        <View style={styles.totalSection} wrap={false}>
           <View style={[styles.totalRow, styles.grandTotal]}>
             <Text>MONTANT DE L'AVOIR :</Text>
             <Text>-{formatCurrency(data.totalAmount)}</Text>

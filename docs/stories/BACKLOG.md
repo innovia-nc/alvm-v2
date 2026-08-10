@@ -154,8 +154,10 @@ Source : `Backlog MIKADO 2` (retours de tests, compte `admin@alvm.nc`). 4 US,
 
 - **Perimetre du chevauchement PDF.** Trois autres documents partagent le meme
   `PDFFooter` sans reserver de place en bas de page : `credit-note-pdf`,
-  `staff-profile-pdf`, `attendance-list-pdf`. Ils portent donc le meme defaut
-  latent. Non corriges (hors perimetre des 4 US) — a arbitrer.
+  `staff-profile-pdf`, `attendance-list-pdf`. Ils portaient donc le meme defaut
+  latent. → **Traite le 2026-08-10** (TD-004) : les 5 documents declarent
+  desormais la reserve partagee `PDF_FOOTER_RESERVED_SPACE`, verrouillee par un
+  test sur PDF reellement rendu.
 
 ---
 

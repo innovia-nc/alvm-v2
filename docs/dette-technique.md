@@ -88,24 +88,42 @@ paiement, réglée en plusieurs paiements, partiellement réglée, soldée, et
 règlement par avoir. `test/helpers/react-tree.ts` fournit l'introspection
 d'arbre React nécessaire (les composants `@react-pdf` ne produisent pas de DOM).
 
-## TD-004 — Trois PDF partagent le pied de page sans réserver sa place — P3 — OPEN
+## TD-004 — Trois PDF partagent le pied de page sans réserver sa place — P3 — DONE (2026-08-10)
 
 **Constat (2026-08-10, US-FACT-01-bis)** : `PDFFooter` est en
 `position: absolute` (`bottom: 16`) et occupe ~70pt une fois les coordonnées et
 la mention légale rendues. Une page ne lui laisse la place que si elle porte un
-`paddingBottom` supérieur à cette hauteur. Deux documents le font
+`paddingBottom` supérieur à cette hauteur. Deux documents le faisaient
 (`child-profile-pdf` depuis US-UX-03, `invoice-pdf` depuis US-FACT-01-bis) ;
-**trois ne le font pas** : `credit-note-pdf`, `staff-profile-pdf`,
+**trois ne le faisaient pas** : `credit-note-pdf`, `staff-profile-pdf`,
 `attendance-list-pdf`.
 
-**Risque** : même défaut que celui remonté en recette sur la facture — dès que
-le contenu remplit la page (avoir à nombreuses lignes, liste de présences
-longue), il se superpose au pied de page. Non observé à ce jour sur ces trois
-documents, mais structurellement identique.
+**✅ Résolu** :
 
-**Résolution cible** : `paddingBottom: 90` sur le style `page` des trois
-documents, et exposer la valeur comme constante partagée depuis
-`lib/pdf/shared/pdf-footer.tsx` pour que la contrainte cesse d'être implicite.
+1. La contrainte n'est plus implicite : `PDF_FOOTER_RESERVED_SPACE` (90pt) est
+   exportée par `lib/pdf/shared/pdf-footer.tsx`, à côté du composant qui la
+   crée, et les **cinq** documents la déclarent.
+2. Les styles `footer` morts, hérités d'avant le pied de page partagé, sont
+   supprimés des 4 fichiers qui les traînaient — ils désignaient une bande
+   différente de la vraie et égaraient le diagnostic.
+3. Les lignes de tableau des documents concernés sont rendues insécables
+   (`wrap={false}`), l'en-tête du tableau de présences est `fixed` pour être
+   répété sur chaque page — sans quoi les pages suivantes affichaient des
+   colonnes de dates anonymes.
+
+**Verrou** : `test/unit/pdf-footer-overlap.spec.tsx` rend les 5 documents avec
+assez de contenu pour remplir la page, relit la position réelle de chaque bloc
+de texte dans le PDF produit (`test/helpers/pdf-layout.ts`) et vérifie qu'aucun
+contenu ne s'écrit dans la bande du pied de page. La bande est **mesurée sur le
+rendu**, pas déduite de la constante : réduire la réserve fait échouer le test
+au lieu de rétrécir la zone contrôlée. Vérifié par mutation — réserve
+neutralisée, 4 documents sur 5 échouent, dont la facture sur le symptôme exact
+remonté en recette (« MODES DE RÈGLEMENT » à y=52,9, sous un pied de page dont
+la ligne haute est à y=61,7).
+
+**Limite connue** : un test d'arbre React ne peut pas détecter ce défaut, qui
+n'existe qu'après calcul de mise en page. Tout nouveau document PDF doit donc
+être ajouté à ce spec, faute de quoi il n'est pas couvert.
 
 ## TD-005 — Trigger legacy « dernier parent » absent du dépôt — P2 — OPEN
 

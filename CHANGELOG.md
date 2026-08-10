@@ -5,6 +5,25 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — TD-004 : pied de page des PDF (2026-08-10)
+- **Trois documents pouvaient écrire sous leur pied de page.** Le défaut
+  remonté en recette sur la facture (US-FACT-01-bis) était structurel : le pied
+  de page partagé est hors du flux, et seuls 2 des 5 documents lui réservaient
+  sa place. `credit-note-pdf`, `staff-profile-pdf` et `attendance-list-pdf`
+  réservent désormais la même hauteur — vérifié sur rendu réel : sans elle, la
+  liste de présence enfouissait 18 lignes d'enfants sous le pied de page et
+  l'avoir 14 blocs.
+- **La contrainte n'est plus implicite** : la hauteur à réserver est exportée
+  comme `PDF_FOOTER_RESERVED_SPACE` par le module du pied de page lui-même, au
+  lieu d'être un `90` recopié de fichier en fichier.
+- **Styles `footer` morts supprimés** dans les 4 documents qui les traînaient
+  depuis l'époque d'avant le pied de page partagé : ils décrivaient une bande
+  différente de la vraie et faussaient le diagnostic.
+- **Tableaux plus robustes au saut de page** : lignes rendues insécables sur la
+  facture, l'avoir et la liste de présence ; en-tête du tableau de présences
+  répété sur chaque page, les pages suivantes n'affichant jusqu'ici que des
+  colonnes de dates anonymes.
+
 ### Fixed — retours de recette (2026-08-10)
 - **US-FACT-01-bis — le tableau des modes de règlement recouvrait le pied de
   page.** Au-delà de 4 règlements, le contenu de la facture coulait *sous* le

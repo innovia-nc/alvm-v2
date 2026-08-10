@@ -17,7 +17,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
-import { PDFFooter, type OrgInfo } from './shared/pdf-footer';
+import { PDFFooter, PDF_FOOTER_RESERVED_SPACE, type OrgInfo } from './shared/pdf-footer';
 
 // ============================================================================
 // TYPES
@@ -69,11 +69,9 @@ interface ChildProfileData {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    // Le PDFFooter est positionné en absolu (bottom: 16) et occupe ~55pt avec
-    // ses 3 lignes de coordonnées + la ligne méta. Sans réserve suffisante, le
-    // contenu qui coule en bas de page passe DESSOUS (US-UX-03 : le bloc
-    // signature se retrouvait recouvert). 90pt garantissent la séparation.
-    paddingBottom: 90,
+    // US-UX-03 : sans cette réserve, le bloc signature passait sous le pied de
+    // page. Voir PDF_FOOTER_RESERVED_SPACE.
+    paddingBottom: PDF_FOOTER_RESERVED_SPACE,
     fontSize: 10,
     fontFamily: 'Helvetica',
   },
@@ -227,17 +225,6 @@ const styles = StyleSheet.create({
     color: '#444',
     textAlign: 'justify',
     lineHeight: 1.4,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    paddingTop: 10,
-    borderTop: '1 solid #ccc',
-    fontSize: 8,
-    color: '#666',
-    textAlign: 'justify',
   },
   emptyState: {
     fontStyle: 'italic',

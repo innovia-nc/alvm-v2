@@ -110,6 +110,15 @@ au lieu d'un appel HTTP au backend. Le mot de passe hashé est stocké dans
   `include`/`select` imbrique n'est PAS filtree : `children_parents` conserve
   donc ses lignes vers des enfants archives, invisibles cote UI.
 
+### PDF — reserver la place du pied de page
+`PDFFooter` (`lib/pdf/shared/pdf-footer.tsx`) est en `position: absolute` : il
+sort du flux. **Tout document qui le rend doit poser
+`paddingBottom: PDF_FOOTER_RESERVED_SPACE` sur le style de sa `Page`**, sinon le
+contenu qui coule en bas de page s'ecrit DESSOUS (deja remonte deux fois en
+recette : US-UX-03 puis US-FACT-01-bis). Ajouter aussi le nouveau document a
+`test/unit/pdf-footer-overlap.spec.tsx` — le defaut n'apparait qu'au calcul de
+mise en page, un test d'arbre React ne le voit pas.
+
 ### Un enfant a toujours au moins un parent
 Invariant porte par un **trigger legacy** de la BDD (absent du depot, donc
 invisible des tests mockes) : supprimer une ligne `children_parents` qui
@@ -161,7 +170,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-004 3 PDF sans reserve pour le pied de page OPEN ; TD-005 trigger legacy « dernier parent » absent du depot OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-A2 couverture PDF facture DONE).
+- `docs/dette-technique.md` — registre de dette (TD-001 typage any des mappers OPEN ; TD-005 trigger legacy « dernier parent » absent du depot OPEN ; TD-002 factures legacy 0 XPF DONE ; TD-003 divergence des deux vues du solde d'un avoir DONE ; TD-004 reserve du pied de page PDF DONE ; TD-A2 couverture PDF facture DONE).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).
