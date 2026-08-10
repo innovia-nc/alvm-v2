@@ -39,15 +39,6 @@ const settingSchema = z.object({
 });
 
 export const settingsRouter = router({
-  getAll: staffProcedure
-    .output(z.array(settingSchema))
-    .query(async ({ ctx }) => {
-      const rows = await ctx.prisma.appSetting.findMany({
-        orderBy: [{ category: 'asc' }, { key: 'asc' }],
-      });
-      return rows.map(mapSetting);
-    }),
-
   getByCategory: staffProcedure
     .input(z.object({ category: settingCategories }))
     .output(z.array(settingSchema))
@@ -57,47 +48,6 @@ export const settingsRouter = router({
         orderBy: { key: 'asc' },
       });
       return rows.map(mapSetting);
-    }),
-
-  getByCategoryKey: staffProcedure
-    .input(z.object({
-      category: settingCategories,
-      key: z.string().min(1),
-    }))
-    .output(settingSchema.nullable())
-    .query(async ({ ctx, input }) => {
-      const row = await ctx.prisma.appSetting.findUnique({
-        where: {
-          category_key: { category: input.category, key: input.key },
-        },
-      });
-      return row ? mapSetting(row) : null;
-    }),
-
-  update: adminProcedure
-    .input(z.object({
-      category: settingCategories,
-      key: z.string().min(1),
-      value: z.unknown(),
-    }))
-    .output(settingSchema)
-    .mutation(async ({ ctx, input }) => {
-      const row = await ctx.prisma.appSetting.upsert({
-        where: {
-          category_key: { category: input.category, key: input.key },
-        },
-        create: {
-          category: input.category,
-          key: input.key,
-          value: JSON.stringify(input.value),
-          updatedBy: ctx.user.id,
-        },
-        update: {
-          value: JSON.stringify(input.value),
-          updatedBy: ctx.user.id,
-        },
-      });
-      return mapSetting(row);
     }),
 
   updateBulk: adminProcedure
@@ -130,22 +80,6 @@ export const settingsRouter = router({
         ),
       );
       return { success: true, count: input.settings.length };
-    }),
-
-  getAsMap: staffProcedure
-    .output(z.record(z.string(), z.record(z.string(), z.unknown())))
-    .query(async ({ ctx }) => {
-      const rows = await ctx.prisma.appSetting.findMany({
-        select: { category: true, key: true, value: true },
-        orderBy: [{ category: 'asc' }, { key: 'asc' }],
-      });
-
-      const map: Record<string, Record<string, unknown>> = {};
-      for (const row of rows) {
-        if (!map[row.category]) map[row.category] = {};
-        map[row.category]![row.key] = row.value;
-      }
-      return map;
     }),
 
   /**

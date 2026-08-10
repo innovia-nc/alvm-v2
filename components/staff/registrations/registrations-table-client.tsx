@@ -50,7 +50,6 @@ export function RegistrationsTableClient() {
     registrationId: string;
     childName: string;
     campName: string;
-    currentStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
     newStatus: 'CONFIRMED' | 'WAITLIST';
   } | null>(null);
 
@@ -98,7 +97,6 @@ export function RegistrationsTableClient() {
                 registrationId: item.id,
                 childName: `${item.child.firstName} ${item.child.lastName}`,
                 campName: item.camp.name,
-                currentStatus: item.status,
                 newStatus: 'CONFIRMED',
               })
             }
@@ -108,7 +106,6 @@ export function RegistrationsTableClient() {
                 registrationId: item.id,
                 childName: `${item.child.firstName} ${item.child.lastName}`,
                 campName: item.camp.name,
-                currentStatus: item.status,
                 newStatus: 'WAITLIST',
               })
             }
@@ -187,7 +184,6 @@ export function RegistrationsTableClient() {
       {confirmDialog && (
         <RegistrationStatusDialog
           registrationId={confirmDialog.registrationId}
-          currentStatus={confirmDialog.currentStatus}
           childName={confirmDialog.childName}
           campName={confirmDialog.campName}
           newStatus={confirmDialog.newStatus}

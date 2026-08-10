@@ -41,7 +41,6 @@ export async function getPricingSetting(
   if (!Number.isFinite(parsed)) {
     // Defensive fallback: stored value is malformed (e.g. unquoted string, null,
     // or non-numeric JSON). Log so it can be fixed in BDD, but do not crash.
-    // eslint-disable-next-line no-console
     console.warn(
       `[settings] pricing.${key} value is not a finite number (got ${JSON.stringify(row.value)}). ` +
       `Falling back to default ${DEFAULTS.pricing[key]}.`,
@@ -72,7 +71,6 @@ export async function getDefaultDueDate(
     : DEFAULTS.pricing.payment_terms_days;
 
   if (safeDays !== days) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[settings] getDefaultDueDate received invalid days=${days}, falling back to ${safeDays}`,
     );

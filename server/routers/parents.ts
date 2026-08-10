@@ -145,18 +145,6 @@ export const parentsRouter = router({
       };
     }),
 
-  getMe: protectedProcedure
-    .output(parentSchema.nullable())
-    .query(async ({ ctx }) => {
-      if (ctx.user.role !== 'PARENT') return null;
-
-      const parent = await ctx.prisma.parent.findFirst({
-        where: { userId: ctx.user.id, deletedAt: null },
-      });
-
-      return parent ? mapParent(parent) : null;
-    }),
-
   getById: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(parentWithUserSchema.nullable())

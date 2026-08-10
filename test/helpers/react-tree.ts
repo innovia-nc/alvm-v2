@@ -23,7 +23,7 @@ export function flattenTree(
 }
 
 /** Concatène récursivement tous les textes contenus dans un nœud. */
-export function textOf(node: React.ReactNode): string {
+function textOf(node: React.ReactNode): string {
   let acc = '';
   React.Children.forEach(node, (child) => {
     if (typeof child === 'string' || typeof child === 'number') acc += String(child);
@@ -37,9 +37,4 @@ export function textOf(node: React.ReactNode): string {
 /** Texte rendu par un élément (ses enfants concaténés). */
 export function elementText(element: React.ReactElement): string {
   return textOf((element.props as { children?: React.ReactNode }).children);
-}
-
-/** Tous les textes de l'arbre, dans l'ordre de rendu. */
-export function allTexts(tree: React.ReactElement[]): string[] {
-  return tree.map(elementText);
 }

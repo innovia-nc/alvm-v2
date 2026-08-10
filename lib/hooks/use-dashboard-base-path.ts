@@ -2,12 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 
-export type DashboardBasePath =
+type DashboardBasePath =
   | '/dashboard/admin'
   | '/dashboard/staff'
   | '/dashboard/parent';
 
-export function getDashboardBasePathFromPathname(
+function getDashboardBasePathFromPathname(
   pathname: string,
 ): DashboardBasePath {
   if (pathname.startsWith('/dashboard/staff')) return '/dashboard/staff';

@@ -179,7 +179,8 @@ Les routers sont a migrer depuis `alvm-back/src/modules/` vers `server/routers/`
 Ordre de migration recommande :
 
 1. **Lot 1** : settings, campTypes, paymentMethods, staff (CRUD simples)
-2. **Lot 2** : auth, users, parents, childDocuments
+2. **Lot 2** : users, parents, childDocuments (le routeur `auth` a ete retire :
+   NextAuth porte la session et le profil)
 3. **Lot 3** : children, camps, attendances
 4. **Lot 4** : registrations
 5. **Lot 5** : invoices, payments, creditNotes, refunds, fec
@@ -195,7 +196,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (OPEN : TD-001 typage any des mappers ; TD-005 trigger legacy « dernier parent » absent du depot ; TD-009 aucune limitation de debit sur l'authentification. DONE : TD-002 factures legacy 0 XPF ; TD-003 divergence des deux vues du solde d'un avoir ; TD-004 reserve du pied de page PDF ; TD-006 blobs orphelins ; TD-007 PDF d'avoir cable ; TD-008 envoi d'email implemente ; TD-A2 couverture PDF facture).
+- `docs/dette-technique.md` — registre de dette (OPEN : TD-001 typage any des mappers ; TD-005 trigger legacy « dernier parent » absent du depot ; TD-009 aucune limitation de debit sur l'authentification ; TD-010 procedures tRPC sans ecran ; TD-011 auto-inscription parent sans serveur. DONE : TD-002 factures legacy 0 XPF ; TD-003 divergence des deux vues du solde d'un avoir ; TD-004 reserve du pied de page PDF ; TD-006 blobs orphelins ; TD-007 PDF d'avoir cable ; TD-008 envoi d'email implemente ; TD-A2 couverture PDF facture).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).

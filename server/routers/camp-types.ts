@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, staffProcedure, adminProcedure } from '@/server/trpc/init';
+import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
 
 const campTypeSchema = z.object({
   id: z.string().uuid(),
@@ -13,15 +13,6 @@ const campTypeSchema = z.object({
 });
 
 export const campTypesRouter = router({
-  list: publicProcedure
-    .output(z.array(campTypeSchema))
-    .query(async ({ ctx }) => {
-      return ctx.prisma.campType.findMany({
-        where: { active: true },
-        orderBy: { name: 'asc' },
-      });
-    }),
-
   listAll: staffProcedure
     .output(z.array(campTypeSchema))
     .query(async ({ ctx }) => {

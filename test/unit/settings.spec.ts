@@ -40,21 +40,18 @@ describe('settings router', () => {
     deleteFromStorageBestEffort.mockResolvedValue(true);
   });
 
-  it('should deny unauthenticated access to getAll', async () => {
+  it('should deny unauthenticated access to getByCategory', async () => {
     const { caller } = createTestCaller(null);
-    await expect(caller.settings.getAll()).rejects.toThrow(TRPCError);
+    await expect(
+      caller.settings.getByCategory({ category: 'organization' }),
+    ).rejects.toThrow(TRPCError);
   });
 
-  it('should deny PARENT access to getAll', async () => {
+  it('should deny PARENT access to getByCategory', async () => {
     const { caller } = createTestCaller(PARENT_USER);
-    await expect(caller.settings.getAll()).rejects.toThrow(TRPCError);
-  });
-
-  it('should return all settings for staff', async () => {
-    staff.mockPrisma.appSetting.findMany.mockResolvedValue([fakeSetting]);
-    const result = await staff.caller.settings.getAll();
-    expect(result).toHaveLength(1);
-    expect(result[0].key).toBe('name');
+    await expect(
+      caller.settings.getByCategory({ category: 'organization' }),
+    ).rejects.toThrow(TRPCError);
   });
 
   it('should return settings filtered by category', async () => {
@@ -68,44 +65,12 @@ describe('settings router', () => {
     );
   });
 
-  it('should return a specific setting by category+key', async () => {
-    staff.mockPrisma.appSetting.findUnique.mockResolvedValue(fakeSetting);
-    const result = await staff.caller.settings.getByCategoryKey({
-      category: 'organization',
-      key: 'name',
-    });
-    expect(result).not.toBeNull();
-    expect(result!.key).toBe('name');
-  });
-
-  it('should return null for missing setting', async () => {
-    staff.mockPrisma.appSetting.findUnique.mockResolvedValue(null);
-    const result = await staff.caller.settings.getByCategoryKey({
-      category: 'organization',
-      key: 'missing',
-    });
-    expect(result).toBeNull();
-  });
-
   it('should deny STAFF from updating settings', async () => {
     await expect(
-      staff.caller.settings.update({
-        category: 'organization',
-        key: 'name',
-        value: 'New Name',
+      staff.caller.settings.updateBulk({
+        settings: [{ category: 'organization', key: 'name', value: 'New Name' }],
       }),
     ).rejects.toThrow(TRPCError);
-  });
-
-  it('should allow ADMIN to upsert a setting', async () => {
-    admin.mockPrisma.appSetting.upsert.mockResolvedValue(fakeSetting);
-    const result = await admin.caller.settings.update({
-      category: 'organization',
-      key: 'name',
-      value: 'ALVM',
-    });
-    expect(result.key).toBe('name');
-    expect(admin.mockPrisma.appSetting.upsert).toHaveBeenCalledOnce();
   });
 
   it('should allow ADMIN to bulk update settings', async () => {
@@ -117,16 +82,6 @@ describe('settings router', () => {
     });
     expect(result.success).toBe(true);
     expect(result.count).toBe(1);
-  });
-
-  it('should return settings as nested map', async () => {
-    staff.mockPrisma.appSetting.findMany.mockResolvedValue([
-      { category: 'organization', key: 'name', value: '"ALVM"' },
-      { category: 'pricing', key: 'currency', value: '"XPF"' },
-    ]);
-    const result = await staff.caller.settings.getAsMap();
-    expect(result.organization?.name).toBe('"ALVM"');
-    expect(result.pricing?.currency).toBe('"XPF"');
   });
 
   it('should set logo URL', async () => {

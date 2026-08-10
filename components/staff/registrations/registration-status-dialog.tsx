@@ -16,7 +16,6 @@ import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 
 interface RegistrationStatusDialogProps {
   registrationId: string;
-  currentStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
   childName: string;
   campName: string;
   newStatus: 'CONFIRMED' | 'WAITLIST';

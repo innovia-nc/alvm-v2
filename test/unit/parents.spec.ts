@@ -292,63 +292,6 @@ describe('parents router', () => {
   });
 
   // =========================================================================
-  // getMe
-  // =========================================================================
-
-  describe('getMe', () => {
-    it('should deny unauthenticated access', async () => {
-      const { caller } = createTestCaller(null);
-      await expect(caller.parents.getMe()).rejects.toThrow(TRPCError);
-    });
-
-    it('should return parent profile for PARENT user', async () => {
-      parent.mockPrisma.parent.findFirst.mockResolvedValue(
-        makeParent({ userId: PARENT_USER.id }),
-      );
-
-      const result = await parent.caller.parents.getMe();
-
-      expect(result).not.toBeNull();
-      expect(result!.id).toBe(PARENT_USER.id);
-      expect(result!.userId).toBe(PARENT_USER.id);
-      expect(result!.firstName).toBe('Marie');
-    });
-
-    it('should return null for STAFF user', async () => {
-      const result = await staff.caller.parents.getMe();
-
-      expect(result).toBeNull();
-      // Should not even query prisma since role is not PARENT
-      expect(staff.mockPrisma.parent.findFirst).not.toHaveBeenCalled();
-    });
-
-    it('should return null for ADMIN user', async () => {
-      const result = await admin.caller.parents.getMe();
-
-      expect(result).toBeNull();
-      expect(admin.mockPrisma.parent.findFirst).not.toHaveBeenCalled();
-    });
-
-    it('should return null when parent record not found', async () => {
-      parent.mockPrisma.parent.findFirst.mockResolvedValue(null);
-
-      const result = await parent.caller.parents.getMe();
-
-      expect(result).toBeNull();
-    });
-
-    it('should query with deletedAt null filter', async () => {
-      parent.mockPrisma.parent.findFirst.mockResolvedValue(null);
-
-      await parent.caller.parents.getMe();
-
-      const findFirstCall = parent.mockPrisma.parent.findFirst.mock.calls[0][0];
-      expect(findFirstCall.where.userId).toBe(PARENT_USER.id);
-      expect(findFirstCall.where.deletedAt).toBeNull();
-    });
-  });
-
-  // =========================================================================
   // getById
   // =========================================================================
 

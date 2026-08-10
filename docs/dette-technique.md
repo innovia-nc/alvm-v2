@@ -249,58 +249,6 @@ révélé deux bugs réels masqués par `any` : champ inexistant
 `new Date(null)` possible sur la période d'un camp dans le formulaire
 d'inscription.
 
-## TD-006 — Blobs orphelins : `deleteFromStorage` n'est jamais appelé — P2 — OPEN
-
-**Constat (2026-08-10, passe de code mort)** : `lib/storage/blob-storage.ts`
-exporte `uploadToStorage` **et** `deleteFromStorage`. Seul le premier a un
-appelant (`invoices.generatePdf`). Le second n'est appelé de nulle part.
-
-Conséquence : chaque suppression d'un document enfant, d'un document personnel
-ou du logo de l'association retire la ligne en base **sans jamais supprimer
-l'objet dans Vercel Blob**. Les fichiers s'accumulent indéfiniment, restent
-accessibles par URL publique (`access: 'public'`) après leur suppression
-fonctionnelle, et sont facturés au stockage.
-
-L'export a été **conservé volontairement** lors de la passe de code mort : ce
-n'est pas du code mort à supprimer, c'est du code qu'il faut câbler.
-
-**Résolution cible** : appeler `deleteFromStorage(url)` dans les procédures de
-suppression de `child-documents`, `staff-documents` et du logo
-(`settings.deleteLogo`), en tolérant l'échec (un blob déjà absent ne doit pas
-faire échouer la suppression métier).
-
-## TD-007 — PDF d'avoir complet mais non câblé — P3 — OPEN
-
-**Constat (2026-08-10, passe de code mort)** : `lib/pdf/credit-note-pdf.tsx`
-définit un document complet (`CreditNotePDF`), corrigé par TD-004 et couvert par
-`test/unit/pdf-footer-overlap.spec.tsx`, plus son générateur de buffer
-`generateCreditNotePDF`. **Aucun des deux n'a d'appelant applicatif** : il
-n'existe ni procédure `creditNotes.generatePdf` (l'équivalent facture existe :
-`invoices.generatePdf`), ni route `/api/generate/...`, ni bouton de
-téléchargement sur la fiche d'un avoir.
-
-Conservé volontairement lors de la passe de code mort : supprimer ces 300 lignes
-supprimerait une fonctionnalité prête à 90 %, pas de la dette.
-
-**Résolution cible** : dupliquer le chemin `invoices.generatePdf` (rendu →
-`uploadToStorage` → URL) pour les avoirs et ajouter le bouton de
-téléchargement, ou trancher explicitement que l'avoir ne s'imprime pas et
-supprimer alors le document *et* son test.
-
-## TD-008 — `invoices.sendEmail` : bouton actif sur une procédure non implémentée — P2 — OPEN
-
-**Constat (2026-08-10, passe de code mort)** : `invoices.sendEmail` lève
-inconditionnellement une `TRPCError` de code `'NOT_IMPLEMENTED' as any` — code
-qui **n'existe pas** dans l'énumération tRPC, d'où le `as any` : le mapping vers
-un statut HTTP est donc indéfini. La procédure n'est pas morte pour autant :
-elle est câblée à **deux boutons visibles** (`admin-invoices-table-client.tsx`
-et `invoice-details.tsx`), qui proposent donc à l'utilisateur une action qui
-échoue à tous les coups.
-
-**Résolution cible** : implémenter l'envoi (Phase 3, configuration email), ou
-masquer les deux boutons d'ici là. Dans l'intervalle, remplacer au minimum le
-code d'erreur invalide par un code tRPC réel (`PRECONDITION_FAILED`).
-
 ## TD-009 — Aucune limitation de débit sur les endpoints d'authentification — P2 — OPEN
 
 **Constat (2026-08-10, passe de code mort)** : `lib/rate-limit.ts` fournissait
@@ -317,3 +265,58 @@ de passe n'est freiné que par le coût bcrypt (12 tours).
 **Résolution cible** : limitation de débit à état partagé — Vercel Firewall /
 rate limiting de la plateforme, ou compteur en base (une table `login_attempts`
 indexée sur email + IP). Ne pas réintroduire de compteur en mémoire de processus.
+
+## TD-010 — Procédures tRPC sans écran : la moitié serveur de fonctions jamais construites — P3 — OPEN
+
+**Constat (2026-08-10, deuxième passe de code mort)** : après le retrait des
+procédures redondantes, **11 procédures tRPC n'ont toujours aucun appelant** —
+ni page, ni composant, ni campagne de test réel. Elles n'ont pas été supprimées
+parce qu'aucune autre procédure ne couvre leur besoin : ce sont des fonctions
+dont seule la moitié serveur a été écrite. Les supprimer ferait disparaître la
+trace du manque ; les garder sans les tracer laisse croire qu'elles servent.
+
+| Procédure | Écran manquant |
+|-----------|----------------|
+| `invoices.updateStatus` | passage manuel en `OVERDUE` / `CANCELLED` — seule implémentation de la table de transitions documentée dans CLAUDE.md |
+| `camps.delete` | suppression d'un camp (la liste ne propose que dupliquer / modifier) |
+| `payments.statistics` | tableau de bord d'encaissement |
+| `fec.getEntries`, `fec.getStats` | consultation du journal comptable à l'écran (seul l'export existe) |
+| `parents.update` | modification par le parent de sa propre fiche (seul `updateByStaff` est câblé) |
+| `campTypes.toggleActive`, `paymentMethods.toggleActive` | activer/désactiver depuis les écrans de paramétrage — voir ci-dessous |
+| `attendances.list` | vue des présences côté PARENT (le pointage STAFF passe par `getGridForCamp`) |
+| `attendances.delete`, `attendances.getStatistics` | correction d'un pointage, statistiques de présence |
+| `registrations.getAvailableCredits` | affichage des avoirs disponibles (seul `pnpm smoke` l'appelle) |
+
+**Point d'attention immédiat** : les deux écrans de paramétrage
+(`/dashboard/admin/settings/camp-types` et `.../payment-methods`) affichent
+l'état actif/inactif en badge mais n'offrent **aucune action pour le changer**.
+Le seul écran qui savait le faire pour les types d'ACM était l'écran doublon
+`/dashboard/admin/camp-types`, supprimé par cette passe car absent de toute
+navigation. Rebrancher l'action « activer / désactiver » sur les deux tables de
+paramétrage est un correctif d'une demi-journée — et il vaut mieux le faire que
+laisser vivre deux écrans concurrents pour le même objet.
+
+**Résolution cible** : pour chaque ligne, trancher avec le PO — construire
+l'écran, ou supprimer la procédure. Toute procédure exposée sans écran reste
+appelable en HTTP par un utilisateur authentifié : ce n'est pas du code inerte.
+
+## TD-011 — L'auto-inscription des parents n'a jamais eu de serveur — P3 — OPEN
+
+**Constat (2026-08-10, deuxième passe de code mort)** : la page
+`/auth/signup/parent` et son formulaire (442 lignes, validation complète,
+connexion automatique après création) envoyaient leur `POST` à
+`/api/auth/signup` — **une route qui n'existe pas dans le dépôt**. L'URL tombe
+dans le catch-all NextAuth `/api/auth/[...nextauth]`, qui ne connaît pas cette
+action : le parcours échouait donc systématiquement. Aucun lien de
+l'application ne menait à cette page ; aucune procédure ni migration ne prévoit
+la création d'un compte PARENT en libre-service.
+
+Page et formulaire ont été supprimés : un écran public qui ne peut pas aboutir
+est un piège pour l'utilisateur qui tomberait sur l'URL, pas une fonctionnalité
+en attente.
+
+**Résolution cible** : si l'ALVM veut l'inscription en ligne des familles, elle
+se spécifie comme une US à part entière (qui crée le compte ? avec quelle
+vérification d'email ? quelle validation par le secrétariat ?) et elle
+s'implémente serveur d'abord. Aujourd'hui, les comptes parents sont créés par
+le personnel via `parents.create` / `parents.createByStaff`.

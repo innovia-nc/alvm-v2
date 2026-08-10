@@ -4,7 +4,7 @@
  * New Camp Page
  *
  * Page de création d'un nouveau camp de vacances.
- * Accessible uniquement aux animateurs et directeurs (animatorProcedure).
+ * Accessible au personnel et aux directeurs (camps.create — staffProcedure).
  */
 
 import { useRouter } from 'next/navigation';
