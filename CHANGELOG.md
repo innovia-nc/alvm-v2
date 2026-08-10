@@ -40,6 +40,48 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   un store injoignable est tracé mais ne fait pas échouer l'opération, et ne
   ressuscite pas un document que l'utilisateur croit supprimé.
 
+### Removed — passe de code mort (2026-08-10)
+
+Passe complète du dépôt à la recherche de code sans appelant. **2 472 lignes de
+code supprimées pour 36 ajoutées**, aucune modification de comportement : le
+build, `tsc --noEmit`, les 969 tests unitaires et le rendu des 61 routes sont
+inchangés.
+
+- **15 fichiers sans aucun importeur supprimés** — 4 composants shadcn/ui jamais
+  utilisés (`sheet`, `popover`, `breadcrumb`, `select-searchable`), l'îlot
+  `camp-days-editor` + `camp-day-dialog` (deux fichiers qui ne s'importaient
+  que l'un l'autre), `camps-cards` remplacé par `CampsTableClient`,
+  `use-debounced-value` (doublon de `use-debounce`, seul utilisé),
+  `lib/validation/{schemas,messages}`, `lib/constants/payment-methods`
+  (supplanté par les méthodes en base), `lib/utils/registration-helpers`,
+  `lib/trpc/cache-config` et `lib/rate-limit`.
+- **Route de démonstration `/test/select-searchable` supprimée** : page de
+  démo d'un composant, publiée en production **hors du middleware d'auth**.
+- **3 procédures tRPC sans consommateur retirées** — `campTypes.getById`,
+  `paymentMethods.getById` et surtout **`auth.verifyCredentials`**, mutation
+  *publique* qui répondait « ce couple email/mot de passe est-il valide ? » à
+  un appelant non authentifié. Elle était morte depuis que la vérification des
+  identifiants est locale à `lib/auth/config.ts` (cf. CLAUDE.md § Auth
+  simplifiée) ; elle restait exposée.
+- **Exports morts retirés** — `usersColumns` (qui exécutait `getUsersColumns()`
+  au chargement du module), `hasPermission` / `getCurrentRole` /
+  `isAuthenticated` / `getSession` de `lib/auth`.
+- **Dépendance `@radix-ui/react-popover` retirée** : plus aucun importeur après
+  la suppression de `components/ui/popover`.
+- **28 imports et variables inutilisés** nettoyés (66 → 38 avertissements
+  ESLint, le reste étant les `any` de TD-001). ESLint ignore désormais les
+  variables préfixées `_`, pour que l'idiome d'omission de clé ne masque plus
+  les vrais rebuts.
+
+### Fixed — remontées de la passe de code mort (2026-08-10)
+
+- **Les erreurs de suppression d'un parent étaient invisibles côté STAFF.**
+  `staff-parents-table-client` alimentait un état `error` qu'il n'affichait
+  nulle part — repéré parce que la variable était en écriture seule. Le refus
+  « Impossible de retirer le dernier parent d'un enfant » (TD-005) disparaissait
+  donc silencieusement : la boîte de dialogue se fermait comme si tout s'était
+  bien passé. L'`Alert` est désormais rendue, comme dans la vue ADMIN.
+
 ### Fixed — TD-004 : pied de page des PDF (2026-08-10)
 - **Trois documents pouvaient écrire sous leur pied de page.** Le défaut
   remonté en recette sur la facture (US-FACT-01-bis) était structurel : le pied

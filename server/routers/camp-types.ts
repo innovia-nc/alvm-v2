@@ -30,15 +30,6 @@ export const campTypesRouter = router({
       });
     }),
 
-  getById: staffProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .output(campTypeSchema.nullable())
-    .query(async ({ ctx, input }) => {
-      return ctx.prisma.campType.findUnique({
-        where: { id: input.id },
-      });
-    }),
-
   create: adminProcedure
     .input(z.object({
       name: z.string().min(2).max(100),

@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash, compare } from 'bcryptjs';
-import { router, publicProcedure, protectedProcedure } from '@/server/trpc/init';
-import type { UserRole } from '@prisma/client';
+import { router, protectedProcedure } from '@/server/trpc/init';
 import { BCRYPT_ROUNDS } from '@/server/helpers/password';
 
 type Role = 'PARENT' | 'STAFF' | 'ADMIN';
 
 // Output schema — lenient on email (no .email()) to tolerate legacy rows.
-// Inputs (verifyCredentials, login) keep z.string().email().
+// Les schémas d'entrée gardent z.string().email().
 const userProfileSchema = z.object({
   id: z.string().uuid(),
   email: z.string(),
@@ -20,51 +19,6 @@ const userProfileSchema = z.object({
 });
 
 export const authRouter = router({
-  /**
-   * Public endpoint for NextAuth Credentials provider.
-   * Verifies email + password and returns user data if valid.
-   */
-  verifyCredentials: publicProcedure
-    .input(z.object({
-      email: z.string().email(),
-      password: z.string().min(1),
-    }))
-    .output(z.object({
-      id: z.string().uuid(),
-      email: z.string(),
-      name: z.string().nullable(),
-      image: z.string().nullable(),
-      role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
-    }).nullable())
-    .mutation(async ({ ctx, input }) => {
-      const user = await ctx.prisma.user.findUnique({
-        where: { email: input.email },
-        include: {
-          accounts: {
-            where: { provider: 'credentials' },
-            select: { providerAccountId: true },
-          },
-        },
-      });
-
-      if (!user || user.accounts.length === 0) {
-        return null;
-      }
-
-      const isValid = await compare(input.password, user.accounts[0].providerAccountId);
-      if (!isValid) {
-        return null;
-      }
-
-      return {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        image: user.image,
-        role: user.role as Role,
-      };
-    }),
-
   me: protectedProcedure
     .output(userProfileSchema)
     .query(async ({ ctx }) => {

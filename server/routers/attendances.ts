@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
-import type { Prisma, AttendanceStatus, UserRole } from '@prisma/client';
+import type { Prisma, AttendanceStatus } from '@prisma/client';
 
 type Status = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 type Role = 'PARENT' | 'STAFF' | 'ADMIN';

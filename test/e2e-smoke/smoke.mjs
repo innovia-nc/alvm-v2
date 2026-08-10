@@ -16,7 +16,6 @@ import { PrismaClient } from '@prisma/client';
 const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3000';
 const DB = process.env.SMOKE_DB_URL || 'postgresql://postgres:smoke@127.0.0.1:5445/neondb';
 const ADMIN = { email: 'smoke-admin@test.local', password: 'Smoke2026!' };
-const PARENT = { email: process.env.SMOKE_PARENT_EMAIL || '', password: 'SmokeParent2026!' };
 
 const prisma = new PrismaClient({ datasourceUrl: DB });
 const results = [];

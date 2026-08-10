@@ -806,7 +806,6 @@ describe('parents router', () => {
         employeur: '',
       });
 
-      const txFn = admin.mockPrisma.$transaction.mock.calls[0][0];
       // The transaction callback is called with mock prisma;
       // we check that parent.update receives the right data
       expect(admin.mockPrisma.parent.update).toHaveBeenCalledWith(

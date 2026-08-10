@@ -21,7 +21,6 @@ import {
   ADMIN_USER,
   STAFF_USER,
   PARENT_USER,
-  ANIMATOR_USER,
   type TestCaller,
 } from '../helpers/test-caller';
 import type { MockPrisma } from '../helpers/mock-prisma';
