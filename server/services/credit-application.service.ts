@@ -48,6 +48,77 @@ import { createPaymentEntries } from '@/server/services/accounting.service';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TxClient = any;
 
+export interface RestoreCreditParams {
+  /** Avoir dont provenait le règlement supprimé. */
+  creditNoteId: string;
+  /** Facture sur laquelle il avait été imputé. */
+  invoiceId: string;
+  /** Montant du règlement supprimé. */
+  amount: number;
+}
+
+/**
+ * Restitue un crédit après suppression d'un règlement par avoir (TD-003).
+ *
+ * Symétrique exact de l'imputation : l'allocation est decrementee ou supprimee,
+ * la ligne d'historique correspondante est retiree, et `amountRemaining` est
+ * recredite — plafonne au montant initial pour qu'une double suppression ne
+ * puisse pas gonfler l'avoir au-dela de sa valeur.
+ *
+ * A appeler DANS la transaction de suppression, AVANT de supprimer le paiement
+ * (les identifiants sont lus depuis celui-ci).
+ */
+export async function restoreCreditOnPaymentDeletion(
+  tx: TxClient,
+  params: RestoreCreditParams
+): Promise<void> {
+  const { creditNoteId, invoiceId, amount } = params;
+
+  if (amount <= 0) return;
+
+  // 1. Allocation — vue « solde » du chemin manuel.
+  const allocation = await tx.creditNoteAllocation.findFirst({
+    where: { creditNoteId, appliedToInvoiceId: invoiceId },
+  });
+
+  if (allocation) {
+    const allocated = toNum(allocation.amount);
+
+    if (allocated > amount) {
+      // Plusieurs reglements sur la meme facture : on ne retire que la part
+      // du reglement supprime.
+      await tx.creditNoteAllocation.update({
+        where: { id: allocation.id },
+        data: { amount: allocated - amount },
+      });
+    } else {
+      await tx.creditNoteAllocation.delete({ where: { id: allocation.id } });
+    }
+  }
+
+  // 2. Credit parent — vue « solde » du chemin automatique.
+  const parentCredit = await tx.parentCredit.findFirst({ where: { creditNoteId } });
+  if (!parentCredit) return;
+
+  const original = toNum(parentCredit.amountOriginal);
+  const remaining = toNum(parentCredit.amountRemaining);
+
+  await tx.parentCredit.update({
+    where: { id: parentCredit.id },
+    data: { amountRemaining: Math.min(original, remaining + amount) },
+  });
+
+  // 3. Historique — retirer la ligne correspondant au reglement supprime.
+  const application = await tx.creditApplication.findFirst({
+    where: { parentCreditId: parentCredit.id, invoiceId, amountUsed: amount },
+    orderBy: { appliedAt: 'desc' },
+  });
+
+  if (application) {
+    await tx.creditApplication.delete({ where: { id: application.id } });
+  }
+}
+
 export interface ApplyCreditsParams {
   invoiceId: string;
   invoiceNumber: string;

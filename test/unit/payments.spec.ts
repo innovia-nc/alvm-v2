@@ -575,6 +575,99 @@ describe('payments router', () => {
       );
     });
 
+    // -----------------------------------------------------------------------
+    // TD-003 — le chemin manuel doit tenir à jour LES DEUX vues du solde
+    // -----------------------------------------------------------------------
+    describe('TD-003 — cohérence du solde de l\'avoir', () => {
+      /** Règlement manuel de 15 000 par un avoir de 20 000 ouvrant un crédit. */
+      function arrangeManualCreditPayment() {
+        staff.mockPrisma.invoice.findFirst
+          .mockResolvedValueOnce(fakeInvoice)
+          .mockResolvedValueOnce({
+            id: CREDIT_NOTE_ID,
+            invoiceType: 'CREDIT_NOTE',
+            totalAmount: -20000,
+            status: 'SENT',
+            parentId: PARENT_USER.id,
+            deletedAt: null,
+            isFutureCredit: true,
+          });
+        staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
+          name: 'Avoir',
+          code: 'CREDIT_NOTE',
+          accountingCode: '411000',
+        });
+        staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+        staff.mockPrisma.creditNoteAllocation.create.mockResolvedValue({});
+        staff.mockPrisma.payment.create.mockResolvedValue({
+          ...fakeCreatedPayment,
+          paymentMethod: { name: 'Avoir', code: 'CREDIT_NOTE' },
+        });
+        staff.mockPrisma.invoice.update.mockResolvedValue({});
+        staff.mockPrisma.$queryRawUnsafe.mockResolvedValue([{ entry_num: 'BQ202506150001' }]);
+        staff.mockPrisma.accountingEntry.create.mockResolvedValue({});
+      }
+
+      const manualPaymentInput = {
+        invoiceId: INVOICE_ID,
+        amount: 15000,
+        paymentDate: '2025-06-15',
+        paymentMethodId: CREDIT_NOTE_METHOD_ID,
+        creditNoteId: CREDIT_NOTE_ID,
+      };
+
+      it('décrémente amountRemaining pour que le FIFO ne réimpute pas l\'avoir', async () => {
+        // Sans cette décrémentation, l'imputation automatique voyait l'avoir
+        // encore « plein » et le réimputait sur une autre facture : le compte
+        // 4191 était débité de plus qu'il n'avait été crédité.
+        arrangeManualCreditPayment();
+        staff.mockPrisma.parentCredit.findFirst.mockResolvedValue({
+          id: 'cr1',
+          creditNoteId: CREDIT_NOTE_ID,
+          amountOriginal: 20000,
+          amountRemaining: 20000,
+        });
+
+        await staff.caller.payments.create(manualPaymentInput);
+
+        expect(staff.mockPrisma.parentCredit.update).toHaveBeenCalledWith({
+          where: { id: 'cr1' },
+          data: { amountRemaining: 5000 },
+        });
+      });
+
+      it("écrit l'historique de consommation, comme le chemin automatique", async () => {
+        arrangeManualCreditPayment();
+        staff.mockPrisma.parentCredit.findFirst.mockResolvedValue({
+          id: 'cr1',
+          creditNoteId: CREDIT_NOTE_ID,
+          amountOriginal: 20000,
+          amountRemaining: 20000,
+        });
+
+        await staff.caller.payments.create(manualPaymentInput);
+
+        expect(staff.mockPrisma.creditApplication.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            parentCreditId: 'cr1',
+            invoiceId: INVOICE_ID,
+            amountUsed: 15000,
+            appliedBy: STAFF_USER.id,
+          }),
+        });
+      });
+
+      it('reste sans effet pour un avoir sans crédit futur', async () => {
+        arrangeManualCreditPayment();
+        staff.mockPrisma.parentCredit.findFirst.mockResolvedValue(null);
+
+        await staff.caller.payments.create(manualPaymentInput);
+
+        expect(staff.mockPrisma.parentCredit.update).not.toHaveBeenCalled();
+        expect(staff.mockPrisma.creditApplication.create).not.toHaveBeenCalled();
+      });
+    });
+
     it('should skip accounting entries for immediate credit note payment', async () => {
       staff.mockPrisma.invoice.findFirst
         .mockResolvedValueOnce(fakeInvoice)
@@ -788,6 +881,81 @@ describe('payments router', () => {
       mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue(fakeInvoiceForDelete);
       mockPrisma.invoice.update.mockResolvedValue({});
     }
+
+    // -----------------------------------------------------------------------
+    // TD-003 — restitution du crédit à la suppression d'un règlement par avoir
+    // -----------------------------------------------------------------------
+    describe('TD-003 — restitution du crédit', () => {
+      const creditPaymentForDelete = {
+        ...fakePaymentForDelete,
+        amount: 2000,
+        creditNoteId: CREDIT_NOTE_ID,
+      };
+
+      function setupCreditDeleteMocks(mockPrisma: TestCaller['mockPrisma']) {
+        setupDeleteMocks(mockPrisma);
+        mockPrisma.payment.findUnique.mockResolvedValue(creditPaymentForDelete);
+        mockPrisma.payment.delete.mockResolvedValue(creditPaymentForDelete);
+        mockPrisma.creditNoteAllocation.findFirst.mockResolvedValue({
+          id: 'alloc1',
+          creditNoteId: CREDIT_NOTE_ID,
+          appliedToInvoiceId: INVOICE_ID,
+          amount: 2000,
+        });
+        mockPrisma.parentCredit.findFirst.mockResolvedValue({
+          id: 'cr1',
+          creditNoteId: CREDIT_NOTE_ID,
+          amountOriginal: 5000,
+          amountRemaining: 3000,
+        });
+        mockPrisma.creditApplication.findFirst.mockResolvedValue({ id: 'app1' });
+      }
+
+      it('recrédite le solde de l\'avoir', async () => {
+        setupCreditDeleteMocks(admin.mockPrisma);
+
+        await admin.caller.payments.delete({ id: PAYMENT_ID });
+
+        expect(admin.mockPrisma.parentCredit.update).toHaveBeenCalledWith({
+          where: { id: 'cr1' },
+          data: { amountRemaining: 5000 },
+        });
+      });
+
+      it('supprime allocation et ligne d\'historique', async () => {
+        setupCreditDeleteMocks(admin.mockPrisma);
+
+        await admin.caller.payments.delete({ id: PAYMENT_ID });
+
+        expect(admin.mockPrisma.creditNoteAllocation.delete).toHaveBeenCalledWith({
+          where: { id: 'alloc1' },
+        });
+        expect(admin.mockPrisma.creditApplication.delete).toHaveBeenCalledWith({
+          where: { id: 'app1' },
+        });
+      });
+
+      it('restitue le crédit AVANT de supprimer le paiement', async () => {
+        // L'ordre compte : la restitution lit creditNoteId et invoiceId sur le
+        // paiement, qui doit donc exister encore.
+        setupCreditDeleteMocks(admin.mockPrisma);
+
+        await admin.caller.payments.delete({ id: PAYMENT_ID });
+
+        const restoreOrder = admin.mockPrisma.parentCredit.update.mock.invocationCallOrder[0];
+        const deleteOrder = admin.mockPrisma.payment.delete.mock.invocationCallOrder[0];
+        expect(restoreOrder).toBeLessThan(deleteOrder);
+      });
+
+      it('ne touche à aucun crédit pour un paiement classique', async () => {
+        setupDeleteMocks(admin.mockPrisma);
+
+        await admin.caller.payments.delete({ id: PAYMENT_ID });
+
+        expect(admin.mockPrisma.creditNoteAllocation.findFirst).not.toHaveBeenCalled();
+        expect(admin.mockPrisma.parentCredit.update).not.toHaveBeenCalled();
+      });
+    });
 
     it('should delete a payment and recalculate invoice', async () => {
       setupDeleteMocks(admin.mockPrisma);
