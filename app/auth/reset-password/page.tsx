@@ -49,18 +49,6 @@ export default function ResetPasswordPage() {
         </AlertDescription>
       </Alert>
 
-      {/* TODO: Implement reset password form
-      <Form>
-        <FormField
-          label="Email"
-          name="email"
-          type="email"
-          placeholder="votre.email@exemple.com"
-        />
-        <Button type="submit">Envoyer le lien de réinitialisation</Button>
-      </Form>
-      */}
-
       {/* Actions */}
       <div className="flex flex-col gap-3">
         <Button asChild variant="outline" className="w-full">

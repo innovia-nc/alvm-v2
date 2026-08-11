@@ -22,7 +22,6 @@ const staffDocumentSchema = z.object({
  */
 async function assertStaffAccess(
     prisma: any,
-    userId: string,
     role: string,
     staffId: string,
 ): Promise<void> {
@@ -50,7 +49,7 @@ export const staffDocumentsRouter = router({
         .input(z.object({ staffId: z.string().uuid() }))
         .output(z.array(staffDocumentSchema))
         .query(async ({ ctx, input }) => {
-            await assertStaffAccess(ctx.prisma, ctx.user.id, ctx.user.role, input.staffId);
+            await assertStaffAccess(ctx.prisma, ctx.user.role, input.staffId);
 
             const docs = await ctx.prisma.staffDocument.findMany({
                 where: { staffId: input.staffId, deletedAt: null },
@@ -73,7 +72,7 @@ export const staffDocumentsRouter = router({
 
             if (!doc) return null;
 
-            await assertStaffAccess(ctx.prisma, ctx.user.id, ctx.user.role, doc.staffId);
+            await assertStaffAccess(ctx.prisma, ctx.user.role, doc.staffId);
 
             return {
                 ...doc,
@@ -93,7 +92,7 @@ export const staffDocumentsRouter = router({
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Document non trouvé' });
             }
 
-            await assertStaffAccess(ctx.prisma, ctx.user.id, ctx.user.role, doc.staffId);
+            await assertStaffAccess(ctx.prisma, ctx.user.role, doc.staffId);
 
             await ctx.prisma.staffDocument.update({
                 where: { id: input.documentId },
@@ -112,7 +111,7 @@ export const staffDocumentsRouter = router({
         .input(z.object({ staffId: z.string().uuid() }))
         .output(z.number().int())
         .query(async ({ ctx, input }) => {
-            await assertStaffAccess(ctx.prisma, ctx.user.id, ctx.user.role, input.staffId);
+            await assertStaffAccess(ctx.prisma, ctx.user.role, input.staffId);
 
             return ctx.prisma.staffDocument.count({
                 where: { staffId: input.staffId, deletedAt: null },
