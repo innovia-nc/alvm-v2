@@ -63,8 +63,6 @@ function mapCamp(c: any) {
   };
 }
 
-// computeDaysCount imported from @/server/helpers/date
-
 export const campsRouter = router({
   list: protectedProcedure
     .input(z.object({

@@ -80,34 +80,6 @@ export const childDocumentsRouter = router({
       }));
     }),
 
-  getById: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .output(childDocumentSchema.nullable())
-    .query(async ({ ctx, input }) => {
-      const doc = await ctx.prisma.childDocument.findFirst({
-        where: { id: input.id, deletedAt: null },
-      });
-
-      if (!doc) return null;
-
-      // Check access to the child
-      await assertChildAccess(ctx.prisma, ctx.user.id, ctx.user.role, doc.childId);
-
-      return {
-        id: doc.id,
-        childId: doc.childId,
-        filename: doc.filename,
-        originalFilename: doc.originalFilename,
-        fileUrl: doc.fileUrl,
-        mimeType: doc.mimeType as 'application/pdf',
-        fileSize: doc.fileSize,
-        description: doc.description,
-        uploadedBy: doc.uploadedBy,
-        createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt,
-      };
-    }),
-
   delete: protectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))

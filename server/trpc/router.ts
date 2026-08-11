@@ -11,7 +11,6 @@ import { campTypesRouter } from '@/server/routers/camp-types';
 import { paymentMethodsRouter } from '@/server/routers/payment-methods';
 import { staffDocumentsRouter } from '@/server/routers/staff-documents';
 import { staffRouter } from '@/server/routers/staff';
-import { authRouter } from '@/server/routers/auth';
 import { usersRouter } from '@/server/routers/users';
 import { parentsRouter } from '@/server/routers/parents';
 import { childDocumentsRouter } from '@/server/routers/child-documents';
@@ -38,8 +37,9 @@ export const appRouter = router({
   staff: staffRouter,
   staffDocuments: staffDocumentsRouter,
 
-  // --- Lot 2 : auth, users, parents, childDocuments ---
-  auth: authRouter,
+  // --- Lot 2 : users, parents, childDocuments ---
+  // (le routeur `auth` a été retiré : NextAuth porte la session et le profil,
+  //  `users.resetPassword` le mot de passe, `parents.delete` la suppression.)
   users: usersRouter,
   parents: parentsRouter,
   childDocuments: childDocumentsRouter,

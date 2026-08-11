@@ -27,14 +27,6 @@ describe('campTypes router', () => {
     staff = createTestCaller(STAFF_USER);
   });
 
-  it('should list active camp types without auth', async () => {
-    const { caller, mockPrisma } = createTestCaller(null);
-    mockPrisma.campType.findMany.mockResolvedValue([fakeCampType]);
-    const result = await caller.campTypes.list();
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Vacances');
-  });
-
   it('should deny PARENT from listAll', async () => {
     const { caller } = createTestCaller(PARENT_USER);
     await expect(caller.campTypes.listAll()).rejects.toThrow(TRPCError);

@@ -5,6 +5,57 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — deuxième passe de code mort (2026-08-10)
+- **Le routeur `auth` entier était mort.** Ses quatre procédures (`me`,
+  `updateProfile`, `changePassword`, `deleteAccount`) n'étaient appelées par
+  aucune page : la session et le profil viennent de NextAuth, le mot de passe de
+  `users.resetPassword`, la suppression d'un compte de `parents.delete` /
+  `users.delete`. `auth.deleteAccount` restait pourtant appelable en HTTP par
+  n'importe quel utilisateur connecté et archivait son parent, ses enfants et
+  son profil personnel — une action destructrice qu'aucun écran n'exposait.
+- **`registrations.applyCredit` cassait les deux invariants comptables du
+  projet.** La procédure décrémentait `ParentCredit.amountRemaining`, créait une
+  `CreditApplication` et poussait `paidAmount` jusqu'à `PAID` **sans écrire une
+  seule écriture comptable** (FEC déséquilibré : un règlement sans contrepartie
+  au 4191) **et sans `CreditNoteAllocation`** (TD-003 : l'avoir consommé restait
+  réimputable par le FIFO). C'est exactement le chemin que le cadrage d'US-FACT-02
+  avait refusé en août ; il était resté en place, sans appelant mais accessible à
+  tout le personnel.
+- **Un écran de paramétrage en double.** `/dashboard/admin/camp-types`
+  dupliquait `/dashboard/admin/settings/camp-types` (seul écran présent dans la
+  navigation) avec sa propre modale et ses propres colonnes — 631 lignes pour le
+  même CRUD sur le même objet.
+- **L'inscription en ligne des parents n'a jamais eu de serveur.** La page
+  `/auth/signup/parent` postait vers `/api/auth/signup`, route inexistante
+  absorbée par le catch-all NextAuth : le parcours échouait à tous les coups, et
+  aucun lien n'y menait (TD-011).
+- **Procédures redondantes retirées** : `settings.getAll` / `getByCategoryKey` /
+  `getAsMap` / `update` (couvertes par `getByCategory`, `updateBulk` et
+  `server/helpers/settings.ts`), `campTypes.list` — publique et non
+  authentifiée — (couverte par `listAll` et `camps.listCampTypes`),
+  `parents.getMe` (session NextAuth + `parents.getById`),
+  `childDocuments.getById` (`list` renvoie les mêmes champs avec le même
+  contrôle d'accès).
+- **Garde d'accès `animatorProcedure`** (et son middleware `requireStaffRole`) :
+  aucun routeur ne l'utilisait, et le rôle par permissions qu'elle préfigurait
+  (EPIC-006) est abandonné depuis juin.
+- **Deux requêtes serveur pour rien** : les pages de modification d'inscription
+  (ADMIN et STAFF) chargeaient jusqu'à 100 camps et 100 parents à chaque
+  ouverture pour alimenter deux props que le formulaire ne lit pas.
+- **Deux composants partagés devenus orphelins** : `EmptyState` et
+  `LoadingSpinner` n'étaient plus importés que par l'écran doublon supprimé.
+- Divers : `formatDateTime`, type `PageSizeOption`, prop `currentStatus` de la
+  modale de changement de statut, exports sans consommateur externe
+  (`authConfig`, `getDashboardBasePathFromPathname`, helper de test `allTexts`),
+  deux directives `eslint-disable` sans effet, un commentaire orphelin.
+
+### Fixed — registre de dette : doublons périmés (2026-08-10)
+- `docs/dette-technique.md` décrivait TD-006, TD-007 et TD-008 **deux fois** :
+  une entrée `DONE` (correctifs livrés) et l'ancienne entrée `OPEN` restée en
+  place. Les trois doublons obsolètes sont supprimés ; TD-010 (procédures sans
+  écran) et TD-011 (auto-inscription) sont ajoutés.
+
+
 ### Added — TD-007 : le PDF d'avoir est enfin accessible (2026-08-10)
 - **Le document existait, personne ne pouvait l'obtenir.** `CreditNotePDF` était
   complet et testé, mais sans procédure ni bouton. `creditNotes.generatePDF`

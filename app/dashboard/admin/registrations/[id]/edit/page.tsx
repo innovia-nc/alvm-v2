@@ -19,11 +19,7 @@ export default async function RegistrationEditPage({
   const trpc = await createServerTRPC();
 
   // Récupérer l'inscription et les données nécessaires
-  const [registration, camps, parents] = await Promise.all([
-    trpc.registrations.getById({ id }),
-    trpc.camps.list({ limit: 100, offset: 0 }),
-    trpc.parents.list({ limit: 100, offset: 0 }),
-  ]);
+  const registration = await trpc.registrations.getById({ id });
 
   if (!registration) {
     notFound();
@@ -51,8 +47,6 @@ export default async function RegistrationEditPage({
                   : registration.camp.endDate || '',
               },
             }}
-            camps={camps.camps}
-            parents={parents.parents}
           />
         </CardContent>
       </Card>

@@ -34,7 +34,7 @@ const signInSchema = z.object({
  * Password hash is stored in Account.providerAccountId
  * where provider = 'credentials'.
  */
-export const authConfig = {
+const authConfig = {
   ...authEdgeConfig,
 
   providers: [

@@ -58,25 +58,8 @@ interface Registration {
   };
 }
 
-interface Camp {
-  id: string;
-  name: string;
-  location: string;
-  status: string;
-}
-
-interface Parent {
-  id: string;
-  userId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-}
-
 interface RegistrationEditFormProps {
   registration: Registration;
-  camps: Camp[];
-  parents: Parent[];
 }
 
 // ============================================================================

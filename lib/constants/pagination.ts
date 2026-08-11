@@ -18,8 +18,3 @@ export const PAGINATION_DEFAULTS = {
   /** Options de taille de page disponibles dans le sélecteur */
   PAGE_SIZE_OPTIONS: [10, 20, 50, 100],
 } as const;
-
-/**
- * Type pour les options de taille de page
- */
-export type PageSizeOption = typeof PAGINATION_DEFAULTS.PAGE_SIZE_OPTIONS[number];
