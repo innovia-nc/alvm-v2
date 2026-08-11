@@ -19,13 +19,13 @@ describe('StatusBadge / getStatusInfo', () => {
 
     it('maps SENT to "Emise" with the sent utility', () => {
       const info = getStatusInfo('invoice', 'SENT');
-      expect(info.label).toBe('Emise');
+      expect(info.label).toBe('Émise');
       expect(info.className).toBe('status-badge-sent');
     });
 
     it('maps PAID to "Payee" with the paid utility', () => {
       const info = getStatusInfo('invoice', 'PAID');
-      expect(info.label).toBe('Payee');
+      expect(info.label).toBe('Payée');
       expect(info.className).toBe('status-badge-paid');
     });
 
@@ -50,7 +50,7 @@ describe('StatusBadge / getStatusInfo', () => {
 
     it('maps CONFIRMED to "Confirmee"', () => {
       const info = getStatusInfo('registration', 'CONFIRMED');
-      expect(info.label).toBe('Confirmee');
+      expect(info.label).toBe('Confirmée');
       expect(info.className).toBe('status-badge-confirmed');
     });
 
@@ -62,17 +62,17 @@ describe('StatusBadge / getStatusInfo', () => {
 
     it('maps CANCELLED to "Annulee"', () => {
       const info = getStatusInfo('registration', 'CANCELLED');
-      expect(info.label).toBe('Annulee');
+      expect(info.label).toBe('Annulée');
       expect(info.className).toBe('status-badge-cancelled');
     });
   });
 
   describe('attendance', () => {
     it('covers the four attendance statuses', () => {
-      expect(getStatusInfo('attendance', 'PRESENT').label).toBe('Present');
+      expect(getStatusInfo('attendance', 'PRESENT').label).toBe('Présent');
       expect(getStatusInfo('attendance', 'ABSENT').label).toBe('Absent');
       expect(getStatusInfo('attendance', 'LATE').label).toBe('En retard');
-      expect(getStatusInfo('attendance', 'EXCUSED').label).toBe('Excuse');
+      expect(getStatusInfo('attendance', 'EXCUSED').label).toBe('Excusé');
     });
 
     it('uses dedicated utilities for each attendance status', () => {
@@ -86,8 +86,8 @@ describe('StatusBadge / getStatusInfo', () => {
   describe('creditNote', () => {
     it('handles DRAFT / SENT / CANCELLED used in the current schema', () => {
       expect(getStatusInfo('creditNote', 'DRAFT').label).toBe('Brouillon');
-      expect(getStatusInfo('creditNote', 'SENT').label).toBe('Emis');
-      expect(getStatusInfo('creditNote', 'CANCELLED').label).toBe('Annule');
+      expect(getStatusInfo('creditNote', 'SENT').label).toBe('Émis');
+      expect(getStatusInfo('creditNote', 'CANCELLED').label).toBe('Annulé');
     });
 
     it('supports forward-compat ISSUED and APPLIED statuses', () => {
@@ -99,9 +99,9 @@ describe('StatusBadge / getStatusInfo', () => {
   describe('camp', () => {
     it('covers the four camp statuses', () => {
       expect(getStatusInfo('camp', 'DRAFT').label).toBe('Brouillon');
-      expect(getStatusInfo('camp', 'PUBLISHED').label).toBe('Publie');
-      expect(getStatusInfo('camp', 'CLOSED').label).toBe('Ferme');
-      expect(getStatusInfo('camp', 'CANCELLED').label).toBe('Annule');
+      expect(getStatusInfo('camp', 'PUBLISHED').label).toBe('Publié');
+      expect(getStatusInfo('camp', 'CLOSED').label).toBe('Fermé');
+      expect(getStatusInfo('camp', 'CANCELLED').label).toBe('Annulé');
     });
   });
 
@@ -116,7 +116,7 @@ describe('StatusBadge / getStatusInfo', () => {
 
   describe('refund', () => {
     it('handles IMMEDIATE_REFUND and FUTURE_CREDIT', () => {
-      expect(getStatusInfo('refund', 'IMMEDIATE_REFUND').label).toBe('Remboursement immediat');
+      expect(getStatusInfo('refund', 'IMMEDIATE_REFUND').label).toBe('Remboursement immédiat');
       expect(getStatusInfo('refund', 'FUTURE_CREDIT').label).toBe('Avoir futur');
     });
   });

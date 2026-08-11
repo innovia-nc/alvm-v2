@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Pencil, Users } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { CampDetailTab } from './camp-detail-tab';
 import { CampRegistrationsTab } from './camp-registrations-tab';
 import { CampAttendanceTab } from './camp-attendance-tab';
@@ -17,21 +18,6 @@ import { CampAttendanceTab } from './camp-attendance-tab';
 interface CampDetailPageProps {
   campId: string;
   basePath: string; // e.g. '/dashboard/admin/camps' or '/dashboard/staff/camps'
-}
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return { label: 'Brouillon', className: 'bg-gray-100 text-gray-800 border-gray-200' };
-    case 'PUBLISHED':
-      return { label: 'Publié', className: 'bg-green-100 text-green-800 border-green-200' };
-    case 'CLOSED':
-      return { label: 'Fermé', className: 'bg-red-100 text-red-800 border-red-200' };
-    case 'CANCELLED':
-      return { label: 'Annulé', className: 'bg-orange-100 text-orange-800 border-orange-200' };
-    default:
-      return { label: status, className: '' };
-  }
 }
 
 export function CampDetailPage({ campId, basePath }: CampDetailPageProps) {
@@ -71,8 +57,6 @@ export function CampDetailPage({ campId, basePath }: CampDetailPageProps) {
     );
   }
 
-  const statusInfo = getStatusBadge(camp.status);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -81,9 +65,7 @@ export function CampDetailPage({ campId, basePath }: CampDetailPageProps) {
         description={camp.location}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={statusInfo.className}>
-              {statusInfo.label}
-            </Badge>
+            <StatusBadge type="camp" status={camp.status} />
             <Badge variant="outline" className="gap-1">
               <Users className="h-3 w-3" />
               {camp.registrationsCount} / {camp.maxCapacity}

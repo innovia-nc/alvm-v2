@@ -73,6 +73,14 @@ const accountingSchema = z.object({
   fec_sales_account: z.string().regex(/^\d{6}$/, '6 chiffres requis'),
   fec_customers_account: z.string().regex(/^\d{6}$/, '6 chiffres requis'),
   fec_company_code: z.string().min(1, 'Code société requis'),
+  // Sert au nom du fichier FEC (SIRENFECAAAAMMJJ.txt, art. A47 A-1 du LPF).
+  // Optionnel : l'export reste possible sans, avec le nom historique.
+  fec_siren: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{9}$/.test(v.replace(/\D/g, '')), {
+      message: 'SIREN invalide (9 chiffres)',
+    }),
 });
 
 const documentsSchema = z.object({
@@ -248,6 +256,7 @@ export default function AdminSettingsPage() {
       fec_sales_account: '706000',
       fec_customers_account: '411000',
       fec_company_code: '',
+      fec_siren: '',
     },
     mode: 'onBlur',
   });
@@ -322,6 +331,7 @@ export default function AdminSettingsPage() {
         fec_sales_account: '706000',
         fec_customers_account: '411000',
         fec_company_code: '',
+        fec_siren: '',
         ...data,
       });
     }
@@ -993,6 +1003,31 @@ export default function AdminSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription>Code identifiant votre société</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={accountingForm.control}
+                  name="fec_siren"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SIREN</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ''}
+                          placeholder="ex: 123456789"
+                          className="font-mono"
+                          disabled={updateMutation.isPending}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        9 chiffres. Nomme le fichier d&apos;export
+                        (SIRENFECAAAAMMJJ.txt, article A47 A-1 du LPF). Sans
+                        SIREN, l&apos;export garde son nom historique.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

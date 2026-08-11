@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Eye, Pencil } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -87,13 +88,9 @@ export const staffRefundColumns: ColumnDef<StaffRefundType>[] = [
   {
     accessorKey: 'refundMethod',
     header: 'Méthode',
-    cell: ({ row }) => {
-      return (
-        <div className="text-sm">
-          {row.original.refundMethod}
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <StatusBadge type="refund" status={row.original.refundMethod} />
+    ),
   },
   {
     accessorKey: 'reference',

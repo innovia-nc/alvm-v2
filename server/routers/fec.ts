@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 import { toNum } from '@/server/helpers/decimal';
+import { getFecSiren, normalizeSiren } from '@/server/helpers/settings';
 
 // ============================================================================
 // SCHEMAS
@@ -90,6 +91,26 @@ function generateFECContent(entries: any[]): string {
   return content;
 }
 
+/**
+ * Nom du fichier FEC.
+ *
+ * Article A47 A-1 du LPF : `SIRENFECAAAAMMJJ.txt`, où AAAAMMJJ est la date de
+ * clôture de l'exercice — ici la date de fin de la période exportée.
+ *
+ * Sans SIREN, on retombe sur le nom historique `FEC_debut_fin.txt` : le fichier
+ * reste exploitable par un logiciel comptable, mais il n'est pas conforme au
+ * nommage attendu par l'administration. Le router le signale via `siren: null`.
+ */
+function buildFECFilename(
+  siren: string | null,
+  startDate: string,
+  endDate: string,
+): string {
+  const fileEndDate = endDate.replace(/-/g, '');
+  if (siren) return `${siren}FEC${fileEndDate}.txt`;
+  return `FEC_${startDate.replace(/-/g, '')}_${fileEndDate}.txt`;
+}
+
 function mapEntry(e: any) {
   return {
     id: e.id,
@@ -154,17 +175,34 @@ export const fecRouter = router({
     .input(z.object({
       startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
       endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+      // SIREN de l'exportateur : sert UNIQUEMENT au nom du fichier (A47 A-1).
+      // Vide ou absent → on prend celui des settings (accounting.fec_siren).
       siren: z.string().optional(),
     }))
     .output(z.object({
       content: z.string(),
       filename: z.string(),
+      /** SIREN effectivement utilisé pour nommer le fichier, `null` si aucun. */
+      siren: z.string().nullable(),
       entryCount: z.number(),
       totalDebit: z.number(),
       totalCredit: z.number(),
       balance: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
+      // Un SIREN saisi mais illisible est une erreur de l'utilisateur : le
+      // laisser passer silencieusement produirait un fichier mal nommé, ce que
+      // le trésorier ne verrait qu'au dépôt.
+      const typedSiren = input.siren?.trim() ? normalizeSiren(input.siren) : null;
+      if (input.siren?.trim() && !typedSiren) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'SIREN invalide : 9 chiffres attendus',
+        });
+      }
+
+      const siren = typedSiren ?? (await getFecSiren(ctx.prisma));
+
       const entries = await ctx.prisma.accountingEntry.findMany({
         where: {
           entryDate: {
@@ -207,13 +245,12 @@ export const fecRouter = router({
 
       const content = generateFECContent(mapped);
 
-      const fileStartDate = input.startDate.replace(/-/g, '');
-      const fileEndDate = input.endDate.replace(/-/g, '');
-      const filename = `FEC_${fileStartDate}_${fileEndDate}.txt`;
+      const filename = buildFECFilename(siren, input.startDate, input.endDate);
 
       return {
         content,
         filename,
+        siren,
         entryCount: entries.length,
         totalDebit,
         totalCredit,

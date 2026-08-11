@@ -124,8 +124,87 @@ describe('fec router', () => {
     expect(result.totalCredit).toBe(10000);
     expect(result.balance).toBe(0);
     expect(result.filename).toBe('FEC_20250101_20251231.txt');
+    expect(result.siren).toBeNull();
     expect(result.content).toContain('JournalCode|JournalLib|');
     expect(result.content).toContain('VE|Journal des Ventes|');
+  });
+
+  // --- generateFEC : nommage reglementaire (TD-012) ---
+
+  describe('nom du fichier (article A47 A-1 du LPF)', () => {
+    beforeEach(() => {
+      admin.mockPrisma.accountingEntry.findMany.mockResolvedValue([fakeEntry, fakeCounterEntry]);
+    });
+
+    it('names the file SIRENFECAAAAMMJJ.txt from the SIREN typed by the user', async () => {
+      const result = await admin.caller.fec.generateFEC({
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
+        siren: '123456789',
+      });
+
+      expect(result.filename).toBe('123456789FEC20251231.txt');
+      expect(result.siren).toBe('123456789');
+    });
+
+    it('accepts a SIREN typed with separators', async () => {
+      const result = await admin.caller.fec.generateFEC({
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
+        siren: '123 456 789',
+      });
+
+      expect(result.filename).toBe('123456789FEC20251231.txt');
+    });
+
+    it('falls back to accounting.fec_siren when the field is left empty', async () => {
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({ value: '"987654321"' });
+
+      const result = await admin.caller.fec.generateFEC({
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
+      });
+
+      expect(admin.mockPrisma.appSetting.findUnique).toHaveBeenCalledWith({
+        where: { category_key: { category: 'accounting', key: 'fec_siren' } },
+        select: { value: true },
+      });
+      expect(result.filename).toBe('987654321FEC20251231.txt');
+      expect(result.siren).toBe('987654321');
+    });
+
+    it('prefers the typed SIREN over the stored one', async () => {
+      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({ value: '"987654321"' });
+
+      const result = await admin.caller.fec.generateFEC({
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
+        siren: '123456789',
+      });
+
+      expect(result.filename).toBe('123456789FEC20251231.txt');
+    });
+
+    it('rejects a malformed SIREN instead of silently misnaming the file', async () => {
+      await expect(
+        admin.caller.fec.generateFEC({
+          startDate: '2025-01-01',
+          endDate: '2025-12-31',
+          siren: '1234',
+        }),
+      ).rejects.toThrow('SIREN invalide');
+    });
+
+    it('keeps the legacy name when no SIREN is configured anywhere', async () => {
+      const result = await admin.caller.fec.generateFEC({
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
+        siren: '   ',
+      });
+
+      expect(result.filename).toBe('FEC_20250101_20251231.txt');
+      expect(result.siren).toBeNull();
+    });
   });
 
   it('should throw if no entries found', async () => {

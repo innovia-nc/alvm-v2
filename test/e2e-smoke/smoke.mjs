@@ -221,6 +221,13 @@ async function main() {
   const fec = await m('fec.generateFEC', { startDate: '2026-01-01', endDate: '2026-12-31' }, admin.jar);
   const fecLines = (fec.data?.content ?? '').trim().split('\n');
   check('fec', 'export FEC généré avec écritures', fecLines.length > 2, `${fecLines.length} lignes`);
+  // TD-012 : le SIREN nomme le fichier (art. A47 A-1 du LPF), il n'est pas une colonne.
+  const fecNamed = await m('fec.generateFEC', { startDate: '2026-01-01', endDate: '2026-12-31', siren: '123 456 789' }, admin.jar);
+  check('fec', 'nom du fichier SIRENFECAAAAMMJJ.txt',
+    fecNamed.data?.filename === '123456789FEC20261231.txt', `${fecNamed.data?.filename}`);
+  const fecBadSiren = await m('fec.generateFEC', { startDate: '2026-01-01', endDate: '2026-12-31', siren: '1234' }, admin.jar);
+  check('fec', 'SIREN illisible refusé (pas de fichier mal nommé)',
+    fecBadSiren.error?.data?.code === 'BAD_REQUEST', JSON.stringify(fecBadSiren.error ?? '').slice(0, 160));
 
   // ————— M. PDF —————
   const pdfOk = await fetch(`${BASE}/api/generate/child-profile/${childId}`, { headers: { Cookie: cookieHeader(admin.jar) } });
