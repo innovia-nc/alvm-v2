@@ -321,7 +321,7 @@ vérification d'email ? quelle validation par le secrétariat ?) et elle
 s'implémente serveur d'abord. Aujourd'hui, les comptes parents sont créés par
 le personnel via `parents.create` / `parents.createByStaff`.
 
-## TD-012 — « Mon Profil » : un menu qui promettait un écran inexistant — P3 — OPEN
+## TD-016 — « Mon Profil » : un menu qui promettait un écran inexistant — P3 — OPEN
 
 **Constat (2026-08-12, retour de recette)** : le menu avatar de
 `DashboardHeader` proposait deux entrées vers des routes absentes de `app/` —
