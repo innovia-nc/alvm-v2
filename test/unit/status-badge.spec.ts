@@ -89,11 +89,6 @@ describe('StatusBadge / getStatusInfo', () => {
       expect(getStatusInfo('creditNote', 'SENT').label).toBe('Émis');
       expect(getStatusInfo('creditNote', 'CANCELLED').label).toBe('Annulé');
     });
-
-    it('supports forward-compat ISSUED and APPLIED statuses', () => {
-      expect(getStatusInfo('creditNote', 'ISSUED').className).toBe('status-badge-issued');
-      expect(getStatusInfo('creditNote', 'APPLIED').className).toBe('status-badge-applied');
-    });
   });
 
   describe('camp', () => {

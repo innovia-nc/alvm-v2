@@ -92,13 +92,12 @@ const ATTENDANCE_MAP: Record<string, StatusInfo> = {
 };
 
 const CREDIT_NOTE_MAP: Record<string, StatusInfo> = {
-  // Le schema utilise InvoiceStatus pour les avoirs (CREDIT_NOTE) mais en pratique
-  // seuls DRAFT / SENT / CANCELLED sont utilises. ISSUED et APPLIED restent supportes
-  // au cas ou un schema enrichi serait introduit.
+  // Un avoir porte un `InvoiceStatus` (enum Prisma) : les seules valeurs
+  // atteignables sont donc celles de cet enum. Les statuts ISSUED / APPLIED,
+  // longtemps listes ici « au cas ou », n'existent dans aucun enum ni aucune
+  // migration : ils ne pouvaient pas etre rendus.
   DRAFT: { label: 'Brouillon', className: 'status-badge-draft', icon: FileText },
   SENT: { label: 'Émis', className: 'status-badge-sent', icon: Send },
-  ISSUED: { label: 'Émis', className: 'status-badge-issued', icon: Send },
-  APPLIED: { label: 'Appliqué', className: 'status-badge-applied', icon: CheckCircle2 },
   CANCELLED: { label: 'Annulé', className: 'status-badge-cancelled', icon: XCircle },
 };
 

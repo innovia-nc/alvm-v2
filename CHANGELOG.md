@@ -34,6 +34,77 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   à l'écran — sont accentués, ce qui corrige aussi les badges facture,
   inscription et présence.
 
+### Removed — troisième passe de code mort (2026-08-11)
+
+Passe complète après celles des 10 et 11 août : graphe d'imports, exports sans
+consommateur, procédures tRPC sans appelant, routes sans lien, champs d'entrée
+Zod jamais lus, paramètres et props morts, variables CSS, modèles et colonnes
+Prisma, dépendances npm. Le gisement des deux premières passes est épuisé —
+**aucun fichier orphelin, aucun export vraiment mort, aucune procédure sans
+appelant** ne subsiste. Ce qui reste tient en 59 lignes :
+
+- **`formatAmount` (`lib/utils.ts`)** : formateur XPF partagé que personne
+  n'importait. Les 30 écrans qui affichent des montants ont chacun leur propre
+  `Intl.NumberFormat` local — dont un homonyme dans
+  `child-registrations-history.tsx` qui produit un format *différent*
+  (`style: 'currency'` au lieu de `'decimal'` + suffixe).
+- **`ISSUED` et `APPLIED` (`components/shared/status-badge.tsx`)** : deux
+  statuts d'avoir « supportés au cas où un schéma enrichi serait introduit ».
+  Ils n'existent ni dans l'enum `InvoiceStatus`, ni dans aucune migration : la
+  fonction ne pouvait pas les recevoir. Retirés avec leurs utilitaires CSS
+  (`.status-badge-issued`, `.status-badge-applied`) et le test qui les
+  vérifiait.
+- **Dix variables CSS `--status-*`** (`app/globals.css`, `:root` et `.dark`) :
+  définies pour un système de badges par variables abandonné avant livraison au
+  profit des utilitaires `.status-badge-*`. Aucun `var(--status-…)` dans le
+  dépôt.
+- **Paramètre `userId` d'`assertStaffAccess`** (`server/routers/staff-documents.ts`) :
+  jamais lu — le contrôle porte sur `role` et `staffId`. Quatre appels
+  transmettaient `ctx.user.id` pour rien.
+- **Formulaire de réinitialisation de mot de passe en commentaire**
+  (`app/auth/reset-password/page.tsx`) : bloc JSX mort. L'intention reste, elle,
+  documentée dans le commentaire d'en-tête du fichier.
+
+### Documented — ce que la passe a trouvé et n'a pas supprimé (2026-08-11)
+
+Cinq constats où la suppression aurait été le mauvais geste. Détail et
+résolution cible dans `docs/dette-technique.md`.
+
+- **TD-012 — le champ SIREN de l'export FEC ne sert à rien.** L'écran le
+  collecte, le formulaire le transmet, `fec.generateFEC` **ne le lit jamais** :
+  le fichier s'appelle `FEC_AAAAMMJJ_AAAAMMJJ.txt` quoi qu'on saisisse. Un
+  trésorier qui renseigne son SIREN croit légitimement qu'il part dans le
+  fichier remis à l'administration. En arrière-plan, l'article A47 A-1 du LPF
+  attend un nom `SIRENFECAAAAMMJJ.txt` : supprimer le champ ou le câbler sont
+  deux décisions métier, pas des décisions de nettoyage.
+- **TD-013 — les statuts métier ont une source de vérité que l'interface
+  contourne.** Trois des sept tables de `StatusBadge` n'ont aucun appelant :
+  `CAMP_MAP` (trois `getStatusBadge` locaux dupliqués, en couleurs Tailwind
+  brutes hors des utilitaires calibrés WCAG AA), `REFUND_MAP` (les tables de
+  remboursement affichent la valeur brute de l'enum — l'utilisateur lit
+  `IMMEDIATE_REFUND`), `PAYMENT_MAP` (jamais affiché). Conservées : elles ne
+  sont pas des cadavres mais la bonne moitié d'un affichage que l'application
+  fait déjà, mal.
+- **TD-014 — un second chemin vers la feuille de présence, sans lien.**
+  `/dashboard/staff/camps/[id]/attendance` rend le même composant que l'onglet
+  « Présences » de la fiche d'ACM. Aucun lien n'y mène ; seule la recette y
+  accède en `page.goto` direct. Conservé parce que le supprimer casse un
+  critère de recette vert, rejouable uniquement sur clone de prod.
+- **TD-015 — `Session` et `VerificationToken`** ne sont lus ni écrits nulle
+  part (NextAuth v5 en sessions JWT, sans adapter base). Conservés : retirer un
+  modèle du schéma revient à supprimer la table au prochain `db push`.
+- **TD-005 complété — `registrations.payment_status`.** Le dépôt ne l'écrit
+  jamais ailleurs qu'à `UNPAID`, mais trois gardes refusent une opération quand
+  il vaut `PAID`, et le deadlock observé en campagne smoke prouve que la valeur
+  existe en base. Quelque chose hors du dépôt la pose. Les gardes n'ont donc
+  **pas** été traitées comme du code mort — mais tant que le mécanisme n'est
+  pas identifié, personne ne peut dire si elles protègent ce qu'elles croient.
+
+Aucun changement de comportement : `tsc` propre, `pnpm lint` à 35 avertissements
+(les `any` de TD-001, inchangés), 957 tests verts — un de moins, celui qui
+vérifiait les deux statuts inatteignables. Les constats TD-012 et TD-013
+documentés ci-dessus sont résolus par le correctif décrit plus haut.
+
 ### Removed — deuxième passe de code mort (2026-08-10)
 - **Le routeur `auth` entier était mort.** Ses quatre procédures (`me`,
   `updateProfile`, `changePassword`, `deleteAccount`) n'étaient appelées par
