@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -24,10 +24,30 @@ import { trpc } from '@/lib/trpc/client';
 const fecExportSchema = z.object({
   startDate: z.string().min(1, 'Date de début requise'),
   endDate: z.string().min(1, 'Date de fin requise'),
-  siren: z.string().optional(),
+  siren: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{9}$/.test(v.replace(/\D/g, '')), {
+      message: 'SIREN invalide (9 chiffres)',
+    }),
 });
 
 type FECExportFormData = z.infer<typeof fecExportSchema>;
+
+/** Lit une valeur de setting (stockée JSON-stringifiée par `updateBulk`). */
+function readSetting(
+  settings: Array<{ key: string; value: unknown }> | undefined,
+  key: string,
+): string {
+  const raw = settings?.find((s) => s.key === key)?.value;
+  if (typeof raw !== 'string') return '';
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'string' ? parsed : '';
+  } catch {
+    return raw;
+  }
+}
 
 export default function FECExportPage() {
   const [error, setError] = useState<string | null>(null);
@@ -36,9 +56,19 @@ export default function FECExportPage() {
     totalDebit: number;
     totalCredit: number;
     balance: number;
+    filename: string;
+    siren: string | null;
   } | null>(null);
 
   const generateFECMutation = trpc.fec.generateFEC.useMutation();
+
+  // Le SIREN est un attribut de l'organisation, pas de l'export : on le
+  // pré-remplit depuis les paramètres comptables pour que le trésorier voie
+  // celui qui nommera réellement le fichier (TD-012).
+  const { data: accountingSettings } = trpc.settings.getByCategory.useQuery({
+    category: 'accounting',
+  });
+  const settingsSiren = readSetting(accountingSettings, 'fec_siren');
 
   const form = useForm<FECExportFormData>({
     resolver: zodResolver(fecExportSchema),
@@ -48,6 +78,13 @@ export default function FECExportPage() {
       siren: '',
     },
   });
+
+  const { setValue, getValues } = form;
+  useEffect(() => {
+    if (settingsSiren && !getValues('siren')) {
+      setValue('siren', settingsSiren);
+    }
+  }, [settingsSiren, setValue, getValues]);
 
   function downloadFEC(content: string, filename: string) {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -77,6 +114,8 @@ export default function FECExportPage() {
         totalDebit: result.totalDebit,
         totalCredit: result.totalCredit,
         balance: result.balance,
+        filename: result.filename,
+        siren: result.siren,
       });
 
       // Télécharger le fichier FEC
@@ -118,6 +157,17 @@ export default function FECExportPage() {
             Total crédits : {exportStats.totalCredit.toLocaleString('fr-FR')} XPF
             <br />
             Balance : {(exportStats.totalDebit - exportStats.totalCredit).toLocaleString('fr-FR')} XPF
+            <br />
+            Fichier : <span className="font-mono">{exportStats.filename}</span>
+            {!exportStats.siren && (
+              <>
+                <br />
+                <span className="text-orange-700 dark:text-orange-400">
+                  Aucun SIREN renseigné : le fichier ne porte pas le nom attendu
+                  par l&apos;administration (SIRENFECAAAAMMJJ.txt).
+                </span>
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -169,10 +219,13 @@ export default function FECExportPage() {
                   <FormItem>
                     <FormLabel>SIREN (optionnel)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: 123456789" {...field} />
+                      <Input placeholder="Ex: 123456789" className="font-mono" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Numéro SIREN de l'organisation (9 chiffres)
+                      Nomme le fichier remis à l&apos;administration :{' '}
+                      <span className="font-mono">SIRENFECAAAAMMJJ.txt</span>{' '}
+                      (article A47 A-1 du LPF), où AAAAMMJJ est la date de fin
+                      ci-dessus. Pré-rempli depuis Paramètres → Comptabilité.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

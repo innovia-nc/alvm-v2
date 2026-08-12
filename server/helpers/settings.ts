@@ -92,6 +92,49 @@ export async function getCreditExpiryDate(
 }
 
 /**
+ * Normalise un SIREN saisi ou stocké : accepte les séparateurs de lisibilité
+ * (« 123 456 789 », « 123.456.789 ») et la valeur JSON-stringifiée produite par
+ * `settings.updateBulk`.
+ *
+ * @returns les 9 chiffres, ou `null` si la valeur ne forme pas un SIREN.
+ */
+export function normalizeSiren(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+
+  let value = raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') value = parsed;
+    else if (typeof parsed === 'number') value = String(parsed);
+  } catch {
+    // Valeur stockée en clair (legacy) — on garde la chaîne brute.
+  }
+
+  const digits = value.replace(/\D/g, '');
+  return digits.length === 9 ? digits : null;
+}
+
+/**
+ * SIREN de l'organisation, utilisé pour nommer le fichier FEC.
+ *
+ * L'article A47 A-1 du LPF impose le nom `SIRENFECAAAAMMJJ.txt` (AAAAMMJJ =
+ * date de clôture de l'exercice). Le SIREN n'est PAS une colonne du fichier :
+ * il ne sert qu'au nommage, d'où sa lecture ici et nulle part dans
+ * `generateFECContent`.
+ *
+ * Retourne `null` si la clé est absente ou malformée : l'export reste possible,
+ * seul le nommage réglementaire est perdu (le router le signale à l'appelant).
+ */
+export async function getFecSiren(prisma: HasAppSetting): Promise<string | null> {
+  const row = await prisma.appSetting.findUnique({
+    where: { category_key: { category: 'accounting', key: 'fec_siren' } },
+    select: { value: true },
+  });
+
+  return normalizeSiren(row?.value);
+}
+
+/**
  * Parses a setting value into a number. Tolerates:
  *  - JSON-encoded numbers (e.g. "30", "0.11")
  *  - Plain numeric strings ("30")

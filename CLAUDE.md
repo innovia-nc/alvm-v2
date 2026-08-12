@@ -102,6 +102,24 @@ au lieu d'un appel HTTP au backend. Le mot de passe hashé est stocké dans
 - Les ecritures VE sont creees quand `status` passe a `SENT` (appel explicite dans le router)
 - Les ecritures BQ sont creees lors de la creation d'un paiement/remboursement
 
+### Nom du fichier FEC (TD-012)
+L'article A47 A-1 du LPF impose `SIRENFECAAAAMMJJ.txt` (AAAAMMJJ = date de
+cloture de l'exercice, ici la date de fin de la periode exportee). Le SIREN vit
+dans `app_settings.accounting.fec_siren` et se lit via `getFecSiren()` ; le
+champ de l'ecran d'export ne fait que le surcharger ponctuellement. Il ne figure
+PAS dans le contenu du fichier — les 18 colonnes du FEC n'ont pas ce champ.
+Sans SIREN, l'export reste possible sous le nom historique et l'ecran previent
+de la non-conformite : ne jamais bloquer un export comptable pour un nommage.
+
+### Afficher un statut : toujours `<StatusBadge />` (TD-013)
+`components/shared/status-badge.tsx` porte le libelle francais, la couleur
+calibree WCAG AA (utilities `status-badge-*` de `app/globals.css`) et l'icone
+de chaque statut metier. Ne jamais reecrire un `getStatusBadge()` local ni
+afficher l'enum brut : c'est exactement ce qui a fait lire `IMMEDIATE_REFUND`
+aux utilisateurs et contourner les couleurs calibrees sur les badges d'ACM.
+Un nouveau statut s'ajoute dans la table du fichier partage, avec son test dans
+`test/unit/status-badge.spec.ts`.
+
 ### Soft-delete
 - Extension Prisma `soft-delete.ts` ajoute `deletedAt: null` automatiquement
 - Pour les enregistrements supprimes : `{ deletedAt: { not: null } }`
@@ -196,7 +214,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
-- `docs/dette-technique.md` — registre de dette (OPEN : TD-001 typage any des mappers ; TD-005 triggers legacy absents du depot — « dernier parent » et `payment_status` ; TD-009 aucune limitation de debit sur l'authentification ; TD-010 procedures tRPC sans ecran ; TD-011 auto-inscription parent sans serveur ; TD-012 champ SIREN de l'export FEC ignore par le serveur ; TD-013 statuts metier : la source de verite contournee par l'interface ; TD-014 route de presence en double, sans lien ; TD-015 modeles NextAuth `Session`/`VerificationToken` inutilises. DONE : TD-002 factures legacy 0 XPF ; TD-003 divergence des deux vues du solde d'un avoir ; TD-004 reserve du pied de page PDF ; TD-006 blobs orphelins ; TD-007 PDF d'avoir cable ; TD-008 envoi d'email implemente ; TD-A2 couverture PDF facture).
+- `docs/dette-technique.md` — registre de dette (OPEN : TD-001 typage any des mappers ; TD-005 triggers legacy absents du depot — « dernier parent » et `payment_status` ; TD-009 aucune limitation de debit sur l'authentification ; TD-010 procedures tRPC sans ecran ; TD-011 auto-inscription parent sans serveur ; TD-014 route de presence en double, sans lien ; TD-015 modeles NextAuth `Session`/`VerificationToken` inutilises. DONE : TD-002 factures legacy 0 XPF ; TD-003 divergence des deux vues du solde d'un avoir ; TD-004 reserve du pied de page PDF ; TD-006 blobs orphelins ; TD-007 PDF d'avoir cable ; TD-008 envoi d'email implemente ; TD-012 SIREN du FEC cable ; TD-013 statuts affiches via StatusBadge ; TD-A2 couverture PDF facture).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
 - `docs/test-evidence/recette-v2.0.1/` — recette visuelle Playwright (19/19 PASS, `pnpm recette`) + rapport de preuve.
 - `CHANGELOG.md` — journal des livraisons (v2.0.0 premiere prod de la refonte + v2.0.1 correctifs campagne smoke, 2026-07-06).

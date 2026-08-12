@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, FileText, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -21,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 type Refund = {
   id: string;
@@ -50,11 +50,6 @@ type Refund = {
       };
     };
   };
-};
-
-const refundMethodLabels: Record<Refund['refundMethod'], string> = {
-  IMMEDIATE_REFUND: 'Remboursement immédiat',
-  FUTURE_CREDIT: 'Avoir / Crédit futur',
 };
 
 export function RefundDetails({ refund }: { refund: Refund }) {
@@ -100,7 +95,7 @@ export function RefundDetails({ refund }: { refund: Refund }) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Méthode de remboursement</p>
-              <Badge variant="outline">{refundMethodLabels[refund.refundMethod]}</Badge>
+              <StatusBadge type="refund" status={refund.refundMethod} />
             </div>
             {refund.reference && (
               <div>
