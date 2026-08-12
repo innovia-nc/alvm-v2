@@ -419,7 +419,9 @@ pas le besoin.
 
 **Résolution cible** : une US « mon compte » spécifiée serveur d'abord —
 procédures self-service explicitement bornées au `ctx.session.user.id` (jamais un
-`users.update` relâché), puis l'écran `/dashboard/profile` pour les trois rôles.## TD-012 — Le champ SIREN de l'export FEC ne sert à rien — P2 — OPEN
+`users.update` relâché), puis l'écran `/dashboard/profile` pour les trois rôles.
+
+## TD-012 — Le champ SIREN de l'export FEC ne sert à rien — P2 — OPEN
 
 **Constat (2026-08-11, troisième passe de code mort)** : l'écran
 `/dashboard/admin/fec/export` affiche un champ « SIREN (optionnel) — Numéro
