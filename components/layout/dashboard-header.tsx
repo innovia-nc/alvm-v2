@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, Settings, LogOut, Moon, Sun, ShieldCheck } from 'lucide-react';
+import { Settings, LogOut, Moon, Sun, ShieldCheck } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -115,17 +115,24 @@ export function DashboardHeader() {
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Mon Profil</span>
-              </DropdownMenuItem>
+              {/* Pas d'entrée « Mon Profil » : aucun écran ni aucune procédure
+                  tRPC ne permet à un utilisateur d'éditer son propre compte
+                  (users.update / users.resetPassword sont admin/staff). Le lien
+                  vers /dashboard/profile tombait sur un 404.
+                  « Paramètres » n'est proposé qu'aux ADMIN, seuls habilités par
+                  settings.updateBulk, et pointe sur l'écran réel. */}
+              {isAdmin && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/admin/settings')}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Paramètres</span>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Paramètres</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
+                  <DropdownMenuSeparator />
+                </>
+              )}
 
               <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
