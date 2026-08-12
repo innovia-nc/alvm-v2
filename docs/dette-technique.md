@@ -392,6 +392,35 @@ vérification d'email ? quelle validation par le secrétariat ?) et elle
 s'implémente serveur d'abord. Aujourd'hui, les comptes parents sont créés par
 le personnel via `parents.create` / `parents.createByStaff`.
 
+## TD-016 — « Mon Profil » : un menu qui promettait un écran inexistant — P3 — OPEN
+
+**Constat (2026-08-12, retour de recette)** : le menu avatar de
+`DashboardHeader` proposait deux entrées vers des routes absentes de `app/` —
+« Mon Profil » (`/dashboard/profile`) et « Paramètres » (`/dashboard/settings`,
+le seul écran réel étant `/dashboard/admin/settings`). Le header étant rendu par
+`app/dashboard/layout.tsx`, les **trois rôles** cliquaient sur un 404. Aggravant :
+aucun `not-found.tsx` n'existait dans le dépôt, si bien que la vingtaine de pages
+de détail qui appellent `notFound()` (identifiant inconnu) éjectaient elles aussi
+l'utilisateur sur la page blanche par défaut de Next, hors du shell applicatif et
+sans chemin de retour.
+
+**Correctif livré** : entrée « Mon Profil » retirée ; « Paramètres » réservée aux
+ADMIN et pointée sur `/dashboard/admin/settings` ; ajout de `app/not-found.tsx`
+(URL non appariées — Next n'utilise que le fichier racine pour ce cas) et de
+`app/dashboard/not-found.tsx` (appels à `notFound()`, rendu dans le shell).
+Verrou : `test/unit/dashboard-header.spec.tsx`.
+
+**Ce qui reste ouvert — le manque, pas le lien** : il n'existe aucun moyen pour un
+utilisateur de consulter ou modifier son propre compte. `users.update` et
+`users.resetPassword` sont des procédures admin/staff ; aucune procédure `me.*`
+n'existe. Un parent ne peut donc ni corriger son téléphone, ni changer son mot de
+passe sans passer par le secrétariat. Retirer l'entrée de menu supprime le piège,
+pas le besoin.
+
+**Résolution cible** : une US « mon compte » spécifiée serveur d'abord —
+procédures self-service explicitement bornées au `ctx.session.user.id` (jamais un
+`users.update` relâché), puis l'écran `/dashboard/profile` pour les trois rôles.
+
 ## TD-014 — Un second chemin vers la feuille de présence, sans lien — P3 — OPEN
 
 **Constat (2026-08-11, troisième passe de code mort)** : la route
