@@ -421,67 +421,6 @@ pas le besoin.
 procédures self-service explicitement bornées au `ctx.session.user.id` (jamais un
 `users.update` relâché), puis l'écran `/dashboard/profile` pour les trois rôles.
 
-## TD-012 — Le champ SIREN de l'export FEC ne sert à rien — P2 — OPEN
-
-**Constat (2026-08-11, troisième passe de code mort)** : l'écran
-`/dashboard/admin/fec/export` affiche un champ « SIREN (optionnel) — Numéro
-SIREN de l'organisation (9 chiffres) ». Le formulaire le collecte, le transmet
-bien à `fec.generateFEC`… et **la procédure ne le lit jamais**. Le nom du
-fichier produit est `FEC_AAAAMMJJ_AAAAMMJJ.txt`, calculé uniquement à partir des
-deux dates.
-
-Ce n'est pas un simple export mort : c'est un contrôle de saisie qui **promet
-quelque chose qu'il ne fait pas**. Un trésorier qui renseigne son SIREN croit
-légitimement qu'il part dans le fichier remis à l'administration. La recette
-visuelle le remplit elle-même (`FEC-01`, valeur `123456789`) sans qu'aucune
-assertion ne vérifie où il atterrit.
-
-En arrière-plan, une question réglementaire non tranchée : l'article A47 A-1 du
-LPF nomme le fichier des écritures comptables `SIRENFECAAAAMMJJ.txt` (SIREN de
-l'entité, date de clôture de l'exercice). Le nom actuel ne suit pas cette
-convention.
-
-**Ni supprimé ni câblé par cette passe** : les deux résolutions engagent le
-métier. Supprimer le champ, c'est renoncer au nommage réglementaire ; le câbler,
-c'est changer le nom des fichiers remis au comptable — décision PO, pas décision
-de nettoyage.
-
-**Résolution cible** : trancher avec l'ALVM et son comptable. Si le nommage
-réglementaire est retenu, le SIREN a sa place dans les paramètres
-`organization` (il ne change jamais d'un export à l'autre) plutôt que dans un
-champ de formulaire à ressaisir. Sinon, retirer le champ, l'entrée `siren` du
-schéma d'entrée et la ligne correspondante de la recette.
-
-## TD-013 — Les statuts métier ont une source de vérité que l'interface contourne — P3 — OPEN
-
-**Constat (2026-08-11, troisième passe de code mort)** :
-`components/shared/status-badge.tsx` se présente comme le « composant unifié
-pour afficher les statuts métier », avec sept tables de correspondance et des
-utilitaires CSS `status-badge-*` calibrés pour le contraste WCAG 2.1 AA
-(≥ 4,5:1, cf. `app/globals.css`). Trois de ses sept tables n'ont **aucun
-appelant** :
-
-| Table | Ce que fait l'interface à la place |
-|-------|-----------------------------------|
-| `CAMP_MAP` | trois fonctions `getStatusBadge` locales, dupliquées à l'identique dans `components/admin/camps/columns.tsx`, `components/staff/camps/columns.tsx` et `components/camps/camp-detail-page.tsx`, avec des couleurs Tailwind brutes (`bg-gray-100 text-gray-800`…) qui ne passent pas par les utilitaires accessibles |
-| `REFUND_MAP` | les tables de remboursement (ADMIN et STAFF) affichent la **valeur brute de l'enum** : l'utilisateur lit `IMMEDIATE_REFUND` et `FUTURE_CREDIT` là où la table porte « Remboursement immédiat » et « Avoir futur » |
-| `PAYMENT_MAP` | rien — `Registration.paymentStatus` n'est affiché nulle part (voir aussi TD-005) |
-
-Les trois tables **n'ont pas été supprimées**. Ce ne sont pas des cadavres :
-chacune correspond à un affichage que l'application fait déjà, mais mal. Les
-effacer supprimerait la bonne implémentation en laissant les mauvaises, et
-rendrait le correctif plus coûteux qu'il ne l'est.
-
-Seules les entrées réellement inatteignables ont été retirées : `ISSUED` et
-`APPLIED` de `CREDIT_NOTE_MAP`, absentes de l'enum `InvoiceStatus` comme de
-toute migration — un avoir ne pouvait pas porter ces statuts.
-
-**Résolution cible** : brancher les trois appels sur `<StatusBadge />`
-(`type="camp"`, `type="refund"`) et supprimer les trois `getStatusBadge`
-locaux. Environ 90 lignes en moins, un rendu homogène, et les libellés
-français à la place des identifiants d'enum dans les tables de remboursement.
-Attention : les couleurs des badges d'ACM changent — à passer en recette.
-
 ## TD-014 — Un second chemin vers la feuille de présence, sans lien — P3 — OPEN
 
 **Constat (2026-08-11, troisième passe de code mort)** : la route
