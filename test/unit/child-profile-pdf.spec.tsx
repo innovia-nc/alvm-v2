@@ -14,7 +14,8 @@
 
 import { describe, it, expect } from 'vitest';
 import React from 'react';
-import { ChildProfilePDF, generateChildProfilePDFBuffer } from '@/lib/pdf/child-profile-pdf';
+import { renderToBuffer } from '@react-pdf/renderer';
+import { ChildProfilePDF } from '@/lib/pdf/child-profile-pdf';
 import { PDFFooter } from '@/lib/pdf/shared/pdf-footer';
 import { flattenTree, elementText } from '@/test/helpers/react-tree';
 
@@ -117,7 +118,9 @@ describe('ChildProfilePDF — ordre signature / autorisations (US-UX-03)', () =>
   });
 
   it('produit un PDF valide de bout en bout', async () => {
-    const buffer = await generateChildProfilePDFBuffer(DATA);
+    // Rendu direct : la route de production sert la fiche en flux
+    // (`renderToStream`), il n'existe pas d'emballage « buffer » a tester.
+    const buffer = Buffer.from(await renderToBuffer(<ChildProfilePDF data={DATA} />));
 
     expect(buffer.length).toBeGreaterThan(1000);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');

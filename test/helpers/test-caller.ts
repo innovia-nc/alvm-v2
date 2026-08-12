@@ -23,12 +23,19 @@ export const PARENT_USER: AuthUser = {
   name: 'Test Parent',
 };
 
-export const ANIMATOR_USER: AuthUser = {
+/**
+ * Second membre du personnel, distinct de STAFF_USER.
+ *
+ * Sert aux cas ou l'identite de l'auteur compte (createdBy, « modifier le camp
+ * d'un autre »). Ne porte plus de sous-role : le champ `staffRole` de la
+ * session, residu d'EPIC-006, n'etait lu par aucun garde (cf. quatrieme passe
+ * de code mort).
+ */
+export const OTHER_STAFF_USER: AuthUser = {
   id: 'a0000000-0000-4000-a000-000000000004',
-  email: 'animator@test.com',
+  email: 'staff2@test.com',
   role: 'STAFF',
-  staffRole: 'ANIMATOR',
-  name: 'Test Animator',
+  name: 'Test Staff 2',
 };
 
 export function createTestCaller(user: AuthUser | null = ADMIN_USER) {

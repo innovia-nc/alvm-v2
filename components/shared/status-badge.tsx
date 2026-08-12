@@ -40,7 +40,6 @@ export type StatusBadgeType =
   | 'registration'
   | 'attendance'
   | 'creditNote'
-  | 'payment'
   | 'refund'
   | 'camp';
 
@@ -108,14 +107,11 @@ const CAMP_MAP: Record<string, StatusInfo> = {
   CANCELLED: { label: 'Annulé', className: 'status-badge-cancelled', icon: XCircle },
 };
 
-const PAYMENT_MAP: Record<string, StatusInfo> = {
-  // PaymentStatus enum dans le schema Prisma s'applique aux factures, mais cette
-  // table peut aussi servir a etiqueter un Payment isole si besoin.
-  UNPAID: { label: 'Non payé', className: 'status-badge-unpaid', icon: Clock },
-  PARTIAL: { label: 'Partiel', className: 'status-badge-partial', icon: Wallet },
-  PAID: { label: 'Payé', className: 'status-badge-paid', icon: CheckCircle2 },
-  REFUNDED: { label: 'Remboursé', className: 'status-badge-refunded', icon: RefreshCcw },
-};
+// Il n'existe pas de table `payment` : aucun ecran n'affiche `PaymentStatus`
+// (ni celui de la facture, ni `registrations.payment_status`). La table qui
+// vivait ici n'a jamais eu d'appelant — retiree a la quatrieme passe de code
+// mort. Si un ecran doit un jour montrer ce statut, c'est ici qu'il se cable,
+// avec ses utilitaires CSS et son test (TD-013).
 
 const REFUND_MAP: Record<string, StatusInfo> = {
   IMMEDIATE_REFUND: {
@@ -136,7 +132,6 @@ const TYPE_MAPS: Record<StatusBadgeType, Record<string, StatusInfo>> = {
   attendance: ATTENDANCE_MAP,
   creditNote: CREDIT_NOTE_MAP,
   camp: CAMP_MAP,
-  payment: PAYMENT_MAP,
   refund: REFUND_MAP,
 };
 

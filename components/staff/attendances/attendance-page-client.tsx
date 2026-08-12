@@ -97,17 +97,17 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
   ).length;
 
   // Handle mark single attendance
+  // La grille ne saisit pas de commentaire : `attendances.markAttendance`
+  // accepte un `notes` optionnel, aucun ecran ne le renseigne.
   const handleMarkAttendance = (
     registrationId: string,
     status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED',
-    notes?: string
   ) => {
     if (!selectedDate) return;
     markMutation.mutate({
       registrationId,
       date: formatDateISO(selectedDate),
       status,
-      notes,
     });
   };
 

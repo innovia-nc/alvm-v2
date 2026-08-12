@@ -27,7 +27,6 @@ export const authEdgeConfig = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.staffRole = user.staffRole;
       }
       return token;
     },
@@ -36,7 +35,6 @@ export const authEdgeConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as 'PARENT' | 'STAFF' | 'ADMIN';
-        session.user.staffRole = token.staffRole as 'ANIMATOR' | undefined;
       }
       return session;
     },

@@ -35,6 +35,8 @@ interface ManageParentsProps {
     lastName: string;
     email: string;
     phone: string;
+    // Non affiches ici, mais requis : cet objet sert d'`initialData` a
+    // `children.getParents`, dont la sortie porte les deux numeros.
     homePhone: string | null;
     workPhone: string | null;
     isPrimary: boolean;

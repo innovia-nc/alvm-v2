@@ -57,14 +57,10 @@ type CreditNoteFormValues = z.infer<typeof creditNoteFormSchema>;
 // COMPOSANT
 // ============================================================================
 
-interface CreditNoteFormProps {
-  redirectPath?: string;
-}
-
-export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
+export function CreditNoteForm() {
   const router = useRouter();
   const basePath = useDashboardBasePath();
-  const finalRedirectPath = redirectPath ?? `${basePath}/credit-notes`;
+  const finalRedirectPath = `${basePath}/credit-notes`;
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
   // Factures éligibles à un avoir : uniquement les factures émises.

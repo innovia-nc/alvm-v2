@@ -5,6 +5,80 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — quatrième passe de code mort (2026-08-12)
+
+Passe complète après celles des 10 et 11 août : graphe d'imports, exports sans
+consommateur, procédures tRPC sans appelant, routes sans lien, champs d'entrée
+Zod jamais lus, props et paramètres morts, membres de hook sans appelant,
+utilitaires CSS, colonnes Prisma, variables d'environnement, dépendances npm.
+Les trois premières passes ont bien vidé le gisement « fichier orphelin » : il
+ne reste **aucun fichier sans importeur, aucune dépendance inutilisée, aucun
+local mort** (`tsc --noUnusedLocals --noUnusedParameters` propre). Ce qui restait
+est plus fin — du **plombage** : des valeurs calculées, typées et transportées
+de couche en couche jusqu'à un lecteur qui n'existe pas.
+
+- **`staffRole` / `ANIMATOR` (5 fichiers)** : à chaque connexion, `authorize()`
+  faisait une jointure supplémentaire sur `staff_members` pour poser
+  `staffRole: 'ANIMATOR'`, recopié dans le JWT, puis dans la session, puis dans
+  le contexte tRPC — **et lu par personne**. C'est la moitié restante d'EPIC-006
+  (abandonnée), dont la deuxième passe avait déjà retiré `animatorProcedure` et
+  `requireStaffRole` : plus aucun garde ne distingue un animateur d'un autre
+  STAFF. Le champ promettait une habilitation qui n'existe pas.
+- **Feuille d'inscription : contrôle d'âge inatteignable**
+  (`components/parent/registration-form.tsx`) — `minAge` / `maxAge`,
+  `checkAgeCompatibility`, l'état `ageError` et son `Alert`. Aucun appelant ne
+  passait ces props, et pour cause : **aucun modèle ne porte de tranche d'âge**
+  (rien dans `schema.prisma`, rien dans les paramètres). La fonction sortait
+  systématiquement sur son garde `minAge === undefined`. `calculateAge` est
+  conservée : elle affiche l'âge de chaque enfant dans le sélecteur.
+- **Table `payment` de `<StatusBadge />`** et ses trois utilitaires CSS
+  (`.status-badge-unpaid`, `.status-badge-partial`, `.status-badge-refunded`).
+  Contrairement à `CAMP_MAP` et `REFUND_MAP` — que TD-013 a rebranchées parce
+  que l'interface les contournait avec des doublons — **aucun écran n'affiche
+  `PaymentStatus`**, ni celui de la facture ni `registrations.payment_status` :
+  il n'y avait pas d'affichage mal fait à récupérer, juste une table sans usage.
+- **`generateChildProfilePDFBuffer`** (`lib/pdf/child-profile-pdf.tsx`) : la
+  route de production sert la fiche en flux (`renderToStream`) ; cet emballage
+  n'avait pour appelant que son propre test. Le test conserve son assertion
+  « produit un PDF valide de bout en bout » en rendant directement, comme le
+  fait déjà `pdf-footer-overlap.spec.tsx`.
+- **`useServerPagination` : `goToFirstPage` et `goToLastPage`** — les 20 tables
+  du produit utilisent `resetToFirstPage`, `goToPrevPage` et `goToNextPage` ;
+  ces deux membres n'étaient appelés que par leurs propres tests.
+- **`PAGINATION_DEFAULTS.MIN_PAGE_SIZE` / `MAX_PAGE_SIZE`** : jamais importées.
+  Les 11 routeurs paginés valident en dur `z.number().min(1).max(100)` — la
+  constante partagée n'a jamais été branchée (elle n'est pas importable côté
+  serveur sans ajouter une dépendance de `server/` vers `lib/constants/`).
+- **Divers props morts** : `notes` du pointage de présence (la grille ne saisit
+  aucun commentaire, le paramètre valait toujours `undefined` sur trois
+  niveaux — le routeur, lui, garde la capacité), `redirectPath` du formulaire
+  d'avoir (aucun appelant, le repli était le seul chemin), `error` de
+  `ParentMultiSelect` (bloc d'affichage jamais atteint), `pdfUrl` de
+  `StaffInvoiceActionsProps` (déclaré, jamais déstructuré — le composant lit
+  `item.pdfUrl`), et l'`export` de `deriveClientAux`, utilisé seulement dans son
+  propre service.
+
+**Documenté plutôt que supprimé** :
+- **TD-017 (nouveau)** — sept colonnes de la base ni lues ni écrites (les cinq
+  colonnes OAuth d'`Account`, `CampDay.maxCapacityOverride`,
+  `AccountingEntry.cancellationEntryId`). Même raisonnement que TD-015 :
+  supprimer une colonne du schéma, c'est la perdre au prochain `db push`. Pour
+  `cancellationEntryId`, c'est en outre une décision comptable — la bonne
+  question est de savoir s'il faut enfin l'alimenter.
+- **TD-010** recompté et inchangé : **12** procédures tRPC sans écran (le
+  document annonçait 11 pour 12 lignes de tableau).
+- **TD-014** inchangé : `/dashboard/staff/camps/[id]/attendance` reste sans lien
+  entrant.
+- **Les primitives shadcn/ui non utilisées** (une trentaine d'exports :
+  `TableCaption`, `DialogClose`, `DropdownMenuRadioGroup`…) sont conservées.
+  Ces fichiers sont régénérés par `shadcn add` : les amputer crée un conflit à
+  chaque mise à jour de composant, pour zéro octet livré (tree-shaking).
+
+Aucun changement de comportement : `tsc` propre (y compris avec
+`--noUnusedLocals --noUnusedParameters`), `pnpm lint` à 35 avertissements
+inchangés (les `any` de TD-001), **971 tests verts** — 979 avant, les 8 cas
+retirés ne portaient que sur le code supprimé.
+
 ### Fixed — TD-012 : le SIREN de l'export FEC part enfin dans le fichier (2026-08-11)
 - **Un champ collecté puis jeté.** L'écran d'export affichait « SIREN
   (optionnel) », le transmettait à `fec.generateFEC`, et la procédure ne le

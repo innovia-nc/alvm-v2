@@ -29,11 +29,7 @@ interface ChildAttendance {
 
 interface AttendanceGridProps {
   attendees: ChildAttendance[];
-  onMarkAttendance: (
-    registrationId: string,
-    status: AttendanceStatus,
-    notes?: string
-  ) => void;
+  onMarkAttendance: (registrationId: string, status: AttendanceStatus) => void;
   isPending: boolean;
 }
 

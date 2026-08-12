@@ -16,7 +16,6 @@ interface ParentMultiSelectProps {
   onChange: (parents: SelectedParent[]) => void;
   maxParents?: number;
   disabled?: boolean;
-  error?: string;
 }
 
 // ============================================================================
@@ -28,7 +27,6 @@ export function ParentMultiSelect({
   onChange,
   maxParents = 3,
   disabled = false,
-  error,
 }: ParentMultiSelectProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -113,11 +111,6 @@ export function ParentMultiSelect({
           <Plus className="h-4 w-4" />
           Ajouter un parent ({maxParents - value.length} place{maxParents - value.length > 1 ? 's' : ''} restante{maxParents - value.length > 1 ? 's' : ''})
         </Button>
-      )}
-
-      {/* Message d'erreur */}
-      {error && (
-        <p className="text-sm font-medium text-destructive">{error}</p>
       )}
 
       {/* Dialog de recherche */}

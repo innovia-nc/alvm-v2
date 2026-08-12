@@ -156,7 +156,6 @@ export interface StaffInvoiceActionsProps {
   onGeneratePDF?: (item: StaffInvoiceType) => void;
   onValidate?: (item: StaffInvoiceType) => void;
   onRecordPayment?: (item: StaffInvoiceType) => void;
-  pdfUrl?: string | null;
 }
 
 export function StaffInvoiceActions({ item, onDelete, onGeneratePDF, onValidate, onRecordPayment }: StaffInvoiceActionsProps) {

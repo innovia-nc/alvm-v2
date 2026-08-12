@@ -19,7 +19,7 @@ type TxClient = any;
 /**
  * Derives a deterministic auxiliary account code from a parent UUID.
  */
-export function deriveClientAux(parentId: string): string {
+function deriveClientAux(parentId: string): string {
   return 'AUX' + parentId.replace(/-/g, '').slice(0, 8);
 }
 

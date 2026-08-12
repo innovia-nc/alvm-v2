@@ -37,12 +37,6 @@ export interface UseServerPaginationReturn {
   /** Calcule le nombre total de pages */
   getTotalPages: (total: number) => number;
 
-  /** Va à la première page */
-  goToFirstPage: () => void;
-
-  /** Va à la dernière page */
-  goToLastPage: (total: number) => void;
-
   /** Va à la page précédente */
   goToPrevPage: () => void;
 
@@ -107,13 +101,6 @@ export function useServerPagination({
     return Math.ceil(total / pageSize);
   }, [pageSize]);
 
-  const goToFirstPage = useCallback(() => setPageState(1), []);
-
-  const goToLastPage = useCallback((total: number) => {
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    setPageState(totalPages);
-  }, [pageSize]);
-
   const goToPrevPage = useCallback(() => {
     setPageState((prev) => Math.max(1, prev - 1));
   }, []);
@@ -142,8 +129,6 @@ export function useServerPagination({
       offset,
       limit,
       getTotalPages,
-      goToFirstPage,
-      goToLastPage,
       goToPrevPage,
       goToNextPage,
       hasPrevPage,
@@ -158,8 +143,6 @@ export function useServerPagination({
       offset,
       limit,
       getTotalPages,
-      goToFirstPage,
-      goToLastPage,
       goToPrevPage,
       goToNextPage,
       hasPrevPage,

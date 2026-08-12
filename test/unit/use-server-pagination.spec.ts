@@ -66,28 +66,6 @@ describe('useServerPagination — stabilité référentielle (verrou R-B / BUG-0
     expect(result.current.resetToFirstPage).toBe(fnBefore);
   });
 
-  it('conserve la même référence pour goToFirstPage entre deux renders sans changement d\'état', () => {
-    const { result, rerender } = renderHook(() =>
-      useServerPagination({ defaultPageSize: 20, defaultPage: 1 }),
-    );
-
-    const fnBefore = result.current.goToFirstPage;
-    rerender();
-
-    expect(result.current.goToFirstPage).toBe(fnBefore);
-  });
-
-  it('conserve la même référence pour goToLastPage entre deux renders sans changement d\'état', () => {
-    const { result, rerender } = renderHook(() =>
-      useServerPagination({ defaultPageSize: 20, defaultPage: 1 }),
-    );
-
-    const fnBefore = result.current.goToLastPage;
-    rerender();
-
-    expect(result.current.goToLastPage).toBe(fnBefore);
-  });
-
   it('conserve la même référence pour goToPrevPage entre deux renders sans changement d\'état', () => {
     const { result, rerender } = renderHook(() =>
       useServerPagination({ defaultPageSize: 20, defaultPage: 1 }),
@@ -215,30 +193,6 @@ describe('useServerPagination — stabilité référentielle (verrou R-B / BUG-0
     });
 
     expect(result.current.page).toBe(1);
-  });
-
-  it('goToFirstPage ramène page à 1', () => {
-    const { result } = renderHook(() =>
-      useServerPagination({ defaultPageSize: 20, defaultPage: 4 }),
-    );
-
-    act(() => {
-      result.current.goToFirstPage();
-    });
-
-    expect(result.current.page).toBe(1);
-  });
-
-  it('goToLastPage navigue vers la dernière page', () => {
-    const { result } = renderHook(() =>
-      useServerPagination({ defaultPageSize: 10, defaultPage: 1 }),
-    );
-
-    act(() => {
-      result.current.goToLastPage(45); // Math.ceil(45/10) = 5
-    });
-
-    expect(result.current.page).toBe(5);
   });
 
   it('goToNextPage incrémente la page sans dépasser totalPages', () => {

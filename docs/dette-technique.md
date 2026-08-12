@@ -339,9 +339,10 @@ indexée sur email + IP). Ne pas réintroduire de compteur en mémoire de proces
 
 ## TD-010 — Procédures tRPC sans écran : la moitié serveur de fonctions jamais construites — P3 — OPEN
 
-**Constat (2026-08-10, deuxième passe de code mort)** : après le retrait des
-procédures redondantes, **11 procédures tRPC n'ont toujours aucun appelant** —
-ni page, ni composant, ni campagne de test réel. Elles n'ont pas été supprimées
+**Constat (2026-08-10, deuxième passe de code mort ; recompté le 2026-08-12,
+quatrième passe — inchangé)** : après le retrait des procédures redondantes,
+**12 procédures tRPC n'ont toujours aucun appelant** — ni page, ni composant,
+ni campagne de test réel. Elles n'ont pas été supprimées
 parce qu'aucune autre procédure ne couvre leur besoin : ce sont des fonctions
 dont seule la moitié serveur a été écrite. Les supprimer ferait disparaître la
 trace du manque ; les garder sans les tracer laisse croire qu'elles servent.
@@ -459,3 +460,33 @@ mal séquencée, si.
 **Résolution cible** : les retirer du schéma lors d'une opération de migration
 déjà planifiée, après avoir vérifié sur clone de prod qu'elles sont bien vides,
 et en conservant la trace SQL dans `prisma/migrations-manual/`.
+
+## TD-017 — Sept colonnes de la base ne sont ni lues ni écrites — P3 — OPEN
+
+**Constat (2026-08-12, quatrième passe de code mort)** : au-delà des deux
+modèles de TD-015, **sept colonnes scalaires** du schéma Prisma n'apparaissent
+dans aucune requête du dépôt — ni en lecture, ni en écriture.
+
+| Modèle | Colonne | Pourquoi elle existe |
+|--------|---------|----------------------|
+| `Account` | `refreshToken`, `accessToken`, `tokenType`, `idToken`, `sessionState` | colonnes OAuth du schéma NextAuth standard ; ce projet n'utilise que le provider `credentials`, qui range le hash du mot de passe dans `providerAccountId` |
+| `CampDay` | `maxCapacityOverride` | capacité par jour d'un ACM — jamais saisie ni lue ; la seule capacité appliquée est `Camp.maxCapacity` |
+| `AccountingEntry` | `cancellationEntryId` | lien vers l'écriture de contrepassation ; `cancelAccountingEntries()` pose `isCancelled` / `cancelledAt` / `cancelledBy` mais ne relie jamais les deux écritures |
+
+Deux colonnes s'y ajoutent qui sont écrites **par la base** et jamais relues :
+`CreditNoteAllocation.allocationDate` (défaut `CURRENT_DATE`) et les `updatedAt`
+tenus par Prisma.
+
+**Non supprimées** : retirer une colonne du schéma revient à la supprimer au
+prochain `db push` — donc à perdre son contenu en prod, où les lignes existent
+déjà (les `Account` legacy peuvent porter des valeurs). Même raisonnement que
+TD-015 : une colonne inutilisée ne coûte rien, une suppression mal séquencée si.
+`cancellationEntryId` mérite en outre un arbitrage comptable avant tout geste :
+c'est la trace du lien écriture ↔ contrepassation, qu'un contrôle fiscal peut
+demander. La bonne question n'est pas « faut-il la supprimer ? » mais « faut-il
+enfin l'alimenter ? ».
+
+**Résolution cible** : trancher colonne par colonne lors d'une opération de
+migration déjà planifiée (vérification sur clone de prod que la colonne est bien
+vide, trace SQL dans `prisma/migrations-manual/`). Pour
+`AccountingEntry.cancellationEntryId`, décision comptable d'abord.

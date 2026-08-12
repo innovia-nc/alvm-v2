@@ -27,8 +27,6 @@ interface RegistrationFormProps {
   campId: string;
   campName: string;
   pricePerDay: number;
-  minAge?: number;
-  maxAge?: number;
   availableSpots: number;
   startDate: string;
   endDate: string;
@@ -43,8 +41,6 @@ export function RegistrationForm({
   campId,
   campName,
   pricePerDay,
-  minAge,
-  maxAge,
   availableSpots,
   startDate,
   endDate,
@@ -53,7 +49,6 @@ export function RegistrationForm({
   const router = useRouter();
   const [selectedChildId, setSelectedChildId] = useState<string>('');
   const [specialRequirements, setSpecialRequirements] = useState('');
-  const [ageError, setAgeError] = useState('');
 
   // Fetch children
   const { data: childrenData, isLoading: loadingChildren } = trpc.children.list.useQuery({
@@ -91,31 +86,9 @@ export function RegistrationForm({
     return age;
   };
 
-  // Check age compatibility
-  const checkAgeCompatibility = (childId: string) => {
-    const child = children.find((c) => c.id === childId);
-    if (!child) return;
-
-    // Skip age validation if age limits are not defined
-    if (minAge === undefined || maxAge === undefined) {
-      setAgeError('');
-      return;
-    }
-
-    const age = calculateAge(child.birthDate);
-    if (age < minAge || age > maxAge) {
-      setAgeError(
-        `Cet enfant a ${age} ans. Le camp accepte les enfants de ${minAge} \u00e0 ${maxAge} ans.`
-      );
-    } else {
-      setAgeError('');
-    }
-  };
-
   // Handle child selection
   const handleChildSelect = (childId: string) => {
     setSelectedChildId(childId);
-    checkAgeCompatibility(childId);
   };
 
   // Calculate total price for the entire camp
@@ -124,7 +97,6 @@ export function RegistrationForm({
   // Validate form
   const canSubmit =
     selectedChildId &&
-    !ageError &&
     !createRegistration.isPending &&
     availableSpots > 0;
 
@@ -201,13 +173,6 @@ export function RegistrationForm({
                     })}
                   </SelectContent>
                 </Select>
-
-                {ageError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{ageError}</AlertDescription>
-                  </Alert>
-                )}
               </>
             )}
           </div>

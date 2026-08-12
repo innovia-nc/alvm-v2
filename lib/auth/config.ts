@@ -10,13 +10,11 @@ declare module 'next-auth' {
     user: {
       id: string;
       role?: 'PARENT' | 'STAFF' | 'ADMIN';
-      staffRole?: 'ANIMATOR';
     } & DefaultSession['user'];
   }
 
   interface User {
     role?: 'PARENT' | 'STAFF' | 'ADMIN';
-    staffRole?: 'ANIMATOR';
   }
 }
 
@@ -61,7 +59,6 @@ const authConfig = {
               where: { provider: 'credentials' },
               select: { providerAccountId: true },
             },
-            staffMember: { select: { userId: true } },
           },
         });
 
@@ -76,7 +73,6 @@ const authConfig = {
           name: user.name,
           image: user.image,
           role: user.role as 'PARENT' | 'STAFF' | 'ADMIN',
-          staffRole: user.staffMember ? ('ANIMATOR' as const) : undefined,
         };
       },
     }),

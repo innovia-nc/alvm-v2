@@ -5,7 +5,6 @@ export interface AuthUser {
   id: string;
   email: string;
   role: 'PARENT' | 'STAFF' | 'ADMIN';
-  staffRole?: 'ANIMATOR';
   name?: string;
 }
 
@@ -26,7 +25,6 @@ export async function createContext(): Promise<Context> {
         id: session.user.id,
         email: session.user.email!,
         role: session.user.role ?? 'PARENT',
-        staffRole: session.user.staffRole,
         name: session.user.name ?? undefined,
       }
     : null;

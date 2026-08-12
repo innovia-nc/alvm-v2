@@ -158,24 +158,6 @@
       dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700;
   }
 
-  /* PARTIAL — paiement partiel */
-  .status-badge-partial {
-    @apply bg-orange-200 text-orange-900 border-orange-300
-      dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700;
-  }
-
-  /* UNPAID — paiement non effectue */
-  .status-badge-unpaid {
-    @apply bg-yellow-200 text-yellow-900 border-yellow-300
-      dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700;
-  }
-
-  /* REFUNDED — paiement rembourse */
-  .status-badge-refunded {
-    @apply bg-purple-200 text-purple-900 border-purple-300
-      dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
-  }
-
   /* IMMEDIATE_REFUND — methode de remboursement immediate */
   .status-badge-immediate-refund {
     @apply bg-blue-200 text-blue-900 border-blue-300
