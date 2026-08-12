@@ -5,6 +5,35 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — TD-012 : le SIREN de l'export FEC part enfin dans le fichier (2026-08-11)
+- **Un champ collecté puis jeté.** L'écran d'export affichait « SIREN
+  (optionnel) », le transmettait à `fec.generateFEC`, et la procédure ne le
+  lisait jamais. Le trésorier croyait le voir partir vers l'administration.
+- **Nommage réglementaire rétabli** : le fichier sort désormais en
+  `SIRENFECAAAAMMJJ.txt` (article A47 A-1 du LPF, AAAAMMJJ = date de fin de la
+  période exportée), au lieu de `FEC_AAAAMMJJ_AAAAMMJJ.txt`.
+- **Le SIREN se saisit une fois**, dans Paramètres → Comptabilité
+  (`accounting.fec_siren`, 9 chiffres) ; le champ de l'écran d'export ne fait
+  que le surcharger ponctuellement et s'y pré-remplit.
+- **Un SIREN saisi mais illisible est refusé** (`BAD_REQUEST`) plutôt que
+  silencieusement ignoré. Sans SIREN configuré, l'export **reste possible** sous
+  le nom historique, et l'écran affiche le nom produit avec un avertissement de
+  non-conformité : un export comptable ne se bloque pas pour un nommage.
+
+### Fixed — TD-013 : statuts affichés en enum brut et couleurs non calibrées (2026-08-11)
+- **`IMMEDIATE_REFUND` s'affichait tel quel** dans les deux tables de
+  remboursement, alors que `<StatusBadge />` portait « Remboursement immédiat »
+  sans jamais être appelé. `refund-details` en dupliquait un troisième mapping.
+- **Les badges d'ACM contournaient les couleurs calibrées WCAG AA** via trois
+  `getStatusBadge()` locaux identiques (couleurs Tailwind brutes, sans variante
+  sombre) — colonnes admin, colonnes staff et fiche détail.
+- Les six sites appellent maintenant `<StatusBadge />` ; les six helpers locaux
+  sont supprimés. C'était le doublon qui était mort, pas la table partagée.
+- **Libellés accentués** : `StatusBadge` affichait « Publie », « Payee »,
+  « Remboursement immediat ». Les libellés — seules chaînes du fichier destinées
+  à l'écran — sont accentués, ce qui corrige aussi les badges facture,
+  inscription et présence.
+
 ### Removed — troisième passe de code mort (2026-08-11)
 
 Passe complète après celles des 10 et 11 août : graphe d'imports, exports sans
@@ -73,7 +102,8 @@ résolution cible dans `docs/dette-technique.md`.
 
 Aucun changement de comportement : `tsc` propre, `pnpm lint` à 35 avertissements
 (les `any` de TD-001, inchangés), 957 tests verts — un de moins, celui qui
-vérifiait les deux statuts inatteignables.
+vérifiait les deux statuts inatteignables. Les constats TD-012 et TD-013
+documentés ci-dessus sont résolus par le correctif décrit plus haut.
 
 ### Removed — deuxième passe de code mort (2026-08-10)
 - **Le routeur `auth` entier était mort.** Ses quatre procédures (`me`,

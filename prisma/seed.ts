@@ -225,6 +225,7 @@ async function main() {
     { category: 'accounting', key: 'fec_sales_account', value: '"706000"', description: "Compte de ventes par défaut (FEC)" },
     { category: 'accounting', key: 'fec_customers_account', value: '"411000"', description: "Compte clients (FEC)" },
     { category: 'accounting', key: 'fec_company_code', value: '"ALVM"', description: "Code société (FEC)" },
+    { category: 'accounting', key: 'fec_siren', value: '""', description: "SIREN utilisé pour nommer le fichier FEC (SIRENFECAAAAMMJJ.txt, art. A47 A-1 du LPF)" },
   ];
 
   for (const s of settings) {

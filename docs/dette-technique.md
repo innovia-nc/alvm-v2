@@ -207,6 +207,64 @@ une action qui échouait à tous les coups.
 vérifier le domaine d'envoi côté Resend (voir `docs/deploiement.md`). Sans
 cela, l'application ne casse pas — elle dit que l'envoi est indisponible.
 
+## TD-012 — Le SIREN de l'export FEC était collecté puis jeté — P2 — DONE (2026-08-11)
+
+**Constat (2026-08-11)** : l'écran d'export FEC affichait un champ « SIREN
+(optionnel) », le formulaire le transmettait à `fec.generateFEC`, la procédure
+l'acceptait dans son schéma Zod… et ne le lisait jamais. Un trésorier qui le
+renseignait croyait qu'il partait dans le fichier remis à l'administration.
+Conséquence : le fichier sortait sous le nom `FEC_AAAAMMJJ_AAAAMMJJ.txt`, là où
+l'article A47 A-1 du LPF attend `SIRENFECAAAAMMJJ.txt` (AAAAMMJJ = date de
+clôture de l'exercice).
+
+**Arbitrage** : câbler plutôt que supprimer — le nommage est une exigence
+réglementaire, pas un confort. Retirer le champ aurait supprimé le symptôme en
+laissant l'export non conforme.
+
+**Résolution livrée** :
+- `accounting.fec_siren` ajouté aux paramètres (onglet Comptabilité, validé à
+  9 chiffres, seedé vide). Le SIREN est un attribut de l'organisation : le
+  trésorier ne le ressaisit plus à chaque export.
+- `getFecSiren()` / `normalizeSiren()` dans `server/helpers/settings.ts`.
+  `normalizeSiren` tolère les séparateurs de lisibilité et la valeur
+  JSON-stringifiée écrite par `settings.updateBulk`.
+- `fec.generateFEC` : SIREN saisi > SIREN des settings ; nomme le fichier
+  `SIRENFECAAAAMMJJ.txt` à partir de la date de fin ; **rejette** (BAD_REQUEST)
+  un SIREN saisi mais illisible plutôt que de produire un fichier mal nommé ;
+  renvoie `siren` pour que l'écran dise ce qui a réellement servi.
+- Sans SIREN nulle part, l'export **reste possible** sous le nom historique et
+  l'écran affiche le nom produit + un avertissement de non-conformité. Un
+  export bloqué serait pire qu'un export mal nommé.
+
+**Ce que le SIREN ne fait pas** : il n'entre pas dans le contenu du fichier —
+les 18 colonnes du FEC ne comportent pas ce champ. Ne pas l'ajouter à
+`generateFECContent`.
+
+## TD-013 — Statuts affichés en enum brut et couleurs non calibrées — P3 — DONE (2026-08-11)
+
+**Constat (2026-08-11)** : `<StatusBadge />` centralise label français, couleur
+calibrée WCAG AA (utilities `status-badge-*`) et icône pour chaque statut métier
+— mais trois de ses tables n'avaient aucun appelant, alors que l'affichage
+correspondant existait ailleurs, fait à la main et moins bien :
+- les deux tables de remboursement (admin + staff) affichaient `IMMEDIATE_REFUND`
+  tel quel à l'utilisateur, alors que `REFUND_MAP` portait le libellé français ;
+- `refund-details.tsx` dupliquait ce mapping en local (`refundMethodLabels`) ;
+- les trois affichages de statut d'ACM (colonnes admin, colonnes staff, fiche
+  détail) recopiaient chacun un `getStatusBadge()` local avec des couleurs
+  Tailwind brutes (`bg-green-100`…), contournant les couleurs calibrées et le
+  mode sombre.
+
+**Résolution livrée** : les six sites appellent `<StatusBadge />`. Les six
+helpers/tables locaux sont supprimés — c'était le doublon qui était mort, pas la
+table partagée.
+
+**Effet de bord assumé** : les libellés de `StatusBadge` portaient des lettres
+non accentuées (« Publie », « Payee », « Remboursement immediat »). Rebrancher
+les badges d'ACM dessus aurait dégradé un affichage jusque-là accentué : les
+libellés — seules chaînes de ce fichier destinées à l'écran — ont donc été
+accentués, ce qui corrige du même coup les badges facture, inscription et
+présence. Commentaires et identifiants restent en ASCII.
+
 ## TD-005 — Trigger legacy « dernier parent » absent du dépôt — P2 — OPEN
 
 **Constat (2026-08-10, US-FAM-01/02)** : l'invariant « un enfant a toujours au

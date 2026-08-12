@@ -1,7 +1,6 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // ============================================================================
 // TYPES
@@ -42,40 +42,6 @@ export type StaffCampType = {
   registrationsCount: number;
   availableSpots: number;
 };
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return {
-        label: 'Brouillon',
-        className: 'bg-gray-100 text-gray-800 border-gray-200',
-      };
-    case 'PUBLISHED':
-      return {
-        label: 'Publié',
-        className: 'bg-green-100 text-green-800 border-green-200',
-      };
-    case 'CLOSED':
-      return {
-        label: 'Fermé',
-        className: 'bg-red-100 text-red-800 border-red-200',
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Annulé',
-        className: 'bg-orange-100 text-orange-800 border-orange-200',
-      };
-    default:
-      return {
-        label: status,
-        className: '',
-      };
-  }
-}
 
 // ============================================================================
 // COLUMN DEFINITIONS
@@ -150,14 +116,7 @@ export const staffCampColumns: ColumnDef<StaffCampType>[] = [
   {
     accessorKey: 'status',
     header: 'Statut',
-    cell: ({ row }) => {
-      const statusInfo = getStatusBadge(row.original.status);
-      return (
-        <Badge variant="outline" className={statusInfo.className}>
-          {statusInfo.label}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => <StatusBadge type="camp" status={row.original.status} />,
   },
   {
     id: 'actions',

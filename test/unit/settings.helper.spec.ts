@@ -10,6 +10,8 @@ import {
   getTaxRateDecimal,
   getDefaultDueDate,
   getCreditExpiryDate,
+  getFecSiren,
+  normalizeSiren,
 } from '@/server/helpers/settings';
 
 function makeFakePrisma(value: string | null | undefined) {
@@ -142,6 +144,53 @@ describe('settings.helper — pricing values', () => {
       const result = await getCreditExpiryDate(prisma as any);
       expect(result).toBeInstanceOf(Date);
       expect(Number.isNaN(result.getTime())).toBe(false);
+    });
+  });
+});
+
+describe('settings.helper — SIREN du FEC (TD-012)', () => {
+  describe('normalizeSiren', () => {
+    it('accepts 9 raw digits', () => {
+      expect(normalizeSiren('123456789')).toBe('123456789');
+    });
+
+    it('unwraps the JSON-stringified value written by settings.updateBulk', () => {
+      expect(normalizeSiren('"123456789"')).toBe('123456789');
+    });
+
+    it('strips readability separators', () => {
+      expect(normalizeSiren('123 456 789')).toBe('123456789');
+      expect(normalizeSiren('"123.456.789"')).toBe('123456789');
+    });
+
+    it('preserves a leading zero (quoted value stays a string)', () => {
+      expect(normalizeSiren('"012345678"')).toBe('012345678');
+    });
+
+    it('rejects anything that is not exactly 9 digits', () => {
+      expect(normalizeSiren('12345678')).toBeNull();
+      expect(normalizeSiren('1234567890')).toBeNull();
+      expect(normalizeSiren('"ALVM"')).toBeNull();
+      expect(normalizeSiren('""')).toBeNull();
+      expect(normalizeSiren('')).toBeNull();
+      expect(normalizeSiren(null)).toBeNull();
+      expect(normalizeSiren(undefined)).toBeNull();
+    });
+  });
+
+  describe('getFecSiren', () => {
+    it('reads accounting.fec_siren', async () => {
+      const prisma = makeFakePrisma('"123456789"');
+      await expect(getFecSiren(prisma as any)).resolves.toBe('123456789');
+      expect(prisma.appSetting.findUnique).toHaveBeenCalledWith({
+        where: { category_key: { category: 'accounting', key: 'fec_siren' } },
+        select: { value: true },
+      });
+    });
+
+    it('returns null when the key was never filled in', async () => {
+      await expect(getFecSiren(makeFakePrisma(undefined) as any)).resolves.toBeNull();
+      await expect(getFecSiren(makeFakePrisma('""') as any)).resolves.toBeNull();
     });
   });
 });
