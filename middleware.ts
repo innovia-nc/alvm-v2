@@ -11,10 +11,11 @@ export default auth((req) => {
   const isAuthPage = nextUrl.pathname.startsWith('/auth');
   const isDashboard = nextUrl.pathname.startsWith('/dashboard');
   const isApiRoute = nextUrl.pathname.startsWith('/api');
+  // `/public` ne figure pas ici : Next sert les fichiers de `public/` à la
+  // racine (`/logo.png`), jamais sous `/public/…`, et le matcher ci-dessous
+  // exclut déjà ce préfixe. Le test ne pouvait donc rien attraper.
   const isPublicPage =
-    nextUrl.pathname === '/' ||
-    nextUrl.pathname.startsWith('/public') ||
-    nextUrl.pathname.startsWith('/_next');
+    nextUrl.pathname === '/' || nextUrl.pathname.startsWith('/_next');
 
   if (isApiRoute) return NextResponse.next();
   if (isPublicPage) return NextResponse.next();

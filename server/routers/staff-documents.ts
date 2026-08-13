@@ -62,24 +62,6 @@ export const staffDocumentsRouter = router({
             }));
         }),
 
-    getById: protectedProcedure
-        .input(z.object({ id: z.string().uuid() }))
-        .output(staffDocumentSchema.nullable())
-        .query(async ({ ctx, input }) => {
-            const doc = await ctx.prisma.staffDocument.findFirst({
-                where: { id: input.id, deletedAt: null },
-            });
-
-            if (!doc) return null;
-
-            await assertStaffAccess(ctx.prisma, ctx.user.role, doc.staffId);
-
-            return {
-                ...doc,
-                mimeType: doc.mimeType as 'application/pdf',
-            };
-        }),
-
     delete: protectedProcedure
         .input(z.object({ documentId: z.string().uuid() }))
         .output(z.object({ success: z.boolean() }))
@@ -105,16 +87,5 @@ export const staffDocumentsRouter = router({
             await deleteFromStorageBestEffort(doc.fileUrl, 'document personnel');
 
             return { success: true };
-        }),
-
-    count: protectedProcedure
-        .input(z.object({ staffId: z.string().uuid() }))
-        .output(z.number().int())
-        .query(async ({ ctx, input }) => {
-            await assertStaffAccess(ctx.prisma, ctx.user.role, input.staffId);
-
-            return ctx.prisma.staffDocument.count({
-                where: { staffId: input.staffId, deletedAt: null },
-            });
         }),
 });

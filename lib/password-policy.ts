@@ -64,9 +64,16 @@ export function buildPassword(
 }
 
 /**
- * Vérifie qu'un mot de passe respecte la politique de génération.
- * Utilisé côté serveur pour valider la robustesse d'un mot de passe généré
- * par le navigateur (le client n'est jamais une source de confiance).
+ * Vérifie qu'un mot de passe respecte la politique de GÉNÉRATION.
+ *
+ * **Oracle de test, pas un garde-fou serveur** : `test/unit/password.spec.ts`
+ * s'en sert comme unique référence pour vérifier ce que produisent les deux
+ * générateurs (navigateur et serveur). Aucune procédure ne l'appelle, et c'est
+ * volontaire — `staff.create` accepte aussi un mot de passe **saisi à la main**,
+ * soumis à la politique plus permissive documentée en tête de ce fichier
+ * (8 caractères, sans caractère spécial). Le serveur ne pouvant pas distinguer
+ * un mot de passe généré d'un mot de passe tapé, l'appeler ici interdirait la
+ * saisie manuelle au lieu de la contrôler.
  */
 export function isPasswordStrong(password: string): boolean {
   return (

@@ -459,3 +459,84 @@ mal séquencée, si.
 **Résolution cible** : les retirer du schéma lors d'une opération de migration
 déjà planifiée, après avoir vérifié sur clone de prod qu'elles sont bien vides,
 et en conservant la trace SQL dans `prisma/migrations-manual/`.
+
+## TD-017 — L'écran d'habilitations n'a aucune entrée de menu — P3 — OPEN
+
+**Constat (2026-08-13, quatrième passe de code mort)** : `/dashboard/admin/users`
+et les trois routes qui l'entourent (`/new`, `/[id]`, `/[id]/edit`) forment une
+**île fermée** — elles ne se lient qu'entre elles, et **aucun lien de
+l'application n'y entre**. La barre latérale ADMIN propose « Parents »
+(`/dashboard/admin/users/parents`) et « Personnel »
+(`/dashboard/admin/users/staff`), jamais la liste des comptes elle-même. Le seul
+accès du dépôt est un `page.goto` de la recette (`HAB-01`, Guide 8
+« habilitations ») — exactement le motif de TD-014.
+
+**Ce n'est pas un doublon, contrairement à `/dashboard/admin/camp-types`**
+(supprimé par la deuxième passe) : les écrans « Parents » et « Personnel »
+listent des *rôles* particuliers, cet écran-ci liste **tous les comptes avec leur
+rôle**, y compris les ADMIN — qu'aucun autre écran n'affiche. C'est aussi le seul
+endroit d'où l'on crée ou modifie un compte sans passer par une fiche métier.
+
+Volume concerné, tenu en vie par un seul `page.goto` : ~1 400 lignes.
+
+| Fichier | Lignes | Autre consommateur |
+|---------|--------|--------------------|
+| `app/dashboard/admin/users/{page,new,[id],[id]/edit}` | 413 | aucun |
+| `components/admin/users/users-table-columns.tsx` | 177 | aucun |
+| `components/admin/users/user-form.tsx` | 451 | aucun (les 2 pages ci-dessus) |
+| `components/ui/data-table.tsx` | 359 | aucun — **seule** table non paginée du dépôt, tout le reste utilise `data-table-server.tsx` |
+
+**Ne pas supprimer** : le manque est la porte d'entrée, pas l'écran. Un admin qui
+doit changer le rôle d'un compte n'a aujourd'hui aucun chemin cliquable.
+
+**Résolution cible** : ajouter l'entrée « Comptes & rôles » →
+`/dashboard/admin/users` dans le groupe ADMIN de `dashboard-sidebar.tsx` — un
+arbitrage PO (faut-il exposer la liste brute des comptes ?) plutôt qu'un
+correctif technique. Si la réponse est non, alors supprimer l'île *et* le critère
+`HAB-01`, dans une livraison où la recette est rejouée.
+
+## TD-018 — `/auth/signout` : une page que le middleware ne laisse jamais s'afficher — P3 — OPEN
+
+**Constat (2026-08-13, quatrième passe de code mort)** : `app/auth/signout/page.tsx`
+appelle `signOut({ callbackUrl: '/' })` au montage. Or `middleware.ts` renvoie
+tout utilisateur **connecté** qui touche `/auth/*` vers `/dashboard` — et un
+utilisateur connecté est précisément le seul qui puisse vouloir se déconnecter.
+La page ne peut donc pas se monter pour son unique public.
+
+Aucun lien de l'application n'y mène : la déconnexion réelle passe par
+`signOut()` (`next-auth/react`) dans le menu avatar de `DashboardHeader`. Le seul
+chemin résiduel est `pages.signOut` (`lib/auth/auth.config.ts`), vers lequel
+NextAuth redirige un `GET /api/auth/signout` — chemin qu'aucun écran n'emprunte.
+
+**Non supprimée** : retirer la page sans retirer `pages.signOut` renverrait ce
+`GET` sur un 404 ; les retirer tous les deux réactive la page de confirmation
+intégrée de NextAuth. Les deux issues sont défendables, aucune n'est neutre, et
+la vérifier demande de rejouer un parcours de connexion réel.
+
+**Résolution cible** : trancher entre (a) exclure `/auth/signout` du renvoi du
+middleware, ce qui rend la page fonctionnelle et le `GET` cohérent, et (b)
+supprimer page et `pages.signOut`, en assumant la page NextAuth par défaut. (a)
+est un ajout d'une ligne et conserve l'habillage maison.
+
+## TD-019 — Colonnes de schéma jamais lues ni écrites — P3 — OPEN
+
+**Constat (2026-08-13, quatrième passe de code mort)** : au-delà des deux modèles
+de TD-015, huit colonnes ne sont référencées par aucune ligne du dépôt.
+
+| Colonne | Pourquoi elle est là |
+|---------|----------------------|
+| `Account.refresh_token`, `access_token`, `token_type`, `id_token`, `session_state` | schéma d'adaptateur OAuth de NextAuth. Le projet n'a qu'un provider `credentials` : seul `providerAccountId` sert (il porte le hash du mot de passe). |
+| `camp_days.max_capacity_override` | capacité dérogatoire par journée d'ACM — jamais posée à la création d'un ACM, jamais lue au contrôle de capacité (`registrations`), jamais éditable. |
+| `accounting_entries.cancellation_entry_id` (+ la self-relation `CancellationLink`) | l'annulation d'écriture est tracée par `is_cancelled` + `cancellation_reason` ; le lien vers l'écriture de contrepassation n'est **jamais** renseigné. |
+
+**Non supprimées, pour la raison de TD-015** : retirer une colonne du schéma la
+supprime en base au prochain `db push`, et `prisma migrate dev` est interdit sur
+Neon (CLAUDE.md). `max_capacity_override` en particulier peut porter des valeurs
+saisies par l'ancienne application NestJS.
+
+**Résolution cible** : traiter avec TD-015, dans une opération de migration déjà
+planifiée — vérifier sur clone de prod que les colonnes sont vides (`SELECT
+count(*) … WHERE col IS NOT NULL`), puis les retirer avec trace SQL dans
+`prisma/migrations-manual/`. `cancellation_entry_id` mérite l'arbitrage inverse :
+un FEC gagne à ce qu'une écriture d'annulation pointe sa contrepassation — mieux
+vaut peut-être **câbler** la colonne que la jeter.

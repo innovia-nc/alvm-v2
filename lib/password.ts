@@ -4,7 +4,9 @@
  * L'administrateur déclenche la génération depuis le formulaire de création
  * d'un membre du personnel : le mot de passe apparaît en clair dans le champ,
  * il peut le copier, puis il est transmis au serveur avec le reste du
- * formulaire. Le serveur revalide la robustesse avant de hacher.
+ * formulaire — où il emprunte le même chemin qu'un mot de passe saisi à la
+ * main, donc la validation Zod de `staff.create` (8 caractères, une majuscule,
+ * une minuscule, un chiffre) et non la politique de génération.
  *
  * Aléa : `crypto.getRandomValues` (Web Crypto API), JAMAIS `Math.random`.
  */

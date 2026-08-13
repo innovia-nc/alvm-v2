@@ -44,8 +44,9 @@ const {
     refetch: refetchDocuments,
 } = trpc.staffDocuments.list.useQuery({ staffId });
 
-// US-PERS-02 : le compteur `staffDocuments.count` n'est plus affiché
-// (« Documents PDF liés à ce personnel (0) »). La requête est retirée avec lui.
+// US-PERS-02 : le compteur (« Documents PDF liés à ce personnel (0) ») n'est
+// plus affiché. La requête a été retirée avec lui, et la procédure serveur
+// `staffDocuments.count` — restée sans appelant — l'a suivie depuis.
 
 // Mutation pour la suppression
 const deleteMutation = trpc.staffDocuments.delete.useMutation({

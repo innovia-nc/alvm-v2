@@ -1,5 +1,8 @@
-export { auth, signIn, signOut } from './config';
-export type { Session } from 'next-auth';
+// `signIn` / `signOut` ne sont PAS ré-exportés : les deux écrans qui déclenchent
+// une (dé)connexion sont des composants clients et importent les versions
+// navigateur (`next-auth/react`). Les ré-exporter ici invitait à tirer, depuis
+// un composant client, un module qui charge Prisma.
+export { auth } from './config';
 
 import type { Session } from 'next-auth';
 

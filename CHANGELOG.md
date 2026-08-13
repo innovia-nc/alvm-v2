@@ -5,6 +5,74 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — quatrième passe de code mort (2026-08-13)
+
+Passe complète après celles des 10 et 11 août, sur le même protocole (graphe
+d'imports, exports sans consommateur, procédures tRPC sans appelant, routes sans
+lien entrant, champs d'entrée Zod jamais lus, props et paramètres morts,
+variables et classes CSS, modèles et colonnes Prisma, dépendances npm), recoupé
+par `knip` et par `tsc --noUnusedLocals --noUnusedParameters`. Le constat de la
+troisième passe tient : **aucun fichier orphelin, aucune classe ni variable CSS
+morte, aucun local inutilisé, aucune route sans lien entrant**. Ce qui restait
+tient en 41 lignes.
+
+- **`staffDocuments.count`** : le compteur « Documents PDF liés à ce personnel
+  (0) » a été retiré de l'écran par US-PERS-02, avec la requête — la procédure
+  serveur est restée. `childDocuments.count`, elle, a toujours son appelant.
+- **`staffDocuments.getById`** : jamais appelée, ni par un écran, ni par un test,
+  ni par `pnpm smoke`, ni par la recette. Son routeur jumeau `childDocuments`
+  n'a **jamais** eu d'équivalent : c'est un reste de symétrie, pas la moitié
+  serveur d'un écran manquant (à la différence des procédures de TD-010, qui
+  restent en place). Une procédure exposée est appelable en HTTP par tout compte
+  authentifié : la retirer réduit la surface autant que le code.
+- **Ré-export `trpc` du barrel `@/lib/trpc`** : les 70 composants clients
+  importent le proxy depuis `@/lib/trpc/client`. Le barrel ne servait qu'à
+  `createServerTRPC` (39 appels) et `TRPCProvider` (1) — et ré-exportait, dans le
+  même module, le hook client et un module serveur qui charge Prisma.
+- **Ré-exports `signIn` / `signOut` et type `Session` du barrel `@/lib/auth`** :
+  aucun importateur. Les deux écrans qui (dé)connectent sont des composants
+  clients et prennent les versions navigateur de `next-auth/react`. Les 71
+  imports du barrel portent sur `requireRole`, `auth` et `requireAuth`.
+- **`middleware.ts` — le test `pathname.startsWith('/public')`** : Next sert les
+  fichiers de `public/` à la racine (`/logo.png`), jamais sous `/public/…`, et le
+  `matcher` du même fichier exclut déjà ce préfixe. La condition ne pouvait rien
+  attraper.
+- **Dépendance `@types/bcryptjs`** : paquet dont le manifeste dit lui-même
+  « stub types definition […] you do not need this installed » — `bcryptjs` 3.x
+  embarque ses types.
+
+Documenté plutôt que supprimé — trois constats où la suppression aurait été le
+mauvais geste (`docs/dette-technique.md`) :
+
+- **TD-017** : `/dashboard/admin/users` et ses trois routes filles forment une
+  île fermée qu'**aucun lien de l'application n'atteint** ; seul le `page.goto`
+  du critère de recette `HAB-01` y entre. Ce n'est pas un doublon : c'est le seul
+  écran qui liste tous les comptes avec leur rôle, ADMIN compris. ~1 400 lignes,
+  dont l'unique consommateur de `components/ui/data-table.tsx`. Le manque est
+  l'entrée de menu, pas l'écran.
+- **TD-018** : `/auth/signout` ne peut pas s'afficher — le middleware renvoie
+  vers `/dashboard` tout utilisateur connecté qui touche `/auth/*`, et c'est le
+  seul public de cette page. La déconnexion réelle passe par le menu avatar.
+- **TD-019** : huit colonnes jamais lues ni écrites (cinq colonnes OAuth
+  d'`Account`, `camp_days.max_capacity_override`,
+  `accounting_entries.cancellation_entry_id` et sa self-relation). Même prudence
+  que TD-015 : une colonne retirée du schéma disparaît en base au prochain
+  `db push`.
+
+### Fixed — le commentaire de `isPasswordStrong` décrivait un contrôle inexistant (2026-08-13)
+- `lib/password-policy.ts` annonçait la fonction comme « utilisée côté serveur
+  pour valider la robustesse d'un mot de passe généré par le navigateur », et
+  `lib/password.ts` promettait que « le serveur revalide la robustesse avant de
+  hacher ». **Aucune procédure ne l'appelle** — son unique consommateur est
+  `test/unit/password.spec.ts`, dont elle est l'oracle.
+- Ce n'est pas un trou à combler : `staff.create` accepte aussi un mot de passe
+  **saisi à la main**, soumis à la politique plus permissive que le même fichier
+  documente (8 caractères, sans caractère spécial). Le serveur ne pouvant pas
+  distinguer un mot de passe généré d'un mot de passe tapé, brancher la fonction
+  interdirait la saisie manuelle au lieu de la contrôler.
+- Les deux commentaires disent maintenant ce que le code fait. Le comportement
+  est inchangé.
+
 ### Fixed — TD-012 : le SIREN de l'export FEC part enfin dans le fichier (2026-08-11)
 - **Un champ collecté puis jeté.** L'écran d'export affichait « SIREN
   (optionnel) », le transmettait à `fec.generateFEC`, et la procédure ne le
