@@ -5,6 +5,61 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — quatrième passe de code mort (2026-08-14)
+
+Passe complète après celles des 10 et 11 août : graphe d'imports résolu sur les
+alias `@/*` (y compris les `await import()` dynamiques), exports sans
+consommateur, procédures tRPC sans appelant hors tests unitaires, props jamais
+transmises, classes CSS, dépendances, variables d'environnement, colonnes du
+schéma Prisma. Outillage de contrôle : `tsc --noUnusedLocals
+--noUnusedParameters` (propre) et `pnpm lint` (0 erreur).
+
+**Le dépôt est déjà largement propre** — aucun fichier n'est injoignable depuis
+les racines Next/tests, et les 11 procédures sans écran trouvées sont
+exactement celles déjà inventoriées par TD-010, sans dérive. Le mort restant
+était en surface d'API, pas en fichiers :
+
+- **`lib/trpc/index.ts` : réexport `trpc` supprimé.** Aucun des 70 composants
+  qui utilisent le client React ne passait par le barrel — tous importent
+  `@/lib/trpc/client`. Ce réexport remettait `@trpc/react-query` dans le graphe
+  de chaque Server Component important `createServerTRPC` depuis le même barrel.
+- **`lib/auth/index.ts` : réexports `signIn` / `signOut` supprimés.** Les deux
+  écrans concernés sont des composants client et passent par `next-auth/react` ;
+  les versions serveur n'ont jamais eu d'appelant.
+- **`generateChildProfilePDFBuffer` supprimé** (`lib/pdf/child-profile-pdf.tsx`).
+  La route `/api/generate/child-profile/[childId]` rend `ChildProfilePDF` en
+  flux et n'a jamais appelé ce second chemin de rendu — comme les fiches
+  personnel et feuilles de présence, qui n'en exposent pas. Le seul appelant
+  était son test ; l'assertion de rendu bout en bout est conservée, elle appelle
+  `renderToBuffer` directement.
+- **Surface d'API réduite** : les alphabets de `lib/password-policy.ts`
+  (`UPPER`, `LOWER`, `DIGITS`, `SYMBOLS`, `ALL`) et le type `CampType` de
+  `components/admin/camps/camp-form.tsx` étaient exportés sans importateur.
+  Devenus privés au module.
+
+### Fixed — deux commentaires qui décrivaient un contrôle inexistant (2026-08-14)
+
+`lib/password.ts` annonçait « Le serveur revalide la robustesse avant de
+hacher » et `isPasswordStrong` se disait « Utilisé côté serveur ». Ni l'un ni
+l'autre : la fonction n'a aucun appelant en production, et `staff.create`
+n'applique que `z.string().min(8)`. Commentaires corrigés, écart consigné en
+TD-019 — la fonction est conservée, elle est l'oracle des 14 assertions de
+`test/unit/password.spec.ts`.
+
+### Documented — trois constats non traitables par une passe automatique (2026-08-14)
+
+- **TD-017** — `/dashboard/admin/users` est un îlot fermé : aucun lien entrant
+  hors de lui-même. Ce n'est pas un doublon à supprimer — c'est le seul écran
+  listant tous les comptes avec leur rôle, il porte le critère de recette vert
+  `HAB-01` (Guide 8) et il est le seul consommateur de `users.create` /
+  `users.update`. Le défaut est un lien de menu manquant, pas un écran de trop.
+- **TD-018** — quatre colonnes du schéma jamais lues ni écrites, dont
+  `accounting_entries.cancellation_entry_id` : la moitié base de données d'une
+  traçabilité d'annulation comptable jamais branchée. Non supprimées pour la
+  raison de TD-015 (un `db push` supprimerait la colonne).
+- **TD-019** — voir ci-dessus.
+
+
 ### Fixed — TD-012 : le SIREN de l'export FEC part enfin dans le fichier (2026-08-11)
 - **Un champ collecté puis jeté.** L'écran d'export affichait « SIREN
   (optionnel) », le transmettait à `fec.generateFEC`, et la procédure ne le

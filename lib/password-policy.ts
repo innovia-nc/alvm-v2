@@ -24,11 +24,14 @@ export const PASSWORD_MIN_LENGTH = 12;
 /** Longueur par défaut d'un mot de passe généré. */
 export const PASSWORD_DEFAULT_LENGTH = 16;
 
-export const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // sans I, O
-export const LOWER = 'abcdefghijkmnopqrstuvwxyz'; // sans l
-export const DIGITS = '23456789'; // sans 0, 1
-export const SYMBOLS = '!@#$%*?-_';
-export const ALL = UPPER + LOWER + DIGITS + SYMBOLS;
+// Alphabets internes : personne hors de ce module n'a à les lire. Les exposer
+// invitait à recomposer une politique ailleurs — exactement ce que ce fichier
+// existe pour empêcher.
+const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // sans I, O
+const LOWER = 'abcdefghijkmnopqrstuvwxyz'; // sans l
+const DIGITS = '23456789'; // sans 0, 1
+const SYMBOLS = '!@#$%*?-_';
+const ALL = UPPER + LOWER + DIGITS + SYMBOLS;
 
 /**
  * Source d'aléa : doit retourner un entier uniformément réparti dans
@@ -64,9 +67,14 @@ export function buildPassword(
 }
 
 /**
- * Vérifie qu'un mot de passe respecte la politique de génération.
- * Utilisé côté serveur pour valider la robustesse d'un mot de passe généré
- * par le navigateur (le client n'est jamais une source de confiance).
+ * Vérifie qu'un mot de passe respecte la politique de GÉNÉRATION.
+ *
+ * ⚠ Aucun appelant en production à ce jour : la fonction n'est exercée que par
+ * `test/unit/password.spec.ts`, où elle sert d'oracle aux deux générateurs.
+ * Elle était prévue comme revalidation serveur du mot de passe fabriqué par le
+ * navigateur — ce branchement n'a jamais été écrit (TD-019). Conservée parce
+ * qu'elle est la seule définition exécutable de la politique ; ne pas la
+ * brancher sur les saisies manuelles, volontairement plus permissives.
  */
 export function isPasswordStrong(password: string): boolean {
   return (

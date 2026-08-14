@@ -549,21 +549,7 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
   );
 };
 
-// ============================================================================
-// FONCTION DE GÉNÉRATION DU BUFFER PDF
-// ============================================================================
-
-/**
- * Génère un buffer PDF à partir des données de la fiche enfant
- *
- * @param data - Données de la fiche enfant
- * @returns Buffer contenant le PDF
- */
-export async function generateChildProfilePDFBuffer(
-  data: ChildProfileData
-): Promise<Buffer> {
-  const { renderToBuffer } = await import('@react-pdf/renderer');
-  // renderToBuffer retourne un Uint8Array, on le convertit en Buffer Node.js
-  const uint8Array = await renderToBuffer(<ChildProfilePDF data={data} />);
-  return Buffer.from(uint8Array);
-}
+// La fiche enfant n'a pas d'équivalent de `generateInvoicePDF` : la route
+// `app/api/generate/child-profile/[childId]` rend `ChildProfilePDF` en flux
+// (`renderToStream`) et n'a jamais eu besoin d'un buffer intermédiaire — comme
+// les fiches personnel et feuilles de présence, qui n'en exposent pas non plus.

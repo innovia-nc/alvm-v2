@@ -1,4 +1,12 @@
-export { auth, signIn, signOut } from './config';
+/**
+ * Barrel auth — `auth()` et les gardes de page.
+ *
+ * `signIn` / `signOut` ne sont pas réexportés : les deux écrans qui s'en
+ * servent (`components/auth/signin-form.tsx`, `app/auth/signout/page.tsx`)
+ * sont des composants client et passent par `next-auth/react`. Les versions
+ * serveur exportées par `./config` n'ont jamais eu d'appelant.
+ */
+export { auth } from './config';
 export type { Session } from 'next-auth';
 
 import type { Session } from 'next-auth';
