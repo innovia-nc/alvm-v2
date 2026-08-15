@@ -25,7 +25,7 @@ import { useRouter } from 'next/navigation';
 // TYPES
 // ============================================================================
 
-export type UserRow = {
+type UserRow = {
   id: string;
   email: string;
   name: string | null;

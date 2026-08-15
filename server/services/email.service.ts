@@ -22,12 +22,12 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 // TYPES
 // ============================================================================
 
-export interface EmailAttachment {
+interface EmailAttachment {
   filename: string;
   content: Buffer;
 }
 
-export interface SendEmailInput {
+interface SendEmailInput {
   to: string;
   subject: string;
   /** Corps HTML. */
@@ -37,7 +37,7 @@ export interface SendEmailInput {
   attachments?: EmailAttachment[];
 }
 
-export interface EmailSender {
+interface EmailSender {
   fromName: string;
   fromEmail: string;
   replyTo?: string;

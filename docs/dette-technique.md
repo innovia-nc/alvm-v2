@@ -551,3 +551,80 @@ permissive (8 caractères, cf. `lib/password-policy.ts`). Appliquer
 `isPasswordStrong` à toutes les entrées rejetterait des mots de passe que
 l'application accepte aujourd'hui à dessein. Le branchement correct ne vise que
 le champ alimenté par le générateur, pas la saisie libre.
+
+## TD-020 — `prisma/reset-data.sql` : script de purge orphelin qui ment sur ce qu'il garde — P2 — OPEN
+
+**Constat (2026-08-15, cinquième passe de code mort)** : `prisma/reset-data.sql`
+vide 17 tables. Il n'est référencé **nulle part** — ni `package.json`, ni
+`docs/deploiement.md`, ni CLAUDE.md, ni aucun script. Il est aussi hors de la
+convention du dépôt : le SQL manuel vit dans `prisma/migrations-manual/`
+(`docs/deploiement.md` § procédure de migration).
+
+**Pourquoi c'est plus qu'un fichier oublié** : son en-tête annonce
+« Conserve : compte admin (admin@alvm.nc), app_settings, payment_methods,
+camp_types », et deux de ses étapes contredisent cette promesse —
+
+| Étape | Commentaire | Instruction réelle |
+|-------|-------------|--------------------|
+| 11 | « Parents (profils) — sauf admin » | `DELETE FROM parents;` — sans `WHERE` |
+| 12 | « Staff members — sauf admin » | `DELETE FROM staff_members;` — sans `WHERE` |
+
+Seules les étapes 14 (`accounts`, `users`) portent réellement le garde-fou sur
+`admin@alvm.nc`. Un opérateur qui fait confiance à l'en-tête garde donc un
+compte admin **sans profil** `staff_members`. Le script purge par ailleurs
+`sessions` et `verification_tokens`, les deux tables que TD-015 constate vides
+et non utilisées.
+
+**Non supprimé** : c'est de l'outillage d'exploitation, et le supprimer retire
+une capacité (remise à zéro d'un clone) sans la remplacer. Une passe de code
+mort n'a pas à trancher seule le sort d'un outil d'ops.
+
+**Résolution cible** : décider avec l'exploitant — soit le script sert, et il
+descend dans `prisma/migrations-manual/` avec ses deux `WHERE` manquants et une
+mention dans `docs/deploiement.md` ; soit il ne sert plus et il part. Dans les
+deux cas, ne jamais le jouer ailleurs que sur un clone (cf. la règle des
+campagnes `pnpm smoke` / `pnpm recette`).
+
+## TD-021 — Deux colonnes traversent le réseau sans jamais être affichées — P3 — OPEN
+
+**Constat (2026-08-15, cinquième passe de code mort)** : `parents.list`,
+`parents.getById`, `staff.list` et `staff.getById` chargent
+`user: { select: { email, name, emailVerified } }` et exposent les trois champs
+dans leur schéma de sortie. **Aucun écran ne lit `user.name` ni
+`user.emailVerified` sur ces quatre procédures** : les tables et les fiches
+affichent l'email, et les seuls consommateurs réels de ces deux champs passent
+par `users.getById` (l'îlot de TD-017) et par la fiche personnel en PDF.
+
+Ce n'est pas du code mort au sens strict — les colonnes sont bien lues en base
+et bien sérialisées — mais c'est du travail et de la donnée transportés pour
+personne, sur les deux procédures les plus appelées de l'application (la liste
+des parents alimente aussi les sélecteurs de facture et d'inscription).
+
+**Non retiré par cette passe** : enlever un champ d'un `.output()` tRPC change
+le contrat exposé au client. Le gain est de quelques octets par ligne ; le
+risque est un écran qui lisait le champ par un `...spread` non repéré. À faire
+avec la relecture des composants concernés, pas par une passe automatique.
+
+**Résolution cible** : réduire le `select` **et** le schéma de sortie à `email`
+sur les quatre procédures, ou décider que `user` y est un objet de commodité
+stable et l'assumer.
+
+## TD-022 — Douze implémentations locales du même formatage de date — P3 — OPEN
+
+**Constat (2026-08-15, cinquième passe de code mort)** : `lib/utils.ts` exporte
+`formatDate()` (locale `fr-FR`, `JJ/MM/AAAA`) et **quatre fichiers** l'utilisent
+— tous côté espace parent. Ailleurs, **douze** définitions locales refont le
+même travail sous cinq noms différents (`formatDate`, `formatDateFR`,
+`formatDateFr`, `formatDateISO`, plus `formatCurrency` en trois exemplaires et
+`formatAmount`), réparties entre `components/` et les cinq documents de
+`lib/pdf/`.
+
+Aucune n'est morte : chacune a son appelant dans son fichier. Le défaut est la
+divergence latente — un correctif de format (fuseau, année sur deux chiffres,
+tiret insécable) ne se propagerait pas, et rien ne signale au lecteur qu'un
+helper partagé existe déjà.
+
+**Résolution cible** : rassembler le formatage de date et de montant dans
+`lib/utils.ts` (ou un `lib/format.ts` dédié), en gardant une variante explicite
+pour les PDF si leur rendu doit rester distinct — auquel cas la variante vit à
+côté de `PDFFooter`, avec le commentaire qui dit pourquoi elle diffère.

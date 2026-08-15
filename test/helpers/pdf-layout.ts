@@ -21,7 +21,7 @@ export interface TextBlock {
   text: string;
 }
 
-export interface PdfPage {
+interface PdfPage {
   /** Numéro de page, dans l'ordre des flux de contenu. */
   index: number;
   blocks: TextBlock[];

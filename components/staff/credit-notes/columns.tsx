@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 // TYPES
 // ============================================================================
 
-export type StaffCreditNoteType = {
+type StaffCreditNoteType = {
   id: string;
   creditNoteNumber: string;
   creditedInvoiceId: string | null;

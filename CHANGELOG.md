@@ -5,6 +5,70 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — cinquième passe de code mort (2026-08-15)
+
+Passe complète après celles des 10, 11 et 14 août. Contrôles rejoués sur
+l'ensemble du dépôt : exports sans importateur, fichiers sans importeur,
+**routes sans lien entrant**, procédures tRPC sans appelant, **modèles et
+colonnes Prisma**, champs de schéma d'entrée jamais lus, `include` Prisma
+jamais relus, états React jamais lus ou jamais écrits, classes CSS,
+dépendances npm, code commenté. Outillage : `tsc --noUnusedLocals
+--noUnusedParameters` (propre), `pnpm lint` (0 erreur), 979 tests verts.
+
+**Ce que la passe confirme, chiffres à l'appui** — les 12 procédures sans écran
+sont exactement celles de TD-010 (aucune dérive) ; les seuls modèles Prisma
+inutilisés restent `Session` et `VerificationToken` (TD-015) ; **toutes** les
+pages de `app/` ont un lien entrant, y compris celles atteintes par
+`${basePath}/…` ; aucune dépendance npm n'est orpheline ; aucun composant de
+`components/ui/` n'est sans importateur.
+
+Ce qui restait, et qui part :
+
+- **`middleware.ts` : la branche `/public` et son exclusion dans le `matcher`.**
+  Next sert les fichiers de `public/` à la racine du site, jamais sous
+  `/public` — et le dépôt n'a même pas ce dossier. Aucune URL n'a jamais
+  emprunté ce chemin ; comportement strictement identique (les deux branches
+  aboutissaient au même `NextResponse.next()`).
+- **`next.config.ts` : le bloc `images`.** Il configure le pipeline
+  d'optimisation de `next/image`, qu'**aucun** composant n'importe. Les deux
+  seules images du produit sont le logo (balise `<img>` dans
+  `components/ui/image-upload.tsx`) et les logos des PDF, rendus par `Image` de
+  `@react-pdf/renderer` — ni l'un ni l'autre ne passe par ce pipeline.
+- **`lib/constants/pagination.ts` : `MIN_PAGE_SIZE` et `MAX_PAGE_SIZE`.** Zéro
+  lecture. Les bornes réelles sont écrites littéralement
+  (`z.number().min(1).max(100)`) dans chaque schéma d'entrée tRPC paginé : la
+  constante ne standardisait rien, elle le laissait croire. Les deux clés
+  réellement lues (`DEFAULT_PAGE_SIZE`, `PAGE_SIZE_OPTIONS`) restent, avec le
+  nom de leur lecteur en commentaire.
+- **`components/layout/breadcrumbs.tsx` : les entrées `documents` et
+  `accounting`.** Le fil d'Ariane traduit des segments d'URL ; aucun segment de
+  `app/` ne porte ces deux noms, leur libellé n'a donc jamais pu être rendu.
+- **30 exports sans importateur devenus privés au module.** Même défaut que
+  celui traité à la main par la passe précédente sur deux symboles, ici traité
+  en entier : types de props et de paramètres (`StatusBadgeProps`, `UserRow`,
+  `PDFFooterProps`, `UploadOptions`, `SendEmailInput`, les cinq
+  `Create*EntriesParams` de `accounting.service.ts`, etc.). Cas parlant : les
+  types de colonnes **admin** (`AdminPaymentType`…) sont bien importés par
+  leur table cliente, alors que leurs jumeaux **staff**
+  (`StaffPaymentType`, `StaffRefundType`, `StaffCreditNoteType`) ne le sont
+  pas — les tables staff redéclarent la forme sur place.
+
+### Documented — trois constats que la passe refuse de trancher seule (2026-08-15)
+
+- **TD-020 — `prisma/reset-data.sql`, script de purge orphelin.** Référencé
+  nulle part, hors de la convention `prisma/migrations-manual/`, et surtout :
+  son en-tête promet de conserver le compte admin, mais les étapes 11 et 12
+  font `DELETE FROM parents;` et `DELETE FROM staff_members;` **sans `WHERE`**.
+  Non supprimé — c'est de l'outillage d'exploitation, son sort se décide avec
+  l'exploitant, pas dans une passe automatique.
+- **TD-021 — `user.name` et `user.emailVerified` transportés pour personne** par
+  `parents.list` / `parents.getById` / `staff.list` / `staff.getById`. Chargés,
+  sérialisés, jamais affichés. Non retiré : c'est un contrat tRPC exposé au
+  client, la relecture des consommateurs doit précéder la coupe.
+- **TD-022 — douze implémentations locales du même formatage de date**, sous
+  cinq noms, alors que `lib/utils.ts` en exporte une que seuls quatre fichiers
+  utilisent. Aucune n'est morte ; le risque est la divergence.
+
 ### Removed — quatrième passe de code mort (2026-08-14)
 
 Passe complète après celles des 10 et 11 août : graphe d'imports résolu sur les

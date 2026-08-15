@@ -19,7 +19,7 @@ import { toNum } from '@/server/helpers/decimal';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PrismaLike = any;
 
-export interface InvoicePdfResult {
+interface InvoicePdfResult {
   /** Facture telle que lue pour le rendu (numéro, statut, parent, montants…). */
   invoice: PrismaLike;
   /** PDF rendu, utilisable directement en pièce jointe. */

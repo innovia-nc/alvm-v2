@@ -24,7 +24,7 @@ import type { inferRouterOutputs } from '@trpc/server';
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
-export type RegistrationListItem =
+type RegistrationListItem =
   RouterOutput['registrations']['list']['registrations'][number];
 
 interface ChildRegistrationsHistoryProps {

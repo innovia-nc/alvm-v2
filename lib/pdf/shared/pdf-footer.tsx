@@ -45,7 +45,7 @@ export interface OrgInfo {
  */
 export const PDF_FOOTER_RESERVED_SPACE = 90;
 
-export interface PDFFooterProps {
+interface PDFFooterProps {
   org: OrgInfo;
   /** Mention spécifique au document (depuis settings/documents) */
   mention?: string;
