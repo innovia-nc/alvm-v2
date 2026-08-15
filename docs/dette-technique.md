@@ -459,3 +459,95 @@ mal séquencée, si.
 **Résolution cible** : les retirer du schéma lors d'une opération de migration
 déjà planifiée, après avoir vérifié sur clone de prod qu'elles sont bien vides,
 et en conservant la trace SQL dans `prisma/migrations-manual/`.
+
+## TD-017 — L'écran d'habilitations existe, la navigation l'ignore — P2 — OPEN
+
+**Constat (2026-08-14, quatrième passe de code mort)** : `/dashboard/admin/users`
+et ses trois sous-routes (`new`, `[id]`, `[id]/edit`) forment un **îlot fermé**.
+Les seuls liens entrants viennent de l'îlot lui-même — la table renvoie vers
+`[id]/edit`, `new` et `[id]/edit` renvoient vers la liste. Aucune entrée de
+`dashboard-sidebar.tsx`, aucun lien d'une autre page n'y mène. `[id]/page.tsx`
+n'est même atteignable depuis l'intérieur (les colonnes ne pointent que sur
+`/edit`).
+
+**Pourquoi ce n'est PAS du code mort, et pourquoi il ne fallait pas le supprimer** :
+
+1. C'est le seul écran qui liste **tous les comptes avec leur rôle**. Les deux
+   écrans câblés dans le menu (`users/parents`, `users/staff`) sont chacun
+   bornés à un rôle : aucun ne répond à « qui a accès, et à quel titre ».
+2. Il porte un critère de recette **vert** — `HAB-01` (Guide 8, gestion des
+   accès et habilitations) fait `page.goto('/dashboard/admin/users')` et vérifie
+   la présence des rôles. Comme pour TD-014, le supprimer casserait `pnpm
+   recette`, qui ne se rejoue que sur clone de prod.
+3. `users.create` et `users.update` n'ont **aucun autre écran** : les parcours
+   parents et personnel passent par leurs propres formulaires. Les supprimer
+   ferait tomber deux procédures de plus dans TD-010.
+
+Le défaut réel n'est donc pas un écran de trop, c'est un **lien qui manque** —
+même motif que TD-016 (« Mon Profil ») : la navigation et les écrans ont divergé.
+
+**Résolution cible** : ajouter l'entrée « Habilitations » (ou « Comptes ») dans
+la section Administration de `dashboard-sidebar.tsx`, pointée sur
+`/dashboard/admin/users`, et faire pointer les colonnes vers `[id]` (fiche) en
+plus de `[id]/edit`. Décision d'intitulé à trancher avec le PO — c'est ce qui a
+retenu cette passe, pas la difficulté technique. Tant que le lien n'existe pas,
+l'écran reste inatteignable pour un utilisateur qui ne connaît pas l'URL.
+
+**À noter** : cet écran est aussi le dernier consommateur de
+`components/ui/data-table.tsx` (variante non paginée) et de
+`components/admin/users/users-table-columns.tsx`. Le reste de l'application est
+passé à `DataTableServer`. Le jour où l'écran est repris, l'aligner.
+
+## TD-018 — Colonnes jamais lues ni écrites par le dépôt — P3 — OPEN
+
+**Constat (2026-08-14, quatrième passe de code mort)** : au-delà des deux
+modèles de TD-015, quatre **colonnes scalaires** du schéma Prisma n'apparaissent
+dans aucune requête, aucun mapper, aucun test, aucun script :
+
+| Colonne | Modèle | Remarque |
+|---------|--------|----------|
+| `max_capacity_override` | `CampDay` | capacité par jour jamais surchargée — la capacité vient de `Camp.maxCapacity` |
+| `cancellation_entry_id` | `AccountingEntry` | avec sa relation `CancellationLink` ; `cancelAccountingEntries()` annule sans relier l'écriture de contrepassation à l'écriture annulée |
+| `allocation_date` | `CreditNoteAllocation` | `@default(CURRENT_DATE)` — écrite par la base, jamais relue |
+| `refresh_token`, `access_token`, `token_type`, `id_token`, `session_state` | `Account` | colonnes OAuth du modèle NextAuth ; seul le provider `credentials` est configuré |
+
+`cancellation_entry_id` mérite d'être regardé avant d'être supprimé : c'est la
+moitié base de données d'une **traçabilité d'annulation comptable** qui n'a
+jamais eu sa moitié applicative. Au FEC, on sait aujourd'hui qu'une écriture a
+été contrepassée, pas *par laquelle*. C'est un manque, pas un rebut — le même
+motif que TD-010 côté procédures.
+
+**Non supprimées, pour la raison de TD-015** : retirer un champ du schéma
+supprime la colonne au prochain `db push`, et le projet interdit
+`prisma migrate dev` sur Neon (CLAUDE.md).
+
+**Résolution cible** : trancher `cancellation_entry_id` avec la comptabilité
+(brancher la traçabilité, ou acter qu'on s'en passe) ; pour les autres, les
+retirer lors d'une migration déjà planifiée, après vérification sur clone de
+prod qu'elles sont vides, trace SQL dans `prisma/migrations-manual/`.
+
+## TD-019 — `isPasswordStrong` : le contrôle serveur annoncé n'existe pas — P2 — OPEN
+
+**Constat (2026-08-14, quatrième passe de code mort)** : `isPasswordStrong()`
+(`lib/password-policy.ts`) n'a **aucun appelant en production**. Seul
+`test/unit/password.spec.ts` l'exerce, comme oracle des deux générateurs.
+
+Ce qui rend le constat sérieux, ce n'est pas la fonction inutilisée : ce sont
+les deux commentaires qui affirmaient le contraire. `lib/password.ts` annonçait
+« Le serveur revalide la robustesse avant de hacher » et la fonction elle-même
+se disait « Utilisé côté serveur pour valider la robustesse d'un mot de passe
+généré par le navigateur ». En réalité `staff.create` n'applique que
+`z.string().min(8)` — la contrainte de saisie manuelle. Un lecteur du code
+croyait donc à un contrôle qui n'a jamais été branché.
+
+**Traité par cette passe** : les deux commentaires ont été corrigés et pointent
+ici. La fonction est **conservée** — c'est la seule définition exécutable de la
+politique de génération et le socle de 14 assertions.
+
+**Ce qui reste ouvert** : décider si le mot de passe fabriqué par le navigateur
+(US-PERS-01) doit être revalidé côté serveur. Attention au piège en le
+branchant : la politique de saisie manuelle est **volontairement** plus
+permissive (8 caractères, cf. `lib/password-policy.ts`). Appliquer
+`isPasswordStrong` à toutes les entrées rejetterait des mots de passe que
+l'application accepte aujourd'hui à dessein. Le branchement correct ne vise que
+le champ alimenté par le générateur, pas la saisie libre.

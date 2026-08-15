@@ -73,7 +73,10 @@ export type CampFormValues = z.infer<typeof campFormSchema>;
 // TYPES
 // ============================================================================
 
-export type CampType = {
+// Type interne au formulaire : aucun appelant ne l'importe, les pages passent
+// directement le résultat de `campTypes.list`. Ne pas rouvrir l'export sans
+// appelant — le nom entre en collision avec le modèle Prisma `CampType`.
+type CampType = {
   id: string;
   name: string;
   description: string | null;

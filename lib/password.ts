@@ -4,7 +4,11 @@
  * L'administrateur déclenche la génération depuis le formulaire de création
  * d'un membre du personnel : le mot de passe apparaît en clair dans le champ,
  * il peut le copier, puis il est transmis au serveur avec le reste du
- * formulaire. Le serveur revalide la robustesse avant de hacher.
+ * formulaire.
+ *
+ * ⚠ Le serveur ne revalide PAS la politique de génération : `staff.create`
+ * n'applique que la contrainte de saisie manuelle (`z.string().min(8)`).
+ * `isPasswordStrong` existe mais n'a aucun appelant serveur — cf. TD-019.
  *
  * Aléa : `crypto.getRandomValues` (Web Crypto API), JAMAIS `Math.random`.
  */
