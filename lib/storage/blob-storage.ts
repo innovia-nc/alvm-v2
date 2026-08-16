@@ -1,7 +1,7 @@
 import { put, del } from '@vercel/blob';
 import type { Readable } from 'node:stream';
 
-export interface UploadOptions {
+interface UploadOptions {
   pathname: string;
   contentType?: string;
   access?: 'public';

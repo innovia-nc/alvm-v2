@@ -48,12 +48,12 @@ const duplicateFormSchema = z.object({
 
 export type DuplicateFormValues = z.infer<typeof duplicateFormSchema>;
 
-export type CampTypeOption = {
+type CampTypeOption = {
   id: string;
   name: string;
 };
 
-export type DuplicateCampDialogProps = {
+type DuplicateCampDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (data: DuplicateFormValues) => void;

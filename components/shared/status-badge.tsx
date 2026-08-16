@@ -35,7 +35,7 @@ import {
 // TYPES
 // ============================================================================
 
-export type StatusBadgeType =
+type StatusBadgeType =
   | 'invoice'
   | 'registration'
   | 'attendance'
@@ -44,7 +44,7 @@ export type StatusBadgeType =
   | 'refund'
   | 'camp';
 
-export interface StatusBadgeProps {
+interface StatusBadgeProps {
   type: StatusBadgeType;
   status: string;
   /** Affiche une icone Lucide a gauche du label. Default: true */
@@ -52,7 +52,7 @@ export interface StatusBadgeProps {
   className?: string;
 }
 
-export interface StatusInfo {
+interface StatusInfo {
   label: string;
   className: string;
   icon: LucideIcon;

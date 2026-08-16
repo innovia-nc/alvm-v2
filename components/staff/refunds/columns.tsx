@@ -16,7 +16,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 // TYPES
 // ============================================================================
 
-export type StaffRefundType = {
+type StaffRefundType = {
   id: string;
   amount: number | string;
   refundDate: Date;

@@ -15,7 +15,7 @@ import type { OrgInfo } from '@/lib/pdf/shared/pdf-footer';
 // TYPES
 // ============================================================================
 
-export interface PdfSettingsData {
+interface PdfSettingsData {
   org: OrgInfo;
   mentions: {
     invoice: string;

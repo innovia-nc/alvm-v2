@@ -48,7 +48,7 @@ import { createPaymentEntries } from '@/server/services/accounting.service';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TxClient = any;
 
-export interface RestoreCreditParams {
+interface RestoreCreditParams {
   /** Avoir dont provenait le règlement supprimé. */
   creditNoteId: string;
   /** Facture sur laquelle il avait été imputé. */
@@ -119,7 +119,7 @@ export async function restoreCreditOnPaymentDeletion(
   }
 }
 
-export interface ApplyCreditsParams {
+interface ApplyCreditsParams {
   invoiceId: string;
   invoiceNumber: string;
   parentId: string;
@@ -133,7 +133,7 @@ export interface ApplyCreditsParams {
   now?: Date;
 }
 
-export interface AppliedCredit {
+interface AppliedCredit {
   parentCreditId: string;
   creditNoteId: string;
   creditNoteNumber: string;
@@ -142,7 +142,7 @@ export interface AppliedCredit {
   amountRemaining: number;
 }
 
-export interface ApplyCreditsResult {
+interface ApplyCreditsResult {
   /** Imputations réalisées, dans l'ordre FIFO. */
   applied: AppliedCredit[];
   /** Total imputé sur la facture. */

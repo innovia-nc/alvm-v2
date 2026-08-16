@@ -150,7 +150,7 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
 // ACTIONS COMPONENT
 // ============================================================================
 
-export interface StaffInvoiceActionsProps {
+interface StaffInvoiceActionsProps {
   item: StaffInvoiceType;
   onDelete?: (item: StaffInvoiceType) => void;
   onGeneratePDF?: (item: StaffInvoiceType) => void;

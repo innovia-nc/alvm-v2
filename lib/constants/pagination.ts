@@ -6,15 +6,14 @@
  */
 
 export const PAGINATION_DEFAULTS = {
-  /** Taille de page par défaut : 20 items */
+  /** Taille de page par défaut : 20 items — lue par `useServerPagination`. */
   DEFAULT_PAGE_SIZE: 20,
 
-  /** Taille minimale de page : 1 item */
-  MIN_PAGE_SIZE: 1,
-
-  /** Taille maximale de page : 100 items */
-  MAX_PAGE_SIZE: 100,
-
-  /** Options de taille de page disponibles dans le sélecteur */
+  /** Options de taille de page du sélecteur — lues par `DataTableServer`. */
   PAGE_SIZE_OPTIONS: [10, 20, 50, 100],
 } as const;
+
+// `MIN_PAGE_SIZE` / `MAX_PAGE_SIZE` retirés (cinquième passe de code mort) :
+// aucune lecture dans le dépôt. Les bornes réelles sont celles des schémas
+// d'entrée tRPC, écrites littéralement (`z.number().min(1).max(100)`) dans
+// chaque procédure paginée — la constante ne standardisait rien.

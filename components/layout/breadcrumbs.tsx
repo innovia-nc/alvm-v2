@@ -6,7 +6,12 @@ import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
 import { useBreadcrumbOverride } from './breadcrumb-provider';
 
-// Mapping des segments d'URL vers labels lisibles
+// Mapping des segments d'URL vers labels lisibles.
+//
+// Une clé qui ne correspond à aucun segment de `app/` est morte : le segment
+// n'apparaît jamais dans un `pathname`, donc le libellé n'est jamais rendu.
+// `documents` et `accounting` étaient dans ce cas (cinquième passe de code
+// mort). Ajouter une clé ici en même temps que la route qu'elle nomme.
 const segmentLabels: Record<string, string> = {
   // Espaces principaux
   dashboard: 'Tableau de Bord',
@@ -22,13 +27,11 @@ const segmentLabels: Record<string, string> = {
   payments: 'Paiements',
   refunds: 'Remboursements',
   'credit-notes': 'Avoirs',
-  documents: 'Documents',
   users: 'Utilisateurs',
   parents: 'Parents',
 
   // Paramètres et configuration
   settings: 'Paramètres',
-  accounting: 'Comptabilité',
   'camp-types': 'Types de Camps',
   'payment-methods': 'Méthodes de Paiement',
 

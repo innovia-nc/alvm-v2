@@ -45,7 +45,7 @@ async function nextEntryNum(tx: TxClient, journalCode: string): Promise<string> 
 // Invoice accounting entries (Journal VE) — replaces SQL trigger
 // ============================================================================
 
-export interface CreateInvoiceEntriesParams {
+interface CreateInvoiceEntriesParams {
   invoiceId: string;
   parentId: string;
   invoiceNumber: string;
@@ -166,7 +166,7 @@ export async function createInvoiceAccountingEntries(
 // Credit note accounting entries (Journal VE) — replaces SQL trigger
 // ============================================================================
 
-export interface CreateCreditNoteEntriesParams {
+interface CreateCreditNoteEntriesParams {
   creditNoteId: string;
   parentId: string;
   creditNoteNumber: string;
@@ -296,7 +296,7 @@ export async function createCreditNoteAccountingEntries(
 // Payment accounting entries (Journal BQ) — migrated from accounting.helper.ts
 // ============================================================================
 
-export interface CreatePaymentEntriesParams {
+interface CreatePaymentEntriesParams {
   paymentId: string;
   invoiceId: string;
   parentId: string;
@@ -403,7 +403,7 @@ export async function createPaymentEntries(
 // Refund accounting entries (Journal BQ)
 // ============================================================================
 
-export interface CreateRefundEntriesParams {
+interface CreateRefundEntriesParams {
   refundId: string;
   paymentId: string;
   parentId: string;
@@ -495,7 +495,7 @@ export async function createRefundEntries(
 // Cancel accounting entries
 // ============================================================================
 
-export interface CancelEntriesFilter {
+interface CancelEntriesFilter {
   paymentId?: string;
   refundId?: string;
 }

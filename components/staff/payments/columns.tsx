@@ -9,7 +9,7 @@ import Link from 'next/link';
 // TYPES
 // ============================================================================
 
-export type StaffPaymentType = {
+type StaffPaymentType = {
   id: string;
   amount: number | string;
   paymentDate: Date;

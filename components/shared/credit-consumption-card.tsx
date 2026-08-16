@@ -27,7 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export interface CreditApplicationRow {
+interface CreditApplicationRow {
   id: string;
   amountUsed: number;
   appliedAt: Date;
@@ -35,7 +35,7 @@ export interface CreditApplicationRow {
   invoiceNumber: string | null;
 }
 
-export interface CreditConsumptionCardProps {
+interface CreditConsumptionCardProps {
   /** Solde encore disponible. `null` si l'avoir n'ouvre pas de crédit futur. */
   availableCredit: number | null;
   /** Montant initial du crédit. */
