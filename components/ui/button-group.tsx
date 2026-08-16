@@ -16,7 +16,10 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-export interface ButtonGroupProps {
+// Privée au module : les cinq écrans qui rendent `<ButtonGroup>` n'importent
+// jamais ce type. Un type de props exporté sans importateur laisse croire à une
+// surface d'API composable qui n'existe pas.
+interface ButtonGroupProps {
   /** Boutons à regrouper */
   children: React.ReactNode
   /** Alignement des boutons */
