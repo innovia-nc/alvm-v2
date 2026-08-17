@@ -5,6 +5,94 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — sixième passe de code mort (2026-08-17)
+
+Sixième passe complète. Les contrôles de la passe précédente sont rejoués
+(exports et fichiers sans importateur, procédures tRPC sans appelant, modèles,
+colonnes et énumérations Prisma, champs d'entrée jamais lus, `select` jamais
+relus, états React jamais écrits, classes CSS, dépendances npm) et **cinq
+contrôles nouveaux** sont ajoutés : props de composants qu'aucun appelant ne
+passe, paramètres optionnels de fonctions qu'aucun appelant ne fournit,
+exports exercés par les seuls tests, **routes `/api/*` appelées mais absentes
+du dépôt**, et symboles exportés sans consommateur hors de leur module.
+Outillage : `tsc --noUnusedLocals --noUnusedParameters` (propre), `pnpm lint`
+(0 erreur), 979 tests verts.
+
+Correction de méthode : les passes précédentes détectaient les procédures tRPC
+par une indentation de deux espaces. `server/routers/staff-documents.ts` en
+utilise quatre — ses quatre procédures n'avaient donc jamais été contrôlées.
+`staffDocuments.getById` rejoint la table de TD-010 (seule procédure du dépôt
+sans aucun appelant, pas même un test).
+
+Ce qui part :
+
+- **`components/parent/registration-form.tsx` : tout le contrôle d'âge.** Props
+  `minAge` / `maxAge`, `checkAgeCompatibility()`, l'état `ageError` et son
+  alerte. Aucun camp ne porte de bornes d'âge — ni `Camp` ni `CampDay` n'ont de
+  colonne d'âge, la page appelante ne passait rien : la garde
+  `minAge === undefined` sortait à chaque sélection d'enfant et le message
+  « Le camp accepte les enfants de X à Y ans » n'a jamais pu s'afficher. Le
+  besoin est enregistré en TD-023 ; `calculateAge()` reste, elle affiche
+  « (N ans) » dans la liste des enfants.
+- **`lib/pdf/shared/pdf-footer.tsx` : la prop `showPagination`.** Les cinq
+  documents la laissaient à `true` ; la branche « sans pagination » — une
+  cellule vide poussée dans la ligne méta — n'a jamais été rendue. Rendu
+  strictement identique (vérifié par `test/unit/pdf-footer-overlap.spec.tsx`,
+  qui mesure la mise en page réelle).
+- **`components/ui/image-upload.tsx` : les props `accept` et `maxSize`.**
+  Jamais positionnées par le seul écran qui monte le composant. Elles portent à
+  la fois la validation et le texte affiché à l'utilisateur : configurables sans
+  configurateur, elles n'offraient que la possibilité de les faire diverger.
+  Devenues constantes de module, comme le `MAX_SIZE` de `document-upload.tsx`.
+- **`components/shared/parent-multi-select.tsx` : la prop `error`** et le `<p>`
+  qui l'affichait. Le seul appelant ne la passait pas ; les refus de saisie de
+  ce composant partent déjà en toast.
+- **`components/admin/credit-notes/credit-note-form.tsx` : la prop
+  `redirectPath`.** Les deux écrans (ADMIN et STAFF) laissaient la valeur par
+  défaut, qui se déduit déjà de l'espace courant via `useDashboardBasePath()`.
+- **`server/helpers/invoice-number.ts` : l'alias `generateInvoiceNumber` et le
+  paramètre `now`.** L'alias ne faisait que restreindre le type de `kind` avant
+  de déléguer (6 appels réécrits sur `generateDocumentNumber`) ; le paramètre
+  d'horloge n'a jamais été fourni par personne, pas même un test.
+- **`lib/auth/config.ts` : `signIn` / `signOut` sortis de la destructuration.**
+  Les deux écrans concernés sont des composants client et passent par
+  `next-auth/react` — `lib/auth/index.ts` documentait déjà que les versions
+  serveur n'avaient aucun appelant.
+- **`lib/auth/auth.config.ts` : la page `newUser`.** NextAuth ne l'utilise qu'à
+  la première connexion signalée par un adapter de base de données ; cette
+  application n'en a pas (sessions JWT, provider `credentials`). Clé inerte, qui
+  laissait croire à un parcours de première connexion inexistant.
+- **`server/services/accounting.service.ts` : `deriveClientAux` devient
+  privée.** Ses quatre appels vivent dans le fichier ; la règle de dérivation
+  reste celle documentée dans CLAUDE.md.
+
+### Documented — trois constats que la passe refuse de trancher seule (2026-08-17)
+
+- **TD-024 — trois appels `/api/upload/*` sans route en face — P1.** Le
+  téléversement du logo (`POST` et `DELETE` sur `/api/upload/logo`) et celui des
+  documents d'enfant (`POST /api/upload/child-documents`) visent des routes qui
+  n'existent dans **aucun commit** du dépôt : `app/api/` ne contient que `auth`,
+  `generate/*` et `trpc`. Conséquences vérifiées : le logo de l'association ne
+  peut pas être téléversé, aucun document d'enfant ne peut être créé
+  (`childDocuments` n'a que `list` / `delete` / `count`), et les documents du
+  personnel n'ont ni écran de dépôt ni procédure de création. Même motif que
+  TD-011, en plus grave : ces écrans-là sont atteignables et mis en avant. Ni
+  `pnpm smoke` ni `pnpm recette` ne couvrent un téléversement — c'est ce qui a
+  permis au défaut de traverser deux mises en production. La correction est une
+  livraison (routes + procédures + critères de recette), pas une suppression.
+- **TD-023 — aucune borne d'âge sur un camp — P3.** Le code mort est parti (voir
+  ci-dessus) ; le besoin, lui, reste : s'il faut borner les inscriptions par
+  âge, cela se spécifie serveur d'abord (colonnes, saisie côté ACM, refus dans
+  `registrations.create`), une validation qui ne vit que dans le navigateur ne
+  protégeant rien.
+- **TD-025 — quatre écrans dupliqués entre ADMIN et STAFF — P3.** Les tables
+  « personnel » et « parents » existent en deux exemplaires quasi identiques
+  (préfixe d'URL, noms de types, une action réservée à l'ADMIN). Rien n'y est
+  mort — le défaut est celui de TD-022 : une correction s'applique à un
+  exemplaire et pas à l'autre. Le dépôt a déjà de quoi s'en passer
+  (`useDashboardBasePath()`, utilisé par seize fichiers) ; la fusion se fait
+  écran par écran avec la recette rejouée, pas dans une passe de code mort.
+
 ### Removed — cinquième passe de code mort (2026-08-15)
 
 Passe complète après celles des 10, 11 et 14 août. Contrôles rejoués sur

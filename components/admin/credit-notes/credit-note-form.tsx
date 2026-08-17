@@ -57,14 +57,14 @@ type CreditNoteFormValues = z.infer<typeof creditNoteFormSchema>;
 // COMPOSANT
 // ============================================================================
 
-interface CreditNoteFormProps {
-  redirectPath?: string;
-}
-
-export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
+// Pas de prop `redirectPath` : les deux ecrans qui montent ce formulaire
+// (espaces ADMIN et STAFF) laissaient la valeur par defaut, et la destination
+// se deduit deja de l'espace courant via `useDashboardBasePath()`. Prop
+// retiree a la sixieme passe de code mort.
+export function CreditNoteForm() {
   const router = useRouter();
   const basePath = useDashboardBasePath();
-  const finalRedirectPath = redirectPath ?? `${basePath}/credit-notes`;
+  const redirectPath = `${basePath}/credit-notes`;
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
   // Factures éligibles à un avoir : uniquement les factures émises.
@@ -117,7 +117,7 @@ export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
   const createMutation = trpc.creditNotes.create.useMutation({
     onSuccess: () => {
       toast.success('Avoir créé avec succès');
-      router.push(finalRedirectPath);
+      router.push(redirectPath);
       router.refresh();
     },
     onError: (error) => {
@@ -417,7 +417,7 @@ export function CreditNoteForm({ redirectPath }: CreditNoteFormProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push(finalRedirectPath)}
+            onClick={() => router.push(redirectPath)}
             disabled={createMutation.isPending}
           >
             Annuler

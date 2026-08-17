@@ -13,6 +13,20 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
+// POLITIQUE DE FICHIER
+// ============================================================================
+
+// Formats et taille etaient des props (`accept`, `maxSize`) qu'aucun appelant
+// n'a jamais positionnees : le seul ecran qui monte ce composant est
+// `/dashboard/admin/settings` (logo de l'association). Ce sont donc des
+// constantes, comme dans `components/ui/document-upload.tsx` (`MAX_SIZE`).
+// Elles portent a la fois la validation et le texte affiche a l'utilisateur —
+// les laisser configurables sans configurateur, c'etait autoriser les deux a
+// diverger. Sixieme passe de code mort.
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml'];
+const MAX_SIZE = 2 * 1024 * 1024; // 2 Mo
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -33,18 +47,6 @@ interface ImageUploadProps {
   onRemove: () => void;
 
   /**
-   * Types MIME autorisés
-   * @default ['image/png', 'image/jpeg', 'image/svg+xml']
-   */
-  accept?: string[];
-
-  /**
-   * Taille maximale en bytes
-   * @default 2097152 (2MB)
-   */
-  maxSize?: number;
-
-  /**
    * Classe CSS additionnelle
    */
   className?: string;
@@ -63,8 +65,6 @@ export function ImageUpload({
   value,
   onUpload,
   onRemove,
-  accept = ['image/png', 'image/jpeg', 'image/svg+xml'],
-  maxSize = 2 * 1024 * 1024, // 2MB
   className,
   isLoading = false,
 }: ImageUploadProps) {
@@ -76,25 +76,22 @@ export function ImageUpload({
   // VALIDATION
   // --------------------------------------------------------------------------
 
-  const validateFile = useCallback(
-    (file: File): string | null => {
-      // Vérifier le type MIME
-      if (!accept.includes(file.type)) {
-        return `Format non autorisé. Formats acceptés : ${accept
-          .map((t) => t.split('/')[1]?.toUpperCase() || 'inconnu')
-          .join(', ')}`;
-      }
+  const validateFile = useCallback((file: File): string | null => {
+    // Vérifier le type MIME
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      return `Format non autorisé. Formats acceptés : ${ACCEPTED_TYPES.map(
+        (t) => t.split('/')[1]?.toUpperCase() || 'inconnu'
+      ).join(', ')}`;
+    }
 
-      // Vérifier la taille
-      if (file.size > maxSize) {
-        const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
-        return `Fichier trop volumineux. Taille maximale : ${maxSizeMB}MB`;
-      }
+    // Vérifier la taille
+    if (file.size > MAX_SIZE) {
+      const maxSizeMB = (MAX_SIZE / (1024 * 1024)).toFixed(1);
+      return `Fichier trop volumineux. Taille maximale : ${maxSizeMB}MB`;
+    }
 
-      return null;
-    },
-    [accept, maxSize]
-  );
+    return null;
+  }, []);
 
   // --------------------------------------------------------------------------
   // UPLOAD
@@ -243,7 +240,7 @@ export function ImageUpload({
         <input
           type="file"
           className="hidden"
-          accept={accept.join(',')}
+          accept={ACCEPTED_TYPES.join(',')}
           onChange={handleFileChange}
           disabled={loading}
         />
@@ -268,7 +265,7 @@ export function ImageUpload({
                 </p>
               </div>
               <p className="text-xs text-gray-400">
-                PNG, JPG, SVG • Max {(maxSize / (1024 * 1024)).toFixed(0)}MB
+                PNG, JPG, SVG • Max {(MAX_SIZE / (1024 * 1024)).toFixed(0)}MB
               </p>
             </>
           )}

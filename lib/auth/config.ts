@@ -85,4 +85,9 @@ const authConfig = {
   debug: process.env.NODE_ENV === 'development',
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+// `signIn` / `signOut` ne sont pas repris de la destructuration : les deux
+// ecrans concernes sont des composants client et passent par
+// `next-auth/react`. Les versions serveur n'ont jamais eu d'appelant — cf. le
+// commentaire de `lib/auth/index.ts`, qui documentait deja l'absence de
+// reexport. Sixieme passe de code mort.
+export const { handlers, auth } = NextAuth(authConfig);

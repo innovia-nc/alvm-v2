@@ -11,7 +11,7 @@ import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { createInvoiceAccountingEntries } from '@/server/services/accounting.service';
 import { applyAvailableCreditsToInvoice } from '@/server/services/credit-application.service';
-import { generateInvoiceNumber } from '@/server/helpers/invoice-number';
+import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 import { generateAndStoreInvoicePdf } from '@/server/services/invoice-pdf.service';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
@@ -321,7 +321,7 @@ export const invoicesRouter = router({
         const taxRate = await getTaxRateDecimal(tx);
         const taxAmount = subtotalHt * taxRate;
         const totalAmount = subtotalHt + taxAmount;
-        const invoiceNumber = await generateInvoiceNumber(tx, 'INVOICE');
+        const invoiceNumber = await generateDocumentNumber(tx, 'INVOICE');
 
         const created = await tx.invoice.create({
           data: {
@@ -422,7 +422,7 @@ export const invoicesRouter = router({
         const dueDate = input.dueDate
           ? new Date(input.dueDate)
           : await getDefaultDueDate(tx);
-        const invoiceNumber = await generateInvoiceNumber(tx, 'INVOICE');
+        const invoiceNumber = await generateDocumentNumber(tx, 'INVOICE');
 
         const created = await tx.invoice.create({
           data: {
