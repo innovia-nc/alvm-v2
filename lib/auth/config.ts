@@ -10,13 +10,11 @@ declare module 'next-auth' {
     user: {
       id: string;
       role?: 'PARENT' | 'STAFF' | 'ADMIN';
-      staffRole?: 'ANIMATOR';
     } & DefaultSession['user'];
   }
 
   interface User {
     role?: 'PARENT' | 'STAFF' | 'ADMIN';
-    staffRole?: 'ANIMATOR';
   }
 }
 
@@ -33,6 +31,12 @@ const signInSchema = z.object({
  *
  * Password hash is stored in Account.providerAccountId
  * where provider = 'credentials'.
+ *
+ * La session ne porte que `id` et `role` : ce sont les deux seuls champs que
+ * les gardes de page et les procédures tRPC consultent. Le rôle par
+ * permissions (ANIMATOR) que la session transportait a été abandonné en juin
+ * — sa garde `animatorProcedure` est partie avec la deuxième passe de code
+ * mort, la revendication qu'elle lisait avec la sixième.
  */
 const authConfig = {
   ...authEdgeConfig,
@@ -61,7 +65,6 @@ const authConfig = {
               where: { provider: 'credentials' },
               select: { providerAccountId: true },
             },
-            staffMember: { select: { userId: true } },
           },
         });
 
@@ -76,7 +79,6 @@ const authConfig = {
           name: user.name,
           image: user.image,
           role: user.role as 'PARENT' | 'STAFF' | 'ADMIN',
-          staffRole: user.staffMember ? ('ANIMATOR' as const) : undefined,
         };
       },
     }),

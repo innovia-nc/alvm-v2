@@ -100,15 +100,6 @@ describe('StatusBadge / getStatusInfo', () => {
     });
   });
 
-  describe('payment', () => {
-    it('covers the four payment statuses', () => {
-      expect(getStatusInfo('payment', 'UNPAID').className).toBe('status-badge-unpaid');
-      expect(getStatusInfo('payment', 'PARTIAL').className).toBe('status-badge-partial');
-      expect(getStatusInfo('payment', 'PAID').className).toBe('status-badge-paid');
-      expect(getStatusInfo('payment', 'REFUNDED').className).toBe('status-badge-refunded');
-    });
-  });
-
   describe('refund', () => {
     it('handles IMMEDIATE_REFUND and FUTURE_CREDIT', () => {
       expect(getStatusInfo('refund', 'IMMEDIATE_REFUND').label).toBe('Remboursement immédiat');

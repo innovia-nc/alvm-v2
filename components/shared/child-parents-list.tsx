@@ -9,7 +9,9 @@ import { cn } from '@/lib/utils';
 // TYPES
 // ============================================================================
 
-export interface ChildParent {
+// Prive au module : aucun autre fichier n'importe cette forme — les ecrans qui
+// affichent des parents associes passent par ce composant.
+interface ChildParent {
   id: string;
   parentId: string;
   firstName: string;

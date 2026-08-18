@@ -4,31 +4,30 @@ import { createMockPrisma } from './mock-prisma';
 
 export const ADMIN_USER: AuthUser = {
   id: 'a0000000-0000-4000-a000-000000000001',
-  email: 'admin@test.com',
   role: 'ADMIN',
-  name: 'Test Admin',
 };
 
 export const STAFF_USER: AuthUser = {
   id: 'a0000000-0000-4000-a000-000000000002',
-  email: 'staff@test.com',
   role: 'STAFF',
-  name: 'Test Staff',
 };
 
 export const PARENT_USER: AuthUser = {
   id: 'a0000000-0000-4000-a000-000000000003',
-  email: 'parent@test.com',
   role: 'PARENT',
-  name: 'Test Parent',
 };
 
-export const ANIMATOR_USER: AuthUser = {
+/**
+ * Second membre du personnel, distinct de `STAFF_USER`.
+ *
+ * Sert aux cas « un STAFF autre que le créateur de l'objet ». S'appelait
+ * `ANIMATOR_USER` et portait `staffRole: 'ANIMATOR'` : cette revendication de
+ * session n'a jamais été lue par une garde et a été retirée (sixième passe de
+ * code mort). Seul l'identifiant distinct compte ici.
+ */
+export const OTHER_STAFF_USER: AuthUser = {
   id: 'a0000000-0000-4000-a000-000000000004',
-  email: 'animator@test.com',
   role: 'STAFF',
-  staffRole: 'ANIMATOR',
-  name: 'Test Animator',
 };
 
 export function createTestCaller(user: AuthUser | null = ADMIN_USER) {

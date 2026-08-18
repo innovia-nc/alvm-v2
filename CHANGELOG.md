@@ -5,6 +5,85 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — sixième passe de code mort (2026-08-18)
+
+Passe complète après celles des 10, 11, 14 et 15 août. Contrôles rejoués sur
+l'ensemble du dépôt : graphe d'imports résolu sur les alias `@/*` et les
+`await import()` destructurés, exports sans importateur, fichiers sans
+importeur, procédures tRPC sans appelant, modèles et enums Prisma, champs de
+schéma d'entrée jamais lus, `select`/`include` jamais relus, props déclarées et
+jamais rendues, états React jamais lus ou jamais écrits, classes CSS,
+dépendances npm, variables d'environnement, code commenté.
+
+**Ce que la passe confirme** — aucun fichier orphelin, aucun état React mort,
+aucun bloc commenté, aucune dépendance npm inutilisée, aucune valeur
+d'énumération inatteignable dans les comparaisons de statut ; les 12 procédures
+sans écran restent exactement celles de TD-010, sans dérive. Le mort restant
+n'était plus en fichiers ni en exports, mais **en données transportées**.
+
+Ce qui part :
+
+- **La revendication de session `staffRole`, écrite par tout le monde et lue
+  par personne.** Elle naissait à la connexion (`lib/auth/config.ts`, au prix
+  d'un `include: { staffMember }` sur la requête d'authentification), passait
+  dans le JWT puis dans la session (`lib/auth/auth.config.ts`) et arrivait
+  jusqu'au contexte tRPC (`server/trpc/context.ts`) — où **aucune procédure ne
+  la consulte** : les seuls champs lus sont `ctx.user.id` (42 lectures) et
+  `ctx.user.role` (29). Elle préfigurait le rôle par permissions ANIMATOR,
+  abandonné en juin ; sa garde `animatorProcedure` était partie avec la
+  deuxième passe, la revendication qu'elle lisait lui survivait de six
+  semaines. Sa seule valeur possible (`'ANIMATOR'` si le compte a une fiche
+  personnel) n'apprenait rien que `role: 'STAFF'` ne dise déjà.
+- **`AuthUser.name` et `AuthUser.email`, dans le même contexte tRPC** : lus
+  depuis la session et recopiés à chaque requête, jamais relus par un routeur.
+  `AuthUser` se réduit à `{ id, role }` — exactement les deux champs que les 71
+  lectures de `ctx.user` consultent. À ne pas confondre avec
+  `session.user.name` / `session.user.email`, que l'en-tête du tableau de bord
+  et les routes PDF utilisent bien : ceux-là viennent de `DefaultSession`, pas
+  de ce contexte.
+- **`PAYMENT_MAP` (`components/shared/status-badge.tsx`) et ses trois
+  utilitaires CSS** (`.status-badge-unpaid`, `-partial`, `-refunded`). Aucun
+  écran ne passe `type="payment"`. Le commentaire qui la justifiait — « peut
+  aussi servir à étiqueter un `Payment` isolé » — décrivait une chose
+  impossible : le modèle `Payment` n'a pas de colonne de statut. Le seul champ
+  `PaymentStatus` du schéma est `registrations.payment_status`, que le dépôt
+  n'écrit qu'à `UNPAID` et qu'aucun écran n'affiche (TD-005). C'était la
+  dernière des sept tables de `StatusBadge` sans appelant — les deux autres que
+  TD-013 avait laissées en suspens (`CAMP_MAP`, `REFUND_MAP`) ont été câblées
+  depuis.
+- **Le relais mort de `notes` dans le pointage de présence.** La grille
+  déclarait `onMarkAttendance(registrationId, status, notes?)` et ne l'appelait
+  jamais qu'avec deux arguments ; le page-client acceptait le paramètre et le
+  transmettait à la mutation, où il valait toujours `undefined`. Moitié serveur
+  conservée et tracée en **TD-023**.
+- **Deux colonnes sur-sélectionnées dans le FIFO d'imputation d'avoirs**
+  (`credit-application.service.ts`) : `creditNote.id` — le service utilise la
+  clé étrangère `credit.creditNoteId` — et `creditNote.isFutureCredit`, jamais
+  relu, alors que l'écriture posée est toujours `D 4191 / C 411000`
+  (`creditNoteIsFutureCredit: true` en dur). Le `select` laissait croire que le
+  drapeau pilotait quelque chose.
+- **Trois exports sans importateur** devenus privés au module ou rebranchés :
+  `deriveClientAux` (`accounting.service.ts`, quatre appelants tous internes),
+  `ChildParent` (`child-parents-list.tsx`), et `BreadcrumbItem` — celui-ci
+  existait **en double**, exporté sans preneur par `breadcrumb-provider.tsx` et
+  redéclaré à l'identique dans `breadcrumbs.tsx` ; le second importe désormais
+  le premier.
+
+**Renommé** : la fixture de test `ANIMATOR_USER` devient `OTHER_STAFF_USER`.
+Elle ne portait plus qu'un identifiant STAFF distinct de `STAFF_USER` — ce que
+les 14 cas qui l'utilisent testent réellement (« un STAFF autre que le
+créateur »). Trois titres de test qui annonçaient un contrôle `staffRole`
+inexistant sont corrigés.
+
+**Documenté plutôt que tranché** — **TD-023** : `attendances.markAttendance`
+accepte `notes`, `arrivalTime` et `departureTime`, qu'aucun écran ne remplit.
+Le serveur écrit donc trois `null` à chaque pointage.
+
+Vérifié : `tsc --noEmit --noUnusedLocals --noUnusedParameters` propre,
+`pnpm lint` 0 erreur (35 avertissements `any` de TD-001, inchangés), 978 tests
+verts — un de moins, celui qui vérifiait les quatre statuts de paiement
+inaffichables.
+
 ### Removed — cinquième passe de code mort (2026-08-15)
 
 Passe complète après celles des 10, 11 et 14 août. Contrôles rejoués sur

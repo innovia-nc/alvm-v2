@@ -185,7 +185,11 @@ export async function applyAvailableCreditsToInvoice(
     },
     orderBy: { createdAt: 'asc' },
     include: {
-      creditNote: { select: { id: true, invoiceNumber: true, status: true, isFutureCredit: true } },
+      // Whitelist stricte : `status` filtre les avoirs annules, `invoiceNumber`
+      // libelle le paiement et la trace. Rien d'autre n'est lu ici — surtout
+      // pas `isFutureCredit` : l'ecriture posee est toujours D 4191 / C 411000,
+      // le drapeau ne pilote rien (voir `creditNoteIsFutureCredit: true`).
+      creditNote: { select: { invoiceNumber: true, status: true } },
     },
   });
 

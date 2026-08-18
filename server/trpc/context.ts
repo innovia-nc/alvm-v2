@@ -1,12 +1,16 @@
 import { auth } from '@/lib/auth/config';
 import { prisma, type ExtendedPrismaClient } from '@/server/db';
 
+/**
+ * Identité portée par le contexte tRPC.
+ *
+ * Strictement ce que les procédures lisent : `id` (propriété des données) et
+ * `role` (habilitation). Tout champ ajouté ici traverse chaque requête sans
+ * qu'aucune garde ne le consulte tant qu'un routeur ne le lit pas.
+ */
 export interface AuthUser {
   id: string;
-  email: string;
   role: 'PARENT' | 'STAFF' | 'ADMIN';
-  staffRole?: 'ANIMATOR';
-  name?: string;
 }
 
 export interface Context {
@@ -24,10 +28,7 @@ export async function createContext(): Promise<Context> {
   const user: AuthUser | null = session?.user
     ? {
         id: session.user.id,
-        email: session.user.email!,
         role: session.user.role ?? 'PARENT',
-        staffRole: session.user.staffRole,
-        name: session.user.name ?? undefined,
       }
     : null;
 
