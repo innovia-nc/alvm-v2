@@ -159,3 +159,21 @@ function parseJsonNumber(value: string): number {
     return Number.isFinite(n) ? n : NaN;
   }
 }
+
+/**
+ * Lit la valeur stockée du logo (JSON-stringified, ou en clair pour les lignes
+ * legacy) et retourne l'URL, ou `undefined` si la valeur est absente/vide.
+ *
+ * Partagé entre le routeur `settings` et la route `DELETE /api/upload/logo`,
+ * qui doit comparer l'URL demandée à celle réellement enregistrée avant
+ * d'effacer quoi que ce soit du store.
+ */
+export function parseLogoValue(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === 'string' && parsed.trim() ? parsed : undefined;
+  } catch {
+    return value;
+  }
+}

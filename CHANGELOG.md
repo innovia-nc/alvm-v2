@@ -5,6 +5,63 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — téléversement des fichiers, enfin branché (TD-025, 2026-08-19)
+
+Trois appels `fetch` du navigateur visaient des routes qui n'existaient dans
+aucun commit : le logo de l'association et les documents PDF d'un enfant étaient
+**impossibles à téléverser** depuis la refonte, avec un « Erreur lors de
+l'upload » pour seule explication. Les routes existent maintenant.
+
+- **`POST` / `DELETE /api/upload/logo`** (ADMIN) — validation MIME et taille
+  refaite côté serveur, téléversement, et suppression restreinte au blob dont
+  l'URL est **celle enregistrée** dans les réglages : sans cette comparaison, la
+  route aurait accepté d'effacer n'importe quel objet du store (PDF de facture,
+  document d'enfant) sur simple URL.
+- **`POST /api/upload/child-documents`** (PARENT pour ses enfants, STAFF/ADMIN)
+  — valide PDF + 5 Mo, applique la règle d'accès enfant puis crée la ligne
+  `child_documents`. Un `File` ne traverse pas tRPC/superjson : la création vit
+  dans la route, pas dans une procédure.
+
+Deux pièges traités, chacun avec son test (`test/unit/upload-routes.spec.ts`,
+17 cas) : le blob du logo prend un nom aléatoire — à nom fixe, la suppression du
+logo précédent que fait `settings.setLogoUrl` (TD-006) effacerait le fichier
+tout juste téléversé — et un échec d'écriture en base annule le blob déjà
+téléversé, pendant amont de TD-006.
+
+La règle d'accès à un enfant est désormais partagée
+(`server/helpers/child-access.helper.ts`) entre le routeur et la route : une
+seule définition, un refus 404 indistinct des deux côtés.
+
+**Reste ouvert** : les documents du personnel n'ont toujours pas de dépôt — mais
+aucun écran ne le demande, c'est une fonctionnalité à spécifier, pas un appel
+mort. Et aucune campagne (`pnpm smoke`, `pnpm recette`) ne couvre encore un
+téléversement réel.
+
+### Changed — chaîne de build : une version de pnpm, et un build en CI (2026-08-19)
+
+- **`packageManager: pnpm@9.15.9`** dans `package.json`. Trois environnements
+  installaient avec trois pnpm différents (Vercel 9, CI 10, postes de dev 11) ;
+  le champ est lu par les trois, et le workflow n'épingle plus de version.
+- **`pnpm-workspace.yaml` supprimé** : il avait été commité avec les valeurs
+  modèles de `pnpm approve-builds` (« set this to true or false »), illisibles
+  pour pnpm — donc aucun script d'installation autorisé, donc pas de
+  `prisma generate` au `postinstall`. Conséquences et marche à suivre en cas de
+  passage à pnpm ≥ 10 : `docs/deploiement.md`.
+- **`next build` ajouté au CI.** Les tests sont mockés et `tsc` ne voit pas le
+  rendu : rien ne rattrapait une régression de build, d'autant que les
+  déploiements de preview Vercel échouent tous pour une raison d'environnement.
+
+### Investigated — échecs de déploiement Vercel (2026-08-19)
+
+Les previews échouent **une seconde** après création (statuts GitHub à l'appui) :
+ce n'est pas un build qui casse mais un déploiement refusé avant de démarrer. Ni
+le code (build local vert, PR de documentation seule en échec) ni les variables
+d'environnement du build (aucune n'est nécessaire : toutes les pages du tableau
+de bord sont dynamiques) n'expliquent l'échec. Les trois causes restantes sont
+côté projet Vercel et se départagent avec `vercel inspect --logs` — procédure et
+commandes dans `docs/deploiement.md` § « Échecs de déploiement en preview ».
+
+
 ### Removed — sixième passe de code mort (2026-08-18)
 
 Passe complète après celles des 10, 11, 14 et 15 août. Contrôles rejoués sur

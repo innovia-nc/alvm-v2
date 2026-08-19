@@ -7,16 +7,17 @@ on:
 
 jobs:
   quality:
-    name: Lint, typecheck & tests
+    name: Lint, typecheck, tests & build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Pas de `version:` ici — la version fait autorité dans le champ
+      # `packageManager` de package.json, pour que le CI, les postes de dev et
+      # le build Vercel installent avec le MÊME pnpm.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -38,3 +39,18 @@ jobs:
 
       - name: Unit tests (vitest)
         run: pnpm test
+
+      # Le build était le seul filet manquant : les tests sont mockés et le
+      # typecheck ne voit pas les erreurs de rendu/prérendu de Next. Une
+      # régression de build ne se serait vue qu'au déploiement — et les
+      # déploiements de preview Vercel échouent pour une raison d'environnement
+      # (docs/deploiement.md § « Échecs de déploiement en preview »), donc
+      # personne ne la rattrapait.
+      #
+      # Aucune variable d'environnement n'est fournie volontairement : toutes
+      # les pages du tableau de bord sont dynamiques, le build ne doit jamais
+      # dépendre d'un accès base ou d'un secret. Si cette étape se met à
+      # réclamer une variable, c'est qu'une page s'est mise à interroger la
+      # base au prérendu.
+      - name: Build (next build)
+        run: pnpm build

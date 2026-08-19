@@ -1,6 +1,6 @@
 # Déploiement — ALVM (Vercel + Neon)
 
-> Dernière mise à jour : 2026-08-16 (§ Données de référence — seeds)
+> Dernière mise à jour : 2026-08-19 (§ Échecs de déploiement en preview ; version pnpm figée)
 
 ## Topologie
 
@@ -11,7 +11,7 @@
 | Repo GitHub | `innovia-nc/alvm-vercel`, branche de prod `master` |
 | BDD | **Neon PostgreSQL 17** via l'intégration Vercel ↔ Neon (⚠️ pas Supabase) |
 | Stockage fichiers | Vercel Blob (`BLOB_READ_WRITE_TOKEN`) |
-| Node / build | 22.x, défauts framework Next.js (pnpm auto-détecté via `pnpm-lock.yaml`) |
+| Node / build | 22.x, défauts framework Next.js ; **pnpm figé par `packageManager` dans `package.json`** (voir ci-dessous) |
 
 ## Variables d'environnement (Vercel)
 
@@ -29,6 +29,71 @@ Email. Seul le domaine d'envoi doit être vérifié côté Resend.
 
 Vars legacy présentes mais inutilisées par le code : `NEXTAUTH_*`, `STACK_*`,
 `PG*`, `NEON_PROJECT_ID`, `DATABASE_URL` — nettoyage possible après stabilité.
+
+## Version de pnpm — une seule autorité
+
+`package.json` porte `"packageManager": "pnpm@9.15.9"`. Avant le 2026-08-19,
+trois environnements installaient avec trois pnpm différents : Vercel en 9
+(déduit de `lockfileVersion: 9.0`), le CI GitHub en 10 (épinglé dans le
+workflow), les postes de dev en 11. Le champ `packageManager` est lu par les
+trois — le workflow n'épingle donc plus de version, et pnpm bascule tout seul
+sur la bonne sur un poste de dev.
+
+Ce qui avait été commité entre-temps : un `pnpm-workspace.yaml` contenant les
+valeurs **modèles** de `pnpm approve-builds` (« set this to true or false »).
+Illisible pour pnpm, donc aucun script d'installation autorisé, donc pas de
+`prisma generate` au `postinstall` — le fichier est supprimé.
+
+⚠️ **Si un jour la version est montée à pnpm ≥ 10** : les scripts
+d'installation redeviennent bloqués par défaut. Il faut alors déclarer
+`onlyBuiltDependencies` (`@prisma/client`, `@prisma/engines`, `prisma`,
+`esbuild`, `sharp`, `unrs-resolver`) dans un `pnpm-workspace.yaml` — le champ
+`pnpm` de `package.json` n'est **plus lu** par pnpm 10+ (il est ignoré en
+silence). Sans cela le build échoue sur un client Prisma absent.
+
+## Échecs de déploiement en preview (constat 2026-08-19)
+
+**Symptôme** : sur `alvm-v2`, la production se déploie normalement mais **toutes
+les previews de PR échouent** — y compris des PR qui ne touchent que des
+fichiers Markdown, et y compris les #26/#27 mergées ainsi. Le projet
+`alvm-vercel` (team `ifingos-projects`, branché sur le même repo) échoue lui
+aussi, sur `master`.
+
+**Ce qui est établi, et ce qui l'exclut** :
+
+| Piste | Verdict |
+|---|---|
+| Régression de code | **Exclue** — `pnpm build` passe en local, et une PR de documentation seule échoue aussi. |
+| Build qui réclamerait une variable d'environnement | **Exclue** — le build tourne sans aucune variable : toutes les pages du tableau de bord sont dynamiques (`ƒ`), rien n'interroge la base au prérendu. Une étape `next build` a été ajoutée au CI pour que ce fait reste vrai. |
+| Étape d'installation (pnpm) | **Improbable** — l'échec arrive **une seconde** après la création du déploiement (statuts GitHub : créé à 00:13:36, `failure` à 00:13:37). Une installation puis un build prennent des minutes. |
+
+Un échec en une seconde n'est pas un build qui casse : c'est un déploiement
+**refusé avant de démarrer**. Les causes habituelles sont toutes côté projet
+Vercel, pas côté dépôt :
+
+1. une variable d'environnement de l'environnement *Preview* qui référence un
+   secret/store supprimé (cas classique après un débranchement de l'intégration
+   Neon : « references Secret … which does not exist ») ;
+2. un quota ou une facturation de l'équipe qui interdit les déploiements de
+   preview ;
+3. une intégration (Neon) qui échoue à créer la branche de base de données du
+   preview.
+
+**Diagnostic — trois commandes, à lancer avec un compte Vercel** (le dépôt ne
+porte aucun jeton, ces commandes ne peuvent pas être jouées depuis le CI) :
+
+```bash
+npx vercel login
+npx vercel inspect dpl_5w3TtrEmDsGV5q6qsGWDiCQwD4iY --logs   # dernier preview en échec
+npx vercel env ls preview                                    # comparer avec `vercel env ls production`
+```
+
+La première ligne de sortie de `inspect` donne le motif exact ; c'est elle qui
+départage les trois causes ci-dessus. Tant qu'elle n'est pas lue, toute
+modification du dépôt serait une correction à l'aveugle — d'où le choix de
+n'avoir rien changé au code applicatif pour ce point, et d'avoir seulement
+ajouté le filet manquant (build en CI) et supprimé la vraie anomalie trouvée en
+chemin (le `pnpm-workspace.yaml` modèle).
 
 ## Déployer
 
