@@ -1,7 +1,14 @@
 /**
  * Seed idempotent des moyens de paiement standards.
  *
- * A executer en prod via : pnpm tsx prisma/seed-payment-methods.ts
+ * A executer via : pnpm db:seed:payment-methods (cf. docs/deploiement.md
+ * § Donnees de reference).
+ *
+ * Ce seed n'est pas un confort : `prisma/seed.ts` ne cree aucun moyen de
+ * paiement, et l'imputation automatique des avoirs
+ * (`credit-application.service.ts`) leve un PRECONDITION_FAILED explicite quand
+ * le code `CREDIT_NOTE` manque en base. Une base sans ce seed refuse de valider
+ * une facture d'un client qui a des avoirs.
  *
  * Codes comptables alignes sur la migration legacy NestJS
  * (alvm-back/prisma/migrations/20260308000001_db_functions_triggers_rls/migration.sql).

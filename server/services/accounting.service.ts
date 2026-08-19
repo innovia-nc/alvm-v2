@@ -19,8 +19,9 @@ type TxClient = any;
 /**
  * Derives a deterministic auxiliary account code from a parent UUID.
  *
- * Prive au module : les quatre appelants sont les fonctions d'ecriture de ce
- * fichier. L'export n'avait aucun importateur.
+ * Privée au module : les quatre appels vivent dans ce fichier, aucun autre ne
+ * l'importe. La convention (CLAUDE.md § Comptabilité) veut une seule définition
+ * du code auxiliaire — la refonte a justement supprimé son jumeau SQL.
  */
 function deriveClientAux(parentId: string): string {
   return 'AUX' + parentId.replace(/-/g, '').slice(0, 8);

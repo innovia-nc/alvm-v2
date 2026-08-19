@@ -87,4 +87,10 @@ const authConfig = {
   debug: process.env.NODE_ENV === 'development',
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+// `signIn` / `signOut` ne sont pas extraits : les trois écrans concernés
+// (`components/auth/signin-form.tsx`, `app/auth/signout/page.tsx`,
+// `components/layout/dashboard-header.tsx`) sont des composants client et
+// passent par `next-auth/react`. Les versions serveur n'ont jamais eu
+// d'appelant — la quatrième passe avait retiré leur réexport du barrel
+// `lib/auth/index.ts`, la source restait.
+export const { handlers, auth } = NextAuth(authConfig);

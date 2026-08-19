@@ -9,7 +9,7 @@ import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/server/helpers/settings';
 import { toNum } from '@/server/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
-import { generateInvoiceNumber } from '@/server/helpers/invoice-number';
+import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 
 type CreditNoteStatus = 'DRAFT' | 'SENT' | 'CANCELLED';
 
@@ -330,7 +330,7 @@ export const creditNotesRouter = router({
 
         // Create the credit note
         const dueDate = await getDefaultDueDate(tx);
-        const invoiceNumber = await generateInvoiceNumber(tx, 'CREDIT_NOTE');
+        const invoiceNumber = await generateDocumentNumber(tx, 'CREDIT_NOTE');
         const cn = await tx.invoice.create({
           data: {
             invoiceNumber,

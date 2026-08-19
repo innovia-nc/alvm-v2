@@ -10,7 +10,7 @@ import { getCreditExpiryDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
-import { generateInvoiceNumber, generateDocumentNumber } from '@/server/helpers/invoice-number';
+import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 
 type RegStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
 type CampStat = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
@@ -750,7 +750,7 @@ export const registrationsRouter = router({
           const subtotalHt = taxRate > 0 ? creditAmount / (1 + taxRate) : creditAmount;
           const taxAmount = creditAmount - subtotalHt;
 
-          const invoiceNumber = await generateInvoiceNumber(tx, 'CREDIT_NOTE');
+          const invoiceNumber = await generateDocumentNumber(tx, 'CREDIT_NOTE');
           const cn = await tx.invoice.create({
             data: {
               invoiceNumber,
@@ -799,7 +799,7 @@ export const registrationsRouter = router({
 
           const expiresAt = await getCreditExpiryDate(tx);
 
-          const invoiceNumber = await generateInvoiceNumber(tx, 'CREDIT_NOTE');
+          const invoiceNumber = await generateDocumentNumber(tx, 'CREDIT_NOTE');
           const cn = await tx.invoice.create({
             data: {
               invoiceNumber,

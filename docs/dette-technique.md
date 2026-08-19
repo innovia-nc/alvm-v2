@@ -339,6 +339,14 @@ indexée sur email + IP). Ne pas réintroduire de compteur en mémoire de proces
 
 ## TD-010 — Procédures tRPC sans écran : la moitié serveur de fonctions jamais construites — P3 — OPEN
 
+**Mise à jour (2026-08-17, sixième passe)** : la liste ci-dessous est
+inchangée, mais elle était **incomplète d'une entrée**. Les passes précédentes
+détectaient les procédures par une indentation de deux espaces ;
+`server/routers/staff-documents.ts` en utilise quatre, et ses quatre
+procédures échappaient donc au contrôle. `staffDocuments.getById` s'ajoute à
+la table — c'est la seule procédure du dépôt sans **aucun** appelant, pas même
+un test.
+
 **Constat (2026-08-10, deuxième passe de code mort)** : après le retrait des
 procédures redondantes, **11 procédures tRPC n'ont toujours aucun appelant** —
 ni page, ni composant, ni campagne de test réel. Elles n'ont pas été supprimées
@@ -357,6 +365,7 @@ trace du manque ; les garder sans les tracer laisse croire qu'elles servent.
 | `attendances.list` | vue des présences côté PARENT (le pointage STAFF passe par `getGridForCamp`) |
 | `attendances.delete`, `attendances.getStatistics` | correction d'un pointage, statistiques de présence |
 | `registrations.getAvailableCredits` | affichage des avoirs disponibles (seul `pnpm smoke` l'appelle) |
+| `staffDocuments.getById` | fiche d'un document du personnel — l'écran ne liste et ne supprime (ajoutée par la 6ᵉ passe ; voir aussi TD-024, ce module n'a pas non plus de téléversement) |
 
 **Point d'attention immédiat** : les deux écrans de paramétrage
 (`/dashboard/admin/settings/camp-types` et `.../payment-methods`) affichent
@@ -629,7 +638,143 @@ helper partagé existe déjà.
 pour les PDF si leur rendu doit rester distinct — auquel cas la variante vit à
 côté de `PDFFooter`, avec le commentaire qui dit pourquoi elle diffère.
 
-## TD-023 — Pointage de présence : trois champs d'entrée qu'aucun écran ne remplit — P3 — OPEN
+## TD-023 — `components/ui/` : 18 sous-composants shadcn jamais rendus — P3 — OPEN
+
+**Constat (2026-08-16, sixième passe de code mort)** : `components/ui/` est du
+code **fournisseur recopié** (shadcn/ui, `components.json` à la racine, style
+`default`, base `slate`). Dix-huit symboles y sont définis, exportés, et rendus
+**nulle part** — ni par un écran, ni par un autre composant de `components/ui/` :
+
+| Fichier | Symboles sans aucun rendu |
+|---|---|
+| `dropdown-menu.tsx` | `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal`, `DropdownMenuSub`, `DropdownMenuSubContent`, `DropdownMenuSubTrigger` |
+| `select.tsx` | `SelectGroup`, `SelectLabel`, `SelectSeparator` |
+| `dialog.tsx` | `DialogTrigger`, `DialogClose` — tous les dialogues du produit sont **contrôlés** (`open` / `onOpenChange`) |
+| `table.tsx` | `TableFooter`, `TableCaption` |
+| `card.tsx` | `CardFooter` |
+| `avatar.tsx` | `AvatarImage` — le produit n'a pas de photo de profil, `dashboard-header.tsx` ne rend que les initiales via `AvatarFallback` |
+
+S'y ajoutent dix exports **superflus mais dont le code vit** (le symbole est
+utilisé à l'intérieur de son propre fichier) : `AlertDialogPortal`,
+`AlertDialogOverlay`, `DialogPortal`, `DialogOverlay`, `SelectScrollUpButton`,
+`SelectScrollDownButton`, `ScrollBar`, `badgeVariants`, `useFormField`, et le
+type `BadgeProps` ; ainsi que la variante `size="lg"` de `button.tsx`, jamais
+demandée par un appelant.
+
+**Non supprimés, et c'est le fond du constat** : ces fichiers ne sont pas du
+code du projet. Les tailler a deux coûts et aucun gain d'exécution — Next
+élimine déjà ce qui n'est pas rendu du bundle client (tree-shaking), donc rien
+n'est livré au navigateur aujourd'hui. Coût 1 : un `npx shadcn add dialog`
+réécrit le fichier entier et la taille est perdue sans trace. Coût 2 : le jour
+où un écran a besoin d'un sous-menu, il faut réécrire à la main ce qui existait.
+Une table de variantes fournisseur est faite pour être complète, pas minimale.
+
+**Ce que le constat sert quand même** : il dit ce qui, dans `components/ui/`, ne
+sera exercé par aucun test ni aucune recette — la prochaine passe n'a plus à
+rescanner ce répertoire, et une revue qui y voit un bug ne doit pas conclure à
+une régression d'écran.
+
+**Résolution cible** : aucune action tant que shadcn reste la source. Si le
+projet décide un jour de figer `components/ui/` (plus de `shadcn add`, code
+adopté), alors supprimer les 18 symboles ci-dessus et retirer `components.json`
+dans le même geste — c'est le fichier qui rend la suppression réversible ou non.
+
+## TD-024 — Un camp n'a pas de bornes d'âge, le formulaire parent en contrôlait — P3 — OPEN
+
+**Constat (2026-08-17, sixième passe de code mort)** :
+`components/parent/registration-form.tsx` portait un contrôle de compatibilité
+d'âge complet — props `minAge` / `maxAge`, calcul de l'âge de l'enfant, message
+« Cet enfant a N ans. Le camp accepte les enfants de X à Y ans. », blocage de la
+soumission. **Ce contrôle n'a jamais pu s'exécuter** : ni `Camp` ni `CampDay`
+n'ont de colonne d'âge dans `prisma/schema.prisma`, aucune procédure n'en
+expose, et la page appelante (`/dashboard/parent/camps/[id]`) ne passait pas les
+deux props. La garde `if (minAge === undefined || maxAge === undefined) return`
+sortait donc à chaque sélection d'enfant.
+
+Ce n'est pas un simple rebut : le lecteur du composant — et le testeur qui
+parcourt l'écran — en concluent que l'application refuse une inscription hors
+tranche d'âge. Elle ne l'a jamais fait.
+
+**Traité par cette passe** : les props, le contrôle et l'alerte sont retirés.
+`calculateAge()` reste, elle sert à afficher « (N ans) » dans la liste déroulante
+des enfants.
+
+**Ce qui reste ouvert — le besoin, pas le code** : si l'ALVM borne ses camps par
+âge (c'est l'usage courant d'un ACM), cela se spécifie serveur d'abord — deux
+colonnes sur `camps`, leur saisie dans le formulaire d'ACM, le refus côté
+`registrations.create` (une validation qui ne vit que dans le navigateur ne
+protège rien), puis seulement l'aide à la saisie côté parent.
+
+## TD-025 — Téléversement : trois appels `/api/upload/*`, aucune route en face — P1 — OPEN
+
+**Constat (2026-08-17, sixième passe de code mort)** : trois appels `fetch` du
+client visent des routes qui **n'existent dans aucun commit du dépôt** —
+`app/api/` ne contient que `auth`, `generate/*` et `trpc`.
+
+| Appel | Fichier | Route visée |
+|-------|---------|-------------|
+| `POST` | `components/ui/image-upload.tsx` | `/api/upload/logo` |
+| `DELETE` | `app/dashboard/admin/settings/page.tsx` (`handleLogoRemove`) | `/api/upload/logo` |
+| `POST` | `components/ui/document-upload.tsx` | `/api/upload/child-documents` |
+
+Conséquences, vérifiées dans le dépôt :
+
+1. **Le logo de l'association ne peut pas être téléversé.** L'écran
+   `/dashboard/admin/settings` affiche la zone de dépôt, la validation de format
+   et de taille tourne, puis le `POST` tombe sur un 404. `settings.setLogoUrl`
+   existe et fonctionne — c'est la moitié qui enregistre l'URL, jamais celle qui
+   produit l'objet.
+2. **Aucun document d'enfant ne peut être créé.** `childDocuments` n'expose que
+   `list`, `delete` et `count` : il n'y a **pas** de procédure de création, et le
+   seul chemin de téléversement est ce `POST` mort.
+3. **Aucun document du personnel non plus.** `staffDocuments` n'a ni procédure de
+   création ni écran de dépôt — `StaffDocumentsSection` liste, supprime et
+   génère le PDF de fiche. Les lignes `staff_documents` ne peuvent venir que de
+   l'application legacy.
+
+C'est le motif de TD-011 (`/auth/signup/parent` → `/api/auth/signup`) à une
+différence près, qui le rend plus grave : **ces écrans-là sont atteignables et
+mis en avant**. L'utilisateur clique, l'application affiche « Erreur lors de
+l'upload » sans dire pourquoi, et rien dans les campagnes de test ne l'a vu — ni
+`pnpm smoke` ni `pnpm recette` ne couvrent le téléversement.
+
+**Non traité par cette passe** : la correction n'est pas une suppression. Ce sont
+trois routes à écrire (authentification, contrôle du rôle, validation MIME et
+taille côté serveur, `uploadToStorage()` — qui existe déjà et sert au PDF de
+facture), plus une procédure `childDocuments.create` / `staffDocuments.create`
+qui enregistre la ligne. Supprimer les écrans à la place ferait disparaître une
+fonctionnalité attendue au lieu de la livrer.
+
+**Résolution cible** : livrer les routes manquantes et leurs procédures, et
+ajouter un critère de recette par téléversement (logo, document d'enfant,
+document du personnel) — l'absence de couverture est ce qui a permis au défaut
+de traverser deux mises en production. En attendant, TD-006 s'applique déjà à la
+suppression : la ligne d'abord, le blob ensuite, best effort.
+
+## TD-026 — Les espaces ADMIN et STAFF dupliquent quatre écrans à l'identique — P3 — OPEN
+
+**Constat (2026-08-17, sixième passe de code mort)** : les tables « personnel »
+et « parents » existent en deux exemplaires quasi identiques, un par espace.
+
+| Paire | Écart réel |
+|-------|-----------|
+| `app/dashboard/admin/users/staff/columns.tsx` ↔ `app/dashboard/staff/users/staff/columns.tsx` | le préfixe d'URL et trois bandeaux de commentaires |
+| `.../admin/users/staff/staff-table-client.tsx` ↔ `.../staff/users/staff/staff-table-client.tsx` | un emoji et des commentaires |
+| `.../admin/users/parents/columns.tsx` ↔ `.../staff/parents/columns.tsx` | les noms de types et une entrée de menu |
+| `.../admin/users/parents/parents-table-client.tsx` ↔ `.../staff/parents/staff-parents-table-client.tsx` | la réinitialisation de mot de passe, réservée à l'ADMIN |
+
+Aucune de ces lignes n'est morte — chaque fichier a son écran. Le défaut est le
+même que TD-022 : une correction (colonne ajoutée, libellé, tri) s'applique à un
+exemplaire et pas à l'autre, sans que rien ne le signale. Le dépôt a déjà le
+mécanisme qui rend la duplication inutile : `useDashboardBasePath()`, utilisé par
+seize fichiers pour construire les liens depuis l'espace courant.
+
+**Résolution cible** : remonter chaque paire dans un composant unique de
+`components/` paramétré par le `basePath` et, pour la table des parents, par la
+présence de l'action ADMIN. À faire écran par écran, avec la recette rejouée —
+pas dans une passe de code mort, qui n'a pas à réécrire du code vivant.
+
+## TD-027 — Pointage de présence : trois champs d'entrée qu'aucun écran ne remplit — P3 — OPEN
 
 **Constat (2026-08-18, sixième passe de code mort)** : `attendances.markAttendance`
 accepte `notes`, `arrivalTime` et `departureTime`. Son **unique** appelant est

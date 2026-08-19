@@ -14,10 +14,18 @@ const SEQUENCES: Record<DocumentKind, { name: string; prefix: string }> = {
 
 const ensuredSequences = new Set<string>();
 
+/**
+ * Numero sequentiel d'un document : `PREFIXE-ANNEE-0001`.
+ *
+ * Pas de parametre d'horloge injectable : le seul usage de la date est
+ * l'annee du numero, aucun appelant n'en a jamais passe une, et un test qui
+ * en aurait besoin peut geler le temps avec `vi.setSystemTime`. Le parametre
+ * `now` et l'alias `generateInvoiceNumber` (qui ne faisait que restreindre
+ * `kind`) sont retires a la sixieme passe de code mort.
+ */
 export async function generateDocumentNumber(
   prisma: RawClient,
   kind: DocumentKind,
-  now: Date = new Date(),
 ): Promise<string> {
   const { name, prefix } = SEQUENCES[kind];
 
@@ -30,15 +38,6 @@ export async function generateDocumentNumber(
     `SELECT nextval('${name}') AS nextval`,
   );
   const next = Number(rows[0]?.nextval ?? 0);
-  const year = now.getFullYear();
+  const year = new Date().getFullYear();
   return `${prefix}-${year}-${String(next).padStart(4, '0')}`;
-}
-
-// Backwards-compatible alias for invoice/credit-note callers
-export async function generateInvoiceNumber(
-  prisma: RawClient,
-  kind: 'INVOICE' | 'CREDIT_NOTE',
-  now: Date = new Date(),
-): Promise<string> {
-  return generateDocumentNumber(prisma, kind, now);
 }

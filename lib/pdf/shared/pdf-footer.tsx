@@ -45,12 +45,16 @@ export interface OrgInfo {
  */
 export const PDF_FOOTER_RESERVED_SPACE = 90;
 
+// La pagination « X / Y » n'est plus optionnelle : les cinq documents la
+// laissaient à sa valeur par défaut (`true`), et la branche « sans
+// pagination » — une cellule vide poussée dans la ligne méta — n'a jamais été
+// rendue. Prop `showPagination` retirée à la sixième passe de code mort ; un
+// document qui devrait s'en passer se traiterait par une variante explicite,
+// pas par un booléen que personne ne positionne.
 interface PDFFooterProps {
   org: OrgInfo;
   /** Mention spécifique au document (depuis settings/documents) */
   mention?: string;
-  /** Affiche la pagination "X / Y". Défaut: true */
-  showPagination?: boolean;
   /** Affiche "Imprimé le ..." */
   generatedAt?: Date;
 }
@@ -110,12 +114,7 @@ function joinNonEmpty(parts: Array<string | undefined>, separator: string): stri
 // COMPONENT
 // ============================================================================
 
-export const PDFFooter: React.FC<PDFFooterProps> = ({
-  org,
-  mention,
-  showPagination = true,
-  generatedAt,
-}) => {
+export const PDFFooter: React.FC<PDFFooterProps> = ({ org, mention, generatedAt }) => {
   // Ligne 1 : identité légale
   const identityParts: Array<string | undefined> = [
     org.name,
@@ -137,7 +136,6 @@ export const PDFFooter: React.FC<PDFFooterProps> = ({
   const line3 = joinNonEmpty(contactParts, ' — ');
 
   const hasGeneratedAt = Boolean(generatedAt);
-  const hasMeta = hasGeneratedAt || showPagination;
 
   return (
     <View style={styles.container} fixed>
@@ -145,21 +143,15 @@ export const PDFFooter: React.FC<PDFFooterProps> = ({
       {line2 && <Text style={styles.line}>{line2}</Text>}
       {line3 && <Text style={styles.line}>{line3}</Text>}
       {mention && mention.trim() && <Text style={styles.mention}>{mention}</Text>}
-      {hasMeta && (
-        <View style={styles.metaRow}>
-          <Text style={styles.meta}>
-            {hasGeneratedAt ? `Imprimé le ${formatDateFr(generatedAt as Date)}` : ' '}
-          </Text>
-          {showPagination ? (
-            <Text
-              style={styles.meta}
-              render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-            />
-          ) : (
-            <Text style={styles.meta}> </Text>
-          )}
-        </View>
-      )}
+      <View style={styles.metaRow}>
+        <Text style={styles.meta}>
+          {hasGeneratedAt ? `Imprimé le ${formatDateFr(generatedAt as Date)}` : ' '}
+        </Text>
+        <Text
+          style={styles.meta}
+          render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+        />
+      </View>
     </View>
   );
 };
