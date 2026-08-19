@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
 import type { AppSetting } from '@prisma/client';
 import { deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
+import { parseLogoValue } from '@/server/helpers/settings';
 
 const settingCategories = z.enum([
   'organization', 'pricing', 'email', 'accounting', 'maintenance', 'documents',
@@ -11,20 +12,6 @@ type SettingCategory = z.infer<typeof settingCategories>;
 
 function mapSetting(s: AppSetting) {
   return { ...s, category: s.category as SettingCategory };
-}
-
-/**
- * Lit la valeur stockée du logo (JSON-stringified, ou en clair pour les lignes
- * legacy) et retourne l'URL, ou `undefined` si la valeur est absente/vide.
- */
-function parseLogoValue(value: unknown): string | undefined {
-  if (typeof value !== 'string' || !value.trim()) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    return typeof parsed === 'string' && parsed.trim() ? parsed : undefined;
-  } catch {
-    return value;
-  }
 }
 
 const settingSchema = z.object({

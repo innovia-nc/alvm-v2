@@ -705,7 +705,7 @@ colonnes sur `camps`, leur saisie dans le formulaire d'ACM, le refus côté
 `registrations.create` (une validation qui ne vit que dans le navigateur ne
 protège rien), puis seulement l'aide à la saisie côté parent.
 
-## TD-025 — Téléversement : trois appels `/api/upload/*`, aucune route en face — P1 — OPEN
+## TD-025 — Téléversement : trois appels `/api/upload/*`, aucune route en face — P1 — DONE (2026-08-19)
 
 **Constat (2026-08-17, sixième passe de code mort)** : trois appels `fetch` du
 client visent des routes qui **n'existent dans aucun commit du dépôt** —
@@ -745,11 +745,47 @@ facture), plus une procédure `childDocuments.create` / `staffDocuments.create`
 qui enregistre la ligne. Supprimer les écrans à la place ferait disparaître une
 fonctionnalité attendue au lieu de la livrer.
 
-**Résolution cible** : livrer les routes manquantes et leurs procédures, et
-ajouter un critère de recette par téléversement (logo, document d'enfant,
-document du personnel) — l'absence de couverture est ce qui a permis au défaut
-de traverser deux mises en production. En attendant, TD-006 s'applique déjà à la
-suppression : la ligne d'abord, le blob ensuite, best effort.
+**✅ Corrigé le 2026-08-19** — les deux routes existent, avec leurs tests
+(`test/unit/upload-routes.spec.ts`, 17 cas) :
+
+| Route | Habilitation | Ce qu'elle fait |
+|-------|--------------|-----------------|
+| `POST /api/upload/logo` | ADMIN | valide le MIME (PNG/JPEG/SVG) et la taille (2 Mo) **côté serveur**, téléverse, retourne `{ url }`. L'enregistrement du réglage reste à `settings.setLogoUrl`, appelé par l'écran juste après. |
+| `DELETE /api/upload/logo` | ADMIN | ne supprime que le blob dont l'URL **est celle enregistrée** dans `app_settings.organization.logo_url` ; suppression best effort (TD-006). |
+| `POST /api/upload/child-documents` | PARENT (ses enfants) / STAFF / ADMIN | valide PDF + 5 Mo, applique la règle d'accès enfant, téléverse puis crée la ligne `child_documents`. |
+
+Un `File` ne traverse pas tRPC/superjson : ce sont des routes HTTP, pas des
+procédures — d'où l'absence de `childDocuments.create`, la route porte la
+création.
+
+Deux garde-fous que la reprise a rendus nécessaires, chacun couvert par un test :
+
+- **le nom du blob du logo est aléatoire** (`organization/logo-<uuid>.<ext>`).
+  Avec un nom fixe, l'URL du nouveau logo serait identique à celle de l'ancien,
+  et la suppression du précédent que fait `settings.setLogoUrl` (TD-006)
+  effacerait le fichier tout juste téléversé ;
+- **la route de document annule son blob** si l'écriture en base échoue. C'est
+  le pendant amont de TD-006 : blob d'abord, ligne ensuite, donc c'est l'échec
+  de la ligne qui laisserait un objet public et facturé sans référence.
+
+La règle d'accès à un enfant, jusque-là privée au routeur, vit désormais dans
+`server/helpers/child-access.helper.ts` : le routeur et la route l'appliquent à
+l'identique, et le refus reste un 404 indistinct (un parent ne doit pas pouvoir
+distinguer « enfant inexistant » de « enfant qui n'est pas le sien »).
+
+**Reste ouvert — les documents du personnel, faute d'écran** : `staffDocuments`
+n'a toujours ni procédure ni route de création, mais **aucun code client ne les
+appelle** — `StaffDocumentsSection` liste, supprime et génère le PDF, sans zone
+de dépôt. Écrire la route sans l'écran créerait une procédure sans appelant
+(motif TD-010). C'est une fonctionnalité à spécifier, pas un appel mort à
+réparer.
+
+**Reste à faire — la couverture de recette** : ni `pnpm smoke` ni `pnpm recette`
+ne couvrent un téléversement ; c'est l'absence de ce critère qui a laissé le
+défaut traverser deux mises en production. Les tests ajoutés sont unitaires
+(store et base mockés) : ils prouvent les habilitations et les garde-fous, pas
+qu'un vrai blob Vercel est écrit. À ajouter à la prochaine recette : déposer un
+logo, déposer un PDF sur une fiche enfant.
 
 ## TD-026 — Les espaces ADMIN et STAFF dupliquent quatre écrans à l'identique — P3 — OPEN
 

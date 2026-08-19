@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '@/server/trpc/init';
 import { deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
+import { hasChildAccess } from '@/server/helpers/child-access.helper';
 
 const childDocumentSchema = z.object({
   id: z.string().uuid(),
@@ -18,9 +19,10 @@ const childDocumentSchema = z.object({
 });
 
 /**
- * Checks if a user has access to a child.
- * PARENT: must be linked via children_parents.
- * STAFF/ADMIN: always has access.
+ * Refus uniforme (404) : un parent ne doit pas pouvoir distinguer « enfant
+ * inexistant » de « enfant qui n'est pas le sien ». La regle d'acces elle-meme
+ * vit dans `server/helpers/child-access.helper.ts` — la route d'upload
+ * `/api/upload/child-documents` applique exactement la meme.
  */
 async function assertChildAccess(
   prisma: any,
@@ -28,27 +30,8 @@ async function assertChildAccess(
   role: string,
   childId: string,
 ): Promise<void> {
-  if (role === 'STAFF' || role === 'ADMIN') {
-    const child = await prisma.child.findFirst({
-      where: { id: childId, deletedAt: null },
-      select: { id: true },
-    });
-    if (!child) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé' });
-    }
-    return;
-  }
-
-  // PARENT: check via children_parents
-  const link = await prisma.childParent.findFirst({
-    where: {
-      parentId: userId,
-      childId,
-      child: { deletedAt: null },
-    },
-  });
-
-  if (!link) {
+  const allowed = await hasChildAccess(prisma, userId, role, childId);
+  if (!allowed) {
     throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
   }
 }
