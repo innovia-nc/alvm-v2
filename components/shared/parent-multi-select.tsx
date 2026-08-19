@@ -11,12 +11,16 @@ import { toast } from 'sonner';
 // TYPES
 // ============================================================================
 
+// Pas de prop `error` : le seul appelant (`components/staff/children/child-form.tsx`)
+// ne la passait pas, et les refus de saisie de ce composant partent deja en
+// toast (`Maximum N parents autorises`, `Ce parent est deja selectionne`). Le
+// bloc `<p>` qui l'affichait ne pouvait donc jamais etre rendu — retire a la
+// sixieme passe de code mort.
 interface ParentMultiSelectProps {
   value: SelectedParent[];
   onChange: (parents: SelectedParent[]) => void;
   maxParents?: number;
   disabled?: boolean;
-  error?: string;
 }
 
 // ============================================================================
@@ -28,7 +32,6 @@ export function ParentMultiSelect({
   onChange,
   maxParents = 3,
   disabled = false,
-  error,
 }: ParentMultiSelectProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -113,11 +116,6 @@ export function ParentMultiSelect({
           <Plus className="h-4 w-4" />
           Ajouter un parent ({maxParents - value.length} place{maxParents - value.length > 1 ? 's' : ''} restante{maxParents - value.length > 1 ? 's' : ''})
         </Button>
-      )}
-
-      {/* Message d'erreur */}
-      {error && (
-        <p className="text-sm font-medium text-destructive">{error}</p>
       )}
 
       {/* Dialog de recherche */}

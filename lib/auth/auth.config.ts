@@ -15,11 +15,15 @@ export const authEdgeConfig = {
     strategy: 'jwt',
   },
 
+  // Pas de `newUser` : NextAuth ne redirige vers cette page qu'a la premiere
+  // connexion signalee par un adapter de base de donnees. Cette application
+  // n'a pas d'adapter (sessions JWT, provider `credentials` uniquement) — la
+  // cle etait donc inerte, et laissait croire a un parcours de premiere
+  // connexion qui n'existe pas. Retiree a la sixieme passe de code mort.
   pages: {
     signIn: '/auth/signin',
     signOut: '/auth/signout',
     error: '/auth/error',
-    newUser: '/dashboard/parent',
   },
 
   callbacks: {
