@@ -29,7 +29,7 @@ import { formatDate } from '@/lib/utils';
 // et le controle de compatibilite qu'elles alimentaient sont retires
 // (sixieme passe de code mort) : la garde `minAge === undefined` sortait a
 // chaque appel, le message d'erreur n'a jamais pu s'afficher. Le besoin, lui,
-// reste ouvert — voir TD-023 dans docs/dette-technique.md.
+// reste ouvert — voir TD-024 dans docs/dette-technique.md.
 interface RegistrationFormProps {
   campId: string;
   campName: string;
