@@ -20,7 +20,9 @@ import { Loader2 } from "lucide-react"
 import { Button, ButtonProps } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export interface LoadingButtonProps extends ButtonProps {
+// Privée au module, comme `ButtonGroupProps` : les six écrans qui rendent
+// `<LoadingButton>` n'importent jamais ce type.
+interface LoadingButtonProps extends ButtonProps {
   /** État de chargement */
   loading?: boolean
   /** Texte affiché pendant le chargement (optionnel) */

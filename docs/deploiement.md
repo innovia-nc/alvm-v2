@@ -1,6 +1,6 @@
 # Déploiement — ALVM (Vercel + Neon)
 
-> Dernière mise à jour : 2026-07-06 (livraison v2.0.0)
+> Dernière mise à jour : 2026-08-16 (§ Données de référence — seeds)
 
 ## Topologie
 
@@ -53,6 +53,20 @@ Stratégie : **`db push` / SQL manuel** — pas de `prisma migrate dev` (base g�
 
 Le schéma `neon_auth` (table `users_sync`) appartient à l'intégration Neon —
 ne pas y toucher, Prisma l'ignore.
+
+## Données de référence (seeds)
+
+| Commande | Contenu | Quand |
+|---|---|---|
+| `pnpm db:seed` | jeu de démonstration complet (admin, parents, enfants, camps, inscriptions, `app_settings`, types d'ACM) | base de dev / clone jetable **uniquement** — il crée des comptes de test |
+| `pnpm db:seed:payment-methods` | les 6 moyens de paiement système (`CASH`, `CHECK`, `BANK_TRANSFER`, `CREDIT_CARD`, `OTHER`, `CREDIT_NOTE`) et leurs codes comptables | **toute base neuve, prod comprise** — idempotent (upsert sur `code`), rejouable |
+
+`pnpm db:seed` ne crée **aucun** moyen de paiement : les deux seeds ne se
+recouvrent pas. Sans le second, une base est fonctionnelle jusqu'au premier
+encaissement, puis `credit-application.service.ts` refuse la validation d'une
+facture d'un client qui a des avoirs — `PRECONDITION_FAILED`, « Méthode de
+règlement « Avoir » (CREDIT_NOTE) introuvable ». Le seed est la réponse à ce
+message ; jusqu'à la sixième passe de code mort il n'était référencé nulle part.
 
 ## Incident 2025-11 → 2026-07 (leçon)
 

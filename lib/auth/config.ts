@@ -85,9 +85,10 @@ const authConfig = {
   debug: process.env.NODE_ENV === 'development',
 };
 
-// `signIn` / `signOut` ne sont pas repris de la destructuration : les deux
-// ecrans concernes sont des composants client et passent par
-// `next-auth/react`. Les versions serveur n'ont jamais eu d'appelant — cf. le
-// commentaire de `lib/auth/index.ts`, qui documentait deja l'absence de
-// reexport. Sixieme passe de code mort.
+// `signIn` / `signOut` ne sont pas extraits : les trois écrans concernés
+// (`components/auth/signin-form.tsx`, `app/auth/signout/page.tsx`,
+// `components/layout/dashboard-header.tsx`) sont des composants client et
+// passent par `next-auth/react`. Les versions serveur n'ont jamais eu
+// d'appelant — la quatrième passe avait retiré leur réexport du barrel
+// `lib/auth/index.ts`, la source restait.
 export const { handlers, auth } = NextAuth(authConfig);

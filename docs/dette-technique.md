@@ -638,7 +638,48 @@ helper partagé existe déjà.
 pour les PDF si leur rendu doit rester distinct — auquel cas la variante vit à
 côté de `PDFFooter`, avec le commentaire qui dit pourquoi elle diffère.
 
-## TD-023 — Un camp n'a pas de bornes d'âge, le formulaire parent en contrôlait — P3 — OPEN
+## TD-023 — `components/ui/` : 18 sous-composants shadcn jamais rendus — P3 — OPEN
+
+**Constat (2026-08-16, sixième passe de code mort)** : `components/ui/` est du
+code **fournisseur recopié** (shadcn/ui, `components.json` à la racine, style
+`default`, base `slate`). Dix-huit symboles y sont définis, exportés, et rendus
+**nulle part** — ni par un écran, ni par un autre composant de `components/ui/` :
+
+| Fichier | Symboles sans aucun rendu |
+|---|---|
+| `dropdown-menu.tsx` | `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal`, `DropdownMenuSub`, `DropdownMenuSubContent`, `DropdownMenuSubTrigger` |
+| `select.tsx` | `SelectGroup`, `SelectLabel`, `SelectSeparator` |
+| `dialog.tsx` | `DialogTrigger`, `DialogClose` — tous les dialogues du produit sont **contrôlés** (`open` / `onOpenChange`) |
+| `table.tsx` | `TableFooter`, `TableCaption` |
+| `card.tsx` | `CardFooter` |
+| `avatar.tsx` | `AvatarImage` — le produit n'a pas de photo de profil, `dashboard-header.tsx` ne rend que les initiales via `AvatarFallback` |
+
+S'y ajoutent dix exports **superflus mais dont le code vit** (le symbole est
+utilisé à l'intérieur de son propre fichier) : `AlertDialogPortal`,
+`AlertDialogOverlay`, `DialogPortal`, `DialogOverlay`, `SelectScrollUpButton`,
+`SelectScrollDownButton`, `ScrollBar`, `badgeVariants`, `useFormField`, et le
+type `BadgeProps` ; ainsi que la variante `size="lg"` de `button.tsx`, jamais
+demandée par un appelant.
+
+**Non supprimés, et c'est le fond du constat** : ces fichiers ne sont pas du
+code du projet. Les tailler a deux coûts et aucun gain d'exécution — Next
+élimine déjà ce qui n'est pas rendu du bundle client (tree-shaking), donc rien
+n'est livré au navigateur aujourd'hui. Coût 1 : un `npx shadcn add dialog`
+réécrit le fichier entier et la taille est perdue sans trace. Coût 2 : le jour
+où un écran a besoin d'un sous-menu, il faut réécrire à la main ce qui existait.
+Une table de variantes fournisseur est faite pour être complète, pas minimale.
+
+**Ce que le constat sert quand même** : il dit ce qui, dans `components/ui/`, ne
+sera exercé par aucun test ni aucune recette — la prochaine passe n'a plus à
+rescanner ce répertoire, et une revue qui y voit un bug ne doit pas conclure à
+une régression d'écran.
+
+**Résolution cible** : aucune action tant que shadcn reste la source. Si le
+projet décide un jour de figer `components/ui/` (plus de `shadcn add`, code
+adopté), alors supprimer les 18 symboles ci-dessus et retirer `components.json`
+dans le même geste — c'est le fichier qui rend la suppression réversible ou non.
+
+## TD-024 — Un camp n'a pas de bornes d'âge, le formulaire parent en contrôlait — P3 — OPEN
 
 **Constat (2026-08-17, sixième passe de code mort)** :
 `components/parent/registration-form.tsx` portait un contrôle de compatibilité
@@ -664,7 +705,7 @@ colonnes sur `camps`, leur saisie dans le formulaire d'ACM, le refus côté
 `registrations.create` (une validation qui ne vit que dans le navigateur ne
 protège rien), puis seulement l'aide à la saisie côté parent.
 
-## TD-024 — Téléversement : trois appels `/api/upload/*`, aucune route en face — P1 — OPEN
+## TD-025 — Téléversement : trois appels `/api/upload/*`, aucune route en face — P1 — OPEN
 
 **Constat (2026-08-17, sixième passe de code mort)** : trois appels `fetch` du
 client visent des routes qui **n'existent dans aucun commit du dépôt** —
@@ -710,7 +751,7 @@ document du personnel) — l'absence de couverture est ce qui a permis au défau
 de traverser deux mises en production. En attendant, TD-006 s'applique déjà à la
 suppression : la ligne d'abord, le blob ensuite, best effort.
 
-## TD-025 — Les espaces ADMIN et STAFF dupliquent quatre écrans à l'identique — P3 — OPEN
+## TD-026 — Les espaces ADMIN et STAFF dupliquent quatre écrans à l'identique — P3 — OPEN
 
 **Constat (2026-08-17, sixième passe de code mort)** : les tables « personnel »
 et « parents » existent en deux exemplaires quasi identiques, un par espace.

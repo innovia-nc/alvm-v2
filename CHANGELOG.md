@@ -32,7 +32,7 @@ Ce qui part :
   colonne d'âge, la page appelante ne passait rien : la garde
   `minAge === undefined` sortait à chaque sélection d'enfant et le message
   « Le camp accepte les enfants de X à Y ans » n'a jamais pu s'afficher. Le
-  besoin est enregistré en TD-023 ; `calculateAge()` reste, elle affiche
+  besoin est enregistré en TD-024 ; `calculateAge()` reste, elle affiche
   « (N ans) » dans la liste des enfants.
 - **`lib/pdf/shared/pdf-footer.tsx` : la prop `showPagination`.** Les cinq
   documents la laissaient à `true` ; la branche « sans pagination » — une
@@ -68,7 +68,7 @@ Ce qui part :
 
 ### Documented — trois constats que la passe refuse de trancher seule (2026-08-17)
 
-- **TD-024 — trois appels `/api/upload/*` sans route en face — P1.** Le
+- **TD-025 — trois appels `/api/upload/*` sans route en face — P1.** Le
   téléversement du logo (`POST` et `DELETE` sur `/api/upload/logo`) et celui des
   documents d'enfant (`POST /api/upload/child-documents`) visent des routes qui
   n'existent dans **aucun commit** du dépôt : `app/api/` ne contient que `auth`,
@@ -80,18 +80,85 @@ Ce qui part :
   `pnpm smoke` ni `pnpm recette` ne couvrent un téléversement — c'est ce qui a
   permis au défaut de traverser deux mises en production. La correction est une
   livraison (routes + procédures + critères de recette), pas une suppression.
-- **TD-023 — aucune borne d'âge sur un camp — P3.** Le code mort est parti (voir
+- **TD-024 — aucune borne d'âge sur un camp — P3.** Le code mort est parti (voir
   ci-dessus) ; le besoin, lui, reste : s'il faut borner les inscriptions par
   âge, cela se spécifie serveur d'abord (colonnes, saisie côté ACM, refus dans
   `registrations.create`), une validation qui ne vit que dans le navigateur ne
   protégeant rien.
-- **TD-025 — quatre écrans dupliqués entre ADMIN et STAFF — P3.** Les tables
+- **TD-026 — quatre écrans dupliqués entre ADMIN et STAFF — P3.** Les tables
   « personnel » et « parents » existent en deux exemplaires quasi identiques
   (préfixe d'URL, noms de types, une action réservée à l'ADMIN). Rien n'y est
   mort — le défaut est celui de TD-022 : une correction s'applique à un
   exemplaire et pas à l'autre. Le dépôt a déjà de quoi s'en passer
   (`useDashboardBasePath()`, utilisé par seize fichiers) ; la fusion se fait
   écran par écran avec la recette rejouée, pas dans une passe de code mort.
+
+### Fixed — sixième passe de code mort : un seed indispensable était injoignable (2026-08-16)
+
+Passe complète après celles des 10, 11, 14 et 15 août. Mêmes axes rejoués sur
+l'ensemble du dépôt — fichiers sans importeur, exports sans importateur,
+procédures tRPC sans appelant, colonnes et **valeurs d'énumération** Prisma,
+champs de schéma d'entrée jamais lus, props déclarées jamais lues, classes et
+variables CSS, **valeurs de variantes `cva`**, dépendances npm, variables
+d'environnement, fichiers au contenu identique — plus `knip` en contre-épreuve.
+
+La trouvaille de la passe n'est pas du code mort mais son inverse :
+
+- **`prisma/seed-payment-methods.ts` était injoignable, et il est
+  indispensable.** Aucun script npm, aucune documentation, aucune référence :
+  le seul moyen de le trouver était de lire le répertoire `prisma/`. Or
+  `prisma/seed.ts` ne crée **aucun** moyen de paiement, et
+  `credit-application.service.ts` lève un `PRECONDITION_FAILED` — « Méthode de
+  règlement « Avoir » (CREDIT_NOTE) introuvable […] Appliquer le seed des
+  méthodes de règlement » — dès qu'une facture est validée pour un client qui a
+  des avoirs. L'application désignait donc un outil que le dépôt ne publiait
+  pas. Câblé en `pnpm db:seed:payment-methods`, documenté dans
+  `docs/deploiement.md` § Données de référence (avec la démarcation explicite
+  entre les deux seeds), et l'en-tête du script dit maintenant ce qui casse sans
+  lui.
+
+### Removed — sixième passe de code mort (2026-08-16)
+
+- **`@types/bcryptjs` (devDependency).** Le paquet publié sous ce nom en 3.0.0
+  est un **stub déprécié** : `"main": ""`, aucune définition, et son propre
+  champ `deprecated` dit « bcryptjs provides its own type definitions, so you do
+  not need this installed ». Les types venaient déjà de `bcryptjs` lui-même.
+  Retiré : `pnpm typecheck` reste propre, ce qui le prouve — sous `strict`, un
+  module sans déclaration échouerait.
+- **`signIn` / `signOut` dans `lib/auth/config.ts`.** La quatrième passe avait
+  retiré leur réexport du barrel `lib/auth/index.ts` en constatant qu'aucun
+  appelant n'existait ; la source, elle, continuait de les extraire de
+  `NextAuth(authConfig)`. Les trois écrans concernés passent par
+  `next-auth/react`. Reste `export const { handlers, auth } = …`.
+- **Trois exports sans importateur devenus privés** : `deriveClientAux`
+  (`accounting.service.ts` — ses quatre appels sont dans le fichier, et la
+  convention CLAUDE.md veut une définition unique du code auxiliaire),
+  `ButtonGroupProps` et `LoadingButtonProps` (composants écrits par le projet,
+  pas repris de shadcn ; leurs cinq et six écrans appelants n'importent jamais
+  le type).
+
+### Documented — un constat que la passe refuse de trancher (2026-08-16)
+
+- **TD-023 — 18 sous-composants de `components/ui/` ne sont rendus nulle part**
+  (les neuf `DropdownMenuSub*` / `*RadioItem` / `*CheckboxItem`…, `SelectGroup`,
+  `SelectLabel`, `SelectSeparator`, `DialogTrigger` et `DialogClose` — tous les
+  dialogues du produit sont contrôlés —, `TableFooter`, `TableCaption`,
+  `CardFooter`, `AvatarImage` : le produit n'a pas de photo de profil). Dix
+  autres exports sont superflus alors que leur code vit à l'intérieur de son
+  fichier. Non taillés : `components/ui/` est du code **fournisseur recopié**
+  (shadcn/ui, `components.json` à la racine), qu'un `shadcn add` réécrit en
+  entier. Le tree-shaking de Next les exclut déjà du bundle : la taille ne
+  gagnerait rien à l'exécution et se perdrait à la première mise à jour.
+
+**Ce que la passe confirme, chiffres à l'appui** — les 12 procédures tRPC sans
+écran sont toujours exactement celles de TD-010 ; les colonnes Prisma jamais
+lues sont exactement celles de TD-018 (les 39 autres « non référencées » sont
+des relations inverses, obligatoires côté Prisma) ; **aucune** valeur
+d'énumération Prisma n'est morte ; **aucun** champ de schéma d'entrée tRPC n'est
+accepté sans être lu ; **aucune** prop déclarée n'est ignorée ; aucune classe ni
+variable CSS orpheline ; aucun fichier dupliqué. Outillage : `tsc --noEmit
+--noUnusedLocals --noUnusedParameters` propre, `pnpm lint` 0 erreur, 979 tests
+verts.
 
 ### Removed — cinquième passe de code mort (2026-08-15)
 
