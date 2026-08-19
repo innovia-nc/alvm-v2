@@ -79,8 +79,9 @@ avoir consomme peut etre reimpute par le FIFO et le compte 4191 se retrouve
 debite plus qu'il n'a ete credite.
 
 ### Plus de RLS PostgreSQL
-Le filtrage est applicatif via Prisma extensions. Le `soft-delete.extension.ts`
-filtre automatiquement les enregistrements supprimes. Le filtrage par tenant/parent
+Le filtrage est applicatif via Prisma extensions. `server/extensions/soft-delete.ts`
+filtre automatiquement les enregistrements supprimes (voir `SOFT_DELETE_MODELS` pour
+la liste des modeles concernes). Le filtrage par tenant/parent
 sera gere par les guards tRPC et la logique des routers.
 
 ### tRPC Server Components
