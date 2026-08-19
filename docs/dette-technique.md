@@ -773,3 +773,27 @@ seize fichiers pour construire les liens depuis l'espace courant.
 `components/` paramétré par le `basePath` et, pour la table des parents, par la
 présence de l'action ADMIN. À faire écran par écran, avec la recette rejouée —
 pas dans une passe de code mort, qui n'a pas à réécrire du code vivant.
+
+## TD-027 — Pointage de présence : trois champs d'entrée qu'aucun écran ne remplit — P3 — OPEN
+
+**Constat (2026-08-18, sixième passe de code mort)** : `attendances.markAttendance`
+accepte `notes`, `arrivalTime` et `departureTime`. Son **unique** appelant est
+`components/staff/attendances/attendance-page-client.tsx`, qui n'envoie que
+`registrationId`, `date` et `status` — la grille de pointage n'offre ni champ
+de saisie libre, ni horaire. Les trois champs valent donc toujours `undefined`,
+et la mutation écrit `notes: null`, `arrivalTime: null`, `departureTime: null`
+à chaque pointage.
+
+Ce n'était pas visible côté client : la grille déclarait un troisième paramètre
+`notes?: string` sur son callback `onMarkAttendance` et le page-client le
+transmettait à la mutation. Ce **relais mort côté écran** a été supprimé par la
+présente passe ; la moitié serveur est conservée, pour la raison de TD-010.
+
+Les colonnes existent en base et sont relues : `attendances.list` (elle-même
+sans écran, TD-010) et `getGridForCamp` renvoient `notes`. Une donnée saisie
+hors dépôt s'afficherait donc — s'il existait un écran pour la lire.
+
+**Résolution cible** : trancher avec le PO. Soit la fiche de pointage gagne un
+commentaire et des horaires d'arrivée/départ (le serveur est déjà écrit), soit
+les trois champs quittent le schéma d'entrée et les colonnes rejoignent
+l'inventaire de TD-018.

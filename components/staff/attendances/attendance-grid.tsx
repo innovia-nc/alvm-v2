@@ -29,11 +29,10 @@ interface ChildAttendance {
 
 interface AttendanceGridProps {
   attendees: ChildAttendance[];
-  onMarkAttendance: (
-    registrationId: string,
-    status: AttendanceStatus,
-    notes?: string
-  ) => void;
+  // La grille ne pointe qu'un statut : elle n'a ni champ de saisie libre, ni
+  // horaire. Le serveur accepte `notes` / `arrivalTime` / `departureTime`,
+  // qu'aucun écran ne remplit (TD-023).
+  onMarkAttendance: (registrationId: string, status: AttendanceStatus) => void;
   isPending: boolean;
 }
 

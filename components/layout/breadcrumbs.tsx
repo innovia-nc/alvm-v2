@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
-import { useBreadcrumbOverride } from './breadcrumb-provider';
+import { useBreadcrumbOverride, type BreadcrumbItem } from './breadcrumb-provider';
 
 // Mapping des segments d'URL vers labels lisibles.
 //
@@ -44,11 +44,6 @@ const segmentLabels: Record<string, string> = {
   edit: 'Modifier',
   attendance: 'Présences',
 };
-
-interface BreadcrumbItem {
-  label: string;
-  href?: string;
-}
 
 export function Breadcrumbs() {
   const pathname = usePathname();

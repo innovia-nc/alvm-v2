@@ -99,15 +99,13 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
   // Handle mark single attendance
   const handleMarkAttendance = (
     registrationId: string,
-    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED',
-    notes?: string
+    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'
   ) => {
     if (!selectedDate) return;
     markMutation.mutate({
       registrationId,
       date: formatDateISO(selectedDate),
       status,
-      notes,
     });
   };
 

@@ -5,7 +5,7 @@ import {
   ADMIN_USER,
   STAFF_USER,
   PARENT_USER,
-  ANIMATOR_USER,
+  OTHER_STAFF_USER,
   type TestCaller,
 } from '../helpers/test-caller';
 
@@ -45,7 +45,7 @@ function makeCampRow(overrides: Record<string, unknown> = {}) {
     registrationDeadline,
     pricePerDay: 1500,
     status: 'PUBLISHED',
-    createdBy: ANIMATOR_USER.id,
+    createdBy: OTHER_STAFF_USER.id,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -420,18 +420,18 @@ describe('camps.create', () => {
       expect(result.id).toBe(CAMP_ID);
     });
 
-    it('should allow ANIMATOR users', async () => {
-      const { caller, mockPrisma } = createTestCaller(ANIMATOR_USER);
+    it('should allow any STAFF user, not only the creator', async () => {
+      const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
       mockPrisma.campType.findFirst.mockResolvedValue(makeCampType());
       mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        createdBy: ANIMATOR_USER.id,
+        createdBy: OTHER_STAFF_USER.id,
       }));
 
       const result = await caller.camps.create(createInput);
       expect(result.id).toBe(CAMP_ID);
     });
 
-    it('should allow ADMIN users (bypass staffRole check)', async () => {
+    it('should allow ADMIN users', async () => {
       const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
       mockPrisma.campType.findFirst.mockResolvedValue(makeCampType());
       mockPrisma.camp.create.mockResolvedValue(makeCampRow({
@@ -448,7 +448,7 @@ describe('camps.create', () => {
     let mockPrisma: TestCaller['mockPrisma'];
 
     beforeEach(() => {
-      ({ caller, mockPrisma } = createTestCaller(ANIMATOR_USER));
+      ({ caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER));
     });
 
     it('should reject if campType is not found or inactive', async () => {
@@ -475,7 +475,7 @@ describe('camps.create', () => {
       await caller.camps.create(createInput);
 
       const createCall = mockPrisma.camp.create.mock.calls[0][0];
-      expect(createCall.data.createdBy).toBe(ANIMATOR_USER.id);
+      expect(createCall.data.createdBy).toBe(OTHER_STAFF_USER.id);
     });
 
     it('should reject if endDate < startDate (Zod refine)', async () => {
@@ -572,9 +572,9 @@ describe('camps.update', () => {
     });
 
     // Décision produit 2026-07-06 (entérine 19ccf9c « fermeture des camps ») :
-    // tout STAFF — y compris ANIMATOR — peut modifier n'importe quel camp.
-    it('should allow ANIMATOR to update any camp regardless of creator', async () => {
-      const { caller, mockPrisma } = createTestCaller(ANIMATOR_USER);
+    // tout STAFF peut modifier n'importe quel camp.
+    it('should allow any STAFF to update any camp regardless of creator', async () => {
+      const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
         createdBy: 'd1a00000-0000-4000-a000-000000000099',
       }));
@@ -595,10 +595,10 @@ describe('camps.update', () => {
       expect(result.name).toBe('Camp Modifie');
     });
 
-    it('should allow creator ANIMATOR to update their own camp', async () => {
-      const { caller, mockPrisma } = createTestCaller(ANIMATOR_USER);
+    it('should allow the creating STAFF to update their own camp', async () => {
+      const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
-        createdBy: ANIMATOR_USER.id,
+        createdBy: OTHER_STAFF_USER.id,
       }));
       mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
@@ -881,15 +881,15 @@ describe('camps.duplicate', () => {
       expect(result.id).toBe(CAMP_ID_2);
     });
 
-    it('should allow ANIMATOR users', async () => {
-      const { caller, mockPrisma } = createTestCaller(ANIMATOR_USER);
+    it('should allow any STAFF user, not only the creator', async () => {
+      const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
       const sourceCamp = makeCampRow();
       mockPrisma.camp.findFirst.mockResolvedValue(sourceCamp);
       mockPrisma.camp.create.mockResolvedValue(makeCampRow({
         id: CAMP_ID_2,
         name: 'Camp Ete 2026 - Copie',
         status: 'DRAFT',
-        createdBy: ANIMATOR_USER.id,
+        createdBy: OTHER_STAFF_USER.id,
       }));
 
       const result = await caller.camps.duplicate(duplicateInput);
@@ -917,7 +917,7 @@ describe('camps.duplicate', () => {
     let mockPrisma: TestCaller['mockPrisma'];
 
     beforeEach(() => {
-      ({ caller, mockPrisma } = createTestCaller(ANIMATOR_USER));
+      ({ caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER));
     });
 
     it('should throw NOT_FOUND when source camp does not exist', async () => {
@@ -953,14 +953,14 @@ describe('camps.duplicate', () => {
       }));
       mockPrisma.camp.create.mockResolvedValue(makeCampRow({
         id: CAMP_ID_2,
-        createdBy: ANIMATOR_USER.id,
+        createdBy: OTHER_STAFF_USER.id,
         status: 'DRAFT',
       }));
 
       await caller.camps.duplicate(duplicateInput);
 
       const createCall = mockPrisma.camp.create.mock.calls[0][0];
-      expect(createCall.data.createdBy).toBe(ANIMATOR_USER.id);
+      expect(createCall.data.createdBy).toBe(OTHER_STAFF_USER.id);
     });
 
     it('should copy all camp properties from source', async () => {

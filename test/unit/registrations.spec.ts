@@ -1299,7 +1299,7 @@ describe('registrations.delete', () => {
       await expect(caller.registrations.delete({ id: REG_ID })).rejects.toThrow(TRPCError);
     });
 
-    it('should reject STAFF users (even ANIMATOR)', async () => {
+    it('should reject STAFF users', async () => {
       const { caller } = createTestCaller(STAFF_USER);
       await expect(caller.registrations.delete({ id: REG_ID })).rejects.toThrow(TRPCError);
     });

@@ -40,7 +40,6 @@ type StatusBadgeType =
   | 'registration'
   | 'attendance'
   | 'creditNote'
-  | 'payment'
   | 'refund'
   | 'camp';
 
@@ -108,14 +107,11 @@ const CAMP_MAP: Record<string, StatusInfo> = {
   CANCELLED: { label: 'Annulé', className: 'status-badge-cancelled', icon: XCircle },
 };
 
-const PAYMENT_MAP: Record<string, StatusInfo> = {
-  // PaymentStatus enum dans le schema Prisma s'applique aux factures, mais cette
-  // table peut aussi servir a etiqueter un Payment isole si besoin.
-  UNPAID: { label: 'Non payé', className: 'status-badge-unpaid', icon: Clock },
-  PARTIAL: { label: 'Partiel', className: 'status-badge-partial', icon: Wallet },
-  PAID: { label: 'Payé', className: 'status-badge-paid', icon: CheckCircle2 },
-  REFUNDED: { label: 'Remboursé', className: 'status-badge-refunded', icon: RefreshCcw },
-};
+// Pas de table `payment` : le modele Prisma `Payment` n'a aucune colonne de
+// statut, et le seul champ `PaymentStatus` du schema (la colonne
+// `registrations.payment_status`) n'est affiche par aucun ecran — le depot ne
+// l'ecrit qu'a UNPAID, cf. TD-005. La table qui vivait ici etiquetait donc un
+// badge que rien ne pouvait rendre (sixieme passe de code mort).
 
 const REFUND_MAP: Record<string, StatusInfo> = {
   IMMEDIATE_REFUND: {
@@ -136,7 +132,6 @@ const TYPE_MAPS: Record<StatusBadgeType, Record<string, StatusInfo>> = {
   attendance: ATTENDANCE_MAP,
   creditNote: CREDIT_NOTE_MAP,
   camp: CAMP_MAP,
-  payment: PAYMENT_MAP,
   refund: REFUND_MAP,
 };
 
