@@ -365,7 +365,7 @@ trace du manque ; les garder sans les tracer laisse croire qu'elles servent.
 | `attendances.list` | vue des présences côté PARENT (le pointage STAFF passe par `getGridForCamp`) |
 | `attendances.delete`, `attendances.getStatistics` | correction d'un pointage, statistiques de présence |
 | `registrations.getAvailableCredits` | affichage des avoirs disponibles (seul `pnpm smoke` l'appelle) |
-| `staffDocuments.getById` | fiche d'un document du personnel — l'écran ne liste et ne supprime (ajoutée par la 6ᵉ passe ; voir aussi TD-024, ce module n'a pas non plus de téléversement) |
+| `staffDocuments.getById` | fiche d'un document du personnel — l'écran ne liste et ne supprime (ajoutée par la 6ᵉ passe ; voir aussi TD-025, ce module n'a pas non plus de téléversement) |
 
 **Point d'attention immédiat** : les deux écrans de paramétrage
 (`/dashboard/admin/settings/camp-types` et `.../payment-methods`) affichent
