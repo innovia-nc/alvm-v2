@@ -43,7 +43,9 @@ export function AdminCreditNotesTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, filtre statut et recherche server-side
-  const { data, isLoading } = trpc.creditNotes.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.creditNotes.list.useQuery({
+    sortBy: pagination.sortBy as 'creditNoteNumber' | 'issueDate' | 'totalAmount' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter as 'DRAFT' | 'SENT' | 'CANCELLED' }),
@@ -181,6 +183,7 @@ export function AdminCreditNotesTableClient() {
       </div>
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['creditNoteNumber', 'issueDate', 'totalAmount']}
         columns={columnsWithActions}
         data={creditNotes}
         totalCount={data?.total || 0}

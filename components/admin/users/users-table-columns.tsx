@@ -152,6 +152,7 @@ export const getUsersColumns = (options?: GetColumnsOptions): ColumnDef<UserRow>
       return (
         <div className="text-sm text-muted-foreground">
           {new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',

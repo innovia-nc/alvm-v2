@@ -49,7 +49,7 @@ export function DashboardHeader() {
   // Afficher un skeleton pendant le chargement de la session
   if (status === 'loading') {
     return (
-      <header className="sticky top-0 z-40 border-b bg-background">
+      <header className="sticky top-0 z-30 border-b bg-background">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex-1"></div>
           <div className="flex items-center gap-2">
@@ -61,7 +61,7 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background">
+    <header className="sticky top-0 z-30 border-b bg-background">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex-1"></div>
 
@@ -121,6 +121,7 @@ export function DashboardHeader() {
                   vers /dashboard/profile tombait sur un 404.
                   « Paramètres » n'est proposé qu'aux ADMIN, seuls habilités par
                   settings.updateBulk, et pointe sur l'écran réel. */}
+              <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>Mon compte</DropdownMenuItem>
               {isAdmin && (
                 <>
                   <DropdownMenuItem

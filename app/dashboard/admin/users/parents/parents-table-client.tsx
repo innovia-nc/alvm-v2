@@ -41,7 +41,9 @@ export function ParentsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, recherche et filtre de statut
-  const { data, isLoading } = trpc.parents.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.parents.list.useQuery({
+    sortBy: pagination.sortBy as 'lastName' | 'firstName' | 'createdAt' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search,
@@ -133,6 +135,7 @@ export function ParentsTableClient() {
       </div>
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['lastName', 'firstName', 'createdAt']}
         columns={columnsWithActions}
         data={data?.parents || []}
         totalCount={data?.total || 0}

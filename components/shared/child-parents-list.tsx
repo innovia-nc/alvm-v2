@@ -37,6 +37,7 @@ interface ChildParentsListProps {
 // ============================================================================
 
 const relationshipLabels: Record<string, string> = {
+  self: 'Lui-même (client / payeur)',
   mother: 'Mère',
   father: 'Père',
   guardian: 'Tuteur',

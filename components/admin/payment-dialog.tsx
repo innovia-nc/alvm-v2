@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -106,9 +107,10 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
   const isCreditNoteMethod = selectedPaymentMethod?.code === 'CREDIT_NOTE';
 
   // Récupérer les factures impayées
-  const { data: invoicesData } = trpc.invoices.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions("une facture");
+  const { data: invoicesData, isLoading: loadingInvoiceOptions, error: optionsError0, refetch: optionsRetry0} = trpc.invoices.list.useQuery({
+    ...optionsPage0.params,
+    statuses: ["SENT", "OVERDUE"],
   });
 
   // Filtrer uniquement factures SENT ou OVERDUE avec reste à payer
@@ -117,7 +119,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
       invoicesData?.invoices.filter(
         (inv) =>
           (inv.status === 'SENT' || inv.status === 'OVERDUE') &&
-          inv.totalAmount > inv.paidAmount
+          inv.remainingAmount > 0
       ) || [],
     [invoicesData]
   );
@@ -125,12 +127,12 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
   const hasEligibleInvoices = unpaidInvoices.length > 0;
 
   // Récupérer les avoirs disponibles pour le parent sélectionné
-  const { data: creditNotesData } = trpc.creditNotes.list.useQuery(
+  const creditOptions = usePagedOptions("un avoir");
+  const { data: creditNotesData, isLoading: creditLoading, error: creditError, refetch: creditRetry } = trpc.creditNotes.list.useQuery(
     {
       parentId: selectedParentId!,
       status: 'SENT',
-      limit: 100,
-      offset: 0,
+      ...creditOptions.params,
       sortBy: 'issueDate',
       sortOrder: 'desc'
     },
@@ -168,7 +170,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
         setSelectedParentId(invoice.parentId);
 
         // Auto-remplir le montant avec le reste à payer
-        const remaining = invoice.totalAmount - invoice.paidAmount;
+        const remaining = invoice.remainingAmount;
         form.setValue('amount', remaining);
       }
     }
@@ -223,6 +225,8 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(invoicesData?.total ?? 0, loadingInvoiceOptions, optionsError0, optionsRetry0)}</div>
+
             {/* Aucune facture éligible */}
             {!hasEligibleInvoices && (
               <Alert variant="destructive">
@@ -251,12 +255,12 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                       </FormControl>
                       <SelectContent>
                         {unpaidInvoices.map((invoice) => {
-                          const remaining = invoice.totalAmount - invoice.paidAmount;
+                          const remaining = invoice.remainingAmount;
                           return (
                             <SelectItem key={invoice.id} value={invoice.id}>
                               #{invoice.invoiceNumber} - {invoice.parent.firstName}{' '}
                               {invoice.parent.lastName} - Reste à payer:{' '}
-                              {remaining.toLocaleString()} XPF
+                              {remaining.toLocaleString('fr-FR')} XPF
                             </SelectItem>
                           );
                         })}
@@ -275,11 +279,11 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                 <AlertDescription>
                   <strong>Facture #{selectedInvoiceData.invoiceNumber}</strong>
                   <br />
-                  Montant total: {selectedInvoiceData.totalAmount.toLocaleString()} XPF
+                  Montant total: {selectedInvoiceData.totalAmount.toLocaleString('fr-FR')} XPF
                   <br />
-                  Déjà payé: {selectedInvoiceData.paidAmount.toLocaleString()} XPF
+                  Déjà payé: {selectedInvoiceData.paidAmount.toLocaleString('fr-FR')} XPF
                   <br />
-                  <strong>Reste à payer: {remainingAmount.toLocaleString()} XPF</strong>
+                  <strong>Reste à payer: {remainingAmount.toLocaleString('fr-FR')} XPF</strong>
                 </AlertDescription>
               </Alert>
             )}
@@ -303,7 +307,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                     </FormControl>
                     {!isAmountValid && amount > 0 && (
                       <p className="text-sm text-destructive">
-                        Le montant ne peut pas dépasser {remainingAmount.toLocaleString()} XPF
+                        Le montant ne peut pas dépasser {remainingAmount.toLocaleString('fr-FR')} XPF
                       </p>
                     )}
                     <FormMessage />
@@ -347,6 +351,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
             />
 
             {/* Sélection avoir si méthode = CREDIT_NOTE */}
+            {isCreditNoteMethod && creditOptions.controls(creditNotesData?.total ?? 0, creditLoading, creditError, creditRetry)}
             {isCreditNoteMethod && (
               <FormField
                 control={form.control}
@@ -374,7 +379,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                         {creditNotes?.map((creditNote: { id: string; creditNoteNumber: string; totalAmount: number; issueDate: Date }) => (
                           <SelectItem key={creditNote.id} value={creditNote.id}>
                             #{creditNote.creditNoteNumber} - Montant:{' '}
-                            {Math.abs(creditNote.totalAmount).toLocaleString()} XPF
+                            {Math.abs(creditNote.totalAmount).toLocaleString('fr-FR')} XPF
                           </SelectItem>
                         ))}
                         {creditNotes?.length === 0 && (
@@ -387,7 +392,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                     {!isCreditNoteAmountValid && selectedCreditNote && (
                       <p className="text-sm text-destructive">
                         Le montant ne peut pas dépasser le solde de l&apos;avoir (
-                        {Math.abs(selectedCreditNote.totalAmount).toLocaleString()} XPF)
+                        {Math.abs(selectedCreditNote.totalAmount).toLocaleString('fr-FR')} XPF)
                       </p>
                     )}
                     <FormMessage />

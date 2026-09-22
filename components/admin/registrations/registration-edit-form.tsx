@@ -146,8 +146,8 @@ export function RegistrationEditForm({
               <p className="text-xs text-muted-foreground">
                 {registration.camp.startDate && registration.camp.endDate ? (
                   <>
-                    Du {new Date(registration.camp.startDate).toLocaleDateString('fr-FR')} au{' '}
-                    {new Date(registration.camp.endDate).toLocaleDateString('fr-FR')} ({registration.camp.daysCount} jours)
+                    Du {new Date(registration.camp.startDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })} au{' '}
+                    {new Date(registration.camp.endDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })} ({registration.camp.daysCount} jours)
                   </>
                 ) : (
                   <>Dates non définies ({registration.camp.daysCount} jours)</>

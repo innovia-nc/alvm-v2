@@ -1,3 +1,4 @@
+import { ListPagination } from '@/components/shared/list-pagination';
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { createServerTRPC } from '@/lib/trpc';
@@ -12,17 +13,19 @@ import Link from 'next/link';
  * Parent Invoices Page
  * Displays all invoices for the parent
  */
-export default async function ParentInvoicesPage() {
+export default async function ParentInvoicesPage({ searchParams }: { searchParams: Promise<{ page?: string; status?: string }> }) {
   const session = await auth();
 
   if (!session?.user || session.user.role !== 'PARENT') {
     redirect('/auth/signin');
   }
 
+  const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
+  const status = (await searchParams).status === 'OVERDUE' ? 'OVERDUE' as const : undefined;
   const trpc = await createServerTRPC();
 
   // Get invoices
-  const invoicesData = await trpc.invoices.list({ limit: 100, offset: 0 });
+  const invoicesData = await trpc.invoices.list({ limit: 20, offset: (page - 1) * 20, status });
   const invoices = invoicesData.invoices;
 
   return (
@@ -58,9 +61,9 @@ export default async function ParentInvoicesPage() {
                       <StatusBadge type="invoice" status={invoice.status} />
                     </div>
                     <CardDescription className="mt-1">
-                      Émise le {new Date(invoice.createdAt).toLocaleDateString('fr-FR')}
+                      Émise le {new Date(invoice.createdAt).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                       {invoice.dueDate && (
-                        <> • Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</>
+                        <> • Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}</>
                       )}
                     </CardDescription>
                   </div>
@@ -109,6 +112,7 @@ export default async function ParentInvoicesPage() {
           ))}
         </div>
       )}
+      <ListPagination page={page} total={invoicesData.total} basePath={`/dashboard/parent/invoices${status ? `?status=${status}` : ""}`} />
     </div>
   );
 }

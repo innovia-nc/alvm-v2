@@ -189,6 +189,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
               <p className="text-sm font-medium text-muted-foreground">Compte créé le</p>
               <p className="text-base">
                 {new Date(parent.createdAt).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
@@ -219,6 +220,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
                     <p className="text-sm text-muted-foreground">
                       Né(e) le{' '}
                       {new Date(child.dateOfBirth).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',

@@ -201,7 +201,7 @@ describe('childDocuments router', () => {
       expect(doc.childId).toBe(CHILD_ID);
       expect(doc.filename).toBe('document-abc123.pdf');
       expect(doc.originalFilename).toBe('certificat-medical.pdf');
-      expect(doc.fileUrl).toBe('https://example.com/doc.pdf');
+      expect(doc.fileUrl).toBe(`/api/documents/child/${doc.id}`);
       expect(doc.mimeType).toBe('application/pdf');
       expect(doc.fileSize).toBe(12345);
       expect(doc.description).toBe('Certificat medical 2025');

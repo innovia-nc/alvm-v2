@@ -8,6 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '-';
   return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

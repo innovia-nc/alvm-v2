@@ -31,7 +31,7 @@ export type StaffInvoiceType = {
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
+    phone?: string;
   };
   payments?: Array<{
     id: string;
@@ -75,7 +75,7 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
     cell: ({ row }) => {
       return (
         <div className="text-sm">
-          {new Date(row.original.issueDate).toLocaleDateString('fr-FR')}
+          {new Date(row.original.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </div>
       );
     },
@@ -91,7 +91,7 @@ export const staffInvoiceColumns: ColumnDef<StaffInvoiceType>[] = [
 
       return (
         <div className={isOverdue ? 'text-red-600 font-medium' : ''}>
-          {dueDate.toLocaleDateString('fr-FR')}
+          {dueDate.toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </div>
       );
     },

@@ -67,7 +67,7 @@ export const adminInvoiceColumns: ColumnDef<AdminInvoiceType>[] = [
     cell: ({ row }) => {
       return (
         <div className="text-sm">
-          {new Date(row.original.issueDate).toLocaleDateString('fr-FR')}
+          {new Date(row.original.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </div>
       );
     },
@@ -81,7 +81,7 @@ export const adminInvoiceColumns: ColumnDef<AdminInvoiceType>[] = [
 
       return (
         <div className={`text-sm ${isOverdue ? 'text-red-600 font-semibold' : ''}`}>
-          {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}
+          {new Date(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
           {isOverdue && ' (échue)'}
         </div>
       );

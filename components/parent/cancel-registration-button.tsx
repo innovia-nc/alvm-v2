@@ -40,10 +40,10 @@ export function CancelRegistrationButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const cancelMutation = trpc.registrations.updateStatus.useMutation({
-    onSuccess: () => {
-      toast.success('Inscription annul\u00e9e', {
-        description: `L'inscription de ${childName} au camp "${campName}" a \u00e9t\u00e9 annul\u00e9e avec succ\u00e8s.`,
+  const cancelMutation = trpc.registrations.requestCancellation.useMutation({
+    onSuccess: (result) => {
+      toast.success(result.cancelled ? 'Inscription annulée' : 'Demande d’annulation transmise', {
+        description: result.cancelled ? "Votre désistement est enregistré." : "Le secrétariat traitera votre demande et sa compensation éventuelle.",
       });
       setOpen(false);
       router.refresh();
@@ -58,7 +58,6 @@ export function CancelRegistrationButton({
   const handleCancel = () => {
     cancelMutation.mutate({
       id: registrationId,
-      status: 'CANCELLED',
     });
   };
 
@@ -75,12 +74,12 @@ export function CancelRegistrationButton({
           <AlertDialogTitle>Confirmer l'annulation</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <p>
-              \u00cates-vous s\u00fbr de vouloir annuler l'inscription de{' '}
+              Êtes-vous sûr de vouloir annuler l'inscription de{' '}
               <strong>{childName}</strong> au camp{' '}
               <strong>"{campName}"</strong> ?
             </p>
             <p className="text-destructive font-medium">
-              Cette action est irr\u00e9versible.
+              Une inscription confirmée ou facturée fera l’objet d’une demande au secrétariat.
             </p>
           </AlertDialogDescription>
         </AlertDialogHeader>

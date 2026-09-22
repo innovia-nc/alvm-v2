@@ -90,7 +90,7 @@ export function ChildDocumentsSection({
       const response = await fetch(`/api/generate/child-profile/${childId}`);
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({ error: "Téléchargement impossible" }));
         throw new Error(error.error || 'Erreur lors de la génération du PDF');
       }
 

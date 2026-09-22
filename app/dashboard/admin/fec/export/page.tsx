@@ -1,4 +1,5 @@
 'use client';
+import { FecHistory } from '@/components/admin/fec-history';
 
 import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -60,7 +61,8 @@ export default function FECExportPage() {
     siren: string | null;
   } | null>(null);
 
-  const generateFECMutation = trpc.fec.generateFEC.useMutation();
+  const utils = trpc.useUtils();
+  const generateFECMutation = trpc.fec.generateFEC.useMutation({ onSuccess: () => { utils.fec.history.invalidate(); } });
 
   // Le SIREN est un attribut de l'organisation, pas de l'export : on le
   // pré-remplit depuis les paramètres comptables pour que le trésorier voie
@@ -270,6 +272,7 @@ export default function FECExportPage() {
           </ul>
         </CardContent>
       </Card>
+      <FecHistory />
     </div>
   );
 }

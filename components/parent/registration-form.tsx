@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -34,6 +35,7 @@ interface RegistrationFormProps {
   campId: string;
   campName: string;
   pricePerDay: number;
+  totalPrice?: number;
   availableSpots: number;
   startDate: string;
   endDate: string;
@@ -48,6 +50,7 @@ export function RegistrationForm({
   campId,
   campName,
   pricePerDay,
+  totalPrice: acceptedTotal,
   availableSpots,
   startDate,
   endDate,
@@ -58,16 +61,16 @@ export function RegistrationForm({
   const [specialRequirements, setSpecialRequirements] = useState('');
 
   // Fetch children
-  const { data: childrenData, isLoading: loadingChildren } = trpc.children.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions("un participant");
+  const { data: childrenData, isLoading: loadingChildren , error: optionsError0, refetch: optionsRetry0} = trpc.children.list.useQuery({
+    ...optionsPage0.params,
   });
 
   // Create registration mutation
   const createRegistration = trpc.registrations.create.useMutation({
     onSuccess: () => {
-      toast.success('Inscription r\u00e9ussie', {
-        description: `${selectedChild?.firstName} a \u00e9t\u00e9 inscrit(e) au camp ${campName}`,
+      toast.success('Inscription réussie', {
+        description: `${selectedChild?.firstName} a été inscrit(e) au camp ${campName}`,
       });
       router.push('/dashboard/parent/registrations');
       router.refresh();
@@ -94,7 +97,7 @@ export function RegistrationForm({
   };
 
   // Calculate total price for the entire camp
-  const totalPrice = daysCount * pricePerDay;
+  const totalPrice = acceptedTotal ?? daysCount * pricePerDay;
 
   // Validate form
   const canSubmit =
@@ -137,9 +140,11 @@ export function RegistrationForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(childrenData?.total ?? 0, loadingChildren, optionsError0, optionsRetry0)}</div>
+
           {/* Child selection */}
           <div className="space-y-2">
-            <Label htmlFor="child-select">S\u00e9lectionner un enfant *</Label>
+            <Label htmlFor="child-select">Sélectionner un enfant *</Label>
             {loadingChildren ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -179,7 +184,7 @@ export function RegistrationForm({
 
           {/* Camp period and price */}
           <div className="space-y-3">
-            <Label>P\u00e9riode du camp</Label>
+            <Label>Période du camp</Label>
             <Alert>
               <Calendar className="h-4 w-4" />
               <AlertDescription>
@@ -194,7 +199,7 @@ export function RegistrationForm({
                   </div>
                   <div className="flex items-center justify-between border-t pt-2">
                     <span className="text-sm">
-                      {daysCount} jour{daysCount > 1 ? 's' : ''} \u00d7 {pricePerDay.toLocaleString('fr-FR')} XPF
+                      {daysCount} jour{daysCount > 1 ? 's' : ''} × {pricePerDay.toLocaleString('fr-FR')} XPF
                     </span>
                     <span className="font-bold text-lg">
                       {totalPrice.toLocaleString('fr-FR')} XPF
@@ -204,18 +209,18 @@ export function RegistrationForm({
               </AlertDescription>
             </Alert>
             <p className="text-xs text-muted-foreground">
-              L'inscription se fait pour toute la dur\u00e9e du camp
+              L'inscription se fait pour toute la durée du camp
             </p>
           </div>
 
           {/* Special requirements */}
           <div className="space-y-2">
             <Label htmlFor="special-requirements">
-              Besoins sp\u00e9cifiques (optionnel)
+              Besoins spécifiques (optionnel)
             </Label>
             <Textarea
               id="special-requirements"
-              placeholder="Allergies, r\u00e9gime alimentaire, besoins m\u00e9dicaux, etc."
+              placeholder="Allergies, régime alimentaire, besoins médicaux, etc."
               value={specialRequirements}
               onChange={(e) => setSpecialRequirements(e.target.value)}
               rows={4}

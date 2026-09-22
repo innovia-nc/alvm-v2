@@ -129,6 +129,7 @@ export default async function RegistrationDetailPage({
         </Badge>
       </div>
 
+      {registration.cancellationRequestedAt && !isCancelled && <Alert><AlertDescription>Votre demande d’annulation a été transmise au secrétariat.</AlertDescription></Alert>}
       {/* Cancelled warning */}
       {isCancelled && (
         <Alert variant="destructive">

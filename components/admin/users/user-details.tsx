@@ -76,6 +76,7 @@ interface UsersDetailsProps {
 
 function formatDateFR(d: Date) {
     return new Date(d).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
         year: 'numeric',
         month: 'long',
         day: 'numeric',

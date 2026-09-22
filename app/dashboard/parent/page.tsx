@@ -1,3 +1,4 @@
+import { DashboardSummary } from '@/components/shared/dashboard-summary';
 import { requireAuth } from '@/lib/auth';
 import { PageHeader } from '@/components/shared/page-header';
 import {
@@ -19,6 +20,7 @@ export default async function ParentDashboardPage() {
         title="Bienvenue sur votre espace parent"
         description="Gérez les inscriptions et suivez les activités de vos enfants"
       />
+      <DashboardSummary role="parent" />
 
       {/* Actions rapides */}
       <div>

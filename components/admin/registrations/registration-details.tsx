@@ -1,4 +1,6 @@
 'use client';
+import { RegistrationCancellationDialog } from './registration-cancellation-dialog';
+import { formatNumber } from '@/lib/format';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -54,6 +56,7 @@ type Registration = {
   };
   totalAmount: number;
   invoiceId: string | null;
+  cancellationRequestedAt?: Date | null;
 };
 
 const statusLabels: Record<Registration['status'], string> = {
@@ -75,6 +78,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
   const basePath = useDashboardBasePath();
   const utils = trpc.useUtils();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const deleteRegistrationMutation = trpc.registrations.delete.useMutation({
     onSuccess: () => {
@@ -118,6 +122,8 @@ export function RegistrationDetails({ registration }: { registration: Registrati
 
   return (
     <div className="space-y-6">
+      {registration.cancellationRequestedAt && registration.status !== 'CANCELLED' && <p role="status" className="rounded border p-4">Demande d’annulation reçue le {registration.cancellationRequestedAt.toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}.</p>}
+      <RegistrationCancellationDialog registration={registration} open={cancelling} onOpenChange={setCancelling} onSuccess={() => { utils.registrations.list.invalidate(); utils.registrations.getById.invalidate({ id: registration.id }); utils.invoices.list.invalidate(); setCancelling(false); router.refresh(); }} />
       {/* Informations de l'inscription */}
       <Card>
         <CardHeader>
@@ -133,12 +139,12 @@ export function RegistrationDetails({ registration }: { registration: Registrati
             <div>
               <p className="text-sm text-muted-foreground">Date d'inscription</p>
               <p className="font-medium">
-                {new Date(registration.registrationDate).toLocaleDateString('fr-FR')}
+                {new Date(registration.registrationDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Montant total</p>
-              <p className="text-2xl font-bold">{registration.totalAmount.toLocaleString()} XPF</p>
+              <p className="text-2xl font-bold">{formatNumber(registration.totalAmount)} XPF</p>
             </div>
           </div>
 
@@ -182,7 +188,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Prix par jour</p>
-                <p className="font-medium">{registration.camp.pricePerDay.toLocaleString()} XPF</p>
+                <p className="font-medium">{registration.camp.pricePerDay.toLocaleString('fr-FR')} XPF</p>
               </div>
             </div>
             <Link href={`${basePath}/camps/${registration.camp.id}`}>
@@ -211,7 +217,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
             <div>
               <p className="text-sm text-muted-foreground">Date de naissance</p>
               <p className="font-medium">
-                {new Date(registration.child.birthDate).toLocaleDateString('fr-FR')}
+                {new Date(registration.child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </p>
             </div>
           </div>
@@ -256,6 +262,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
                 <p className="font-medium">
                   {registration.camp.startDate
                     ? new Date(registration.camp.startDate).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -269,6 +276,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
                 <p className="font-medium">
                   {registration.camp.endDate
                     ? new Date(registration.camp.endDate).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -285,7 +293,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
               </div>
               <div className="flex items-center justify-between mt-2">
                 <p className="text-sm text-muted-foreground">Prix par jour</p>
-                <p className="font-medium">{registration.camp.pricePerDay.toLocaleString()} XPF</p>
+                <p className="font-medium">{registration.camp.pricePerDay.toLocaleString('fr-FR')} XPF</p>
               </div>
             </div>
           </div>
@@ -309,6 +317,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
         </Card>
       )}
 
+      {registration.status !== 'CANCELLED' && <Button variant="destructive" onClick={() => setCancelling(true)}>Annuler l’inscription</Button>}
       {/* Actions */}
       <div className="flex flex-wrap justify-end gap-4">
         <Button variant="outline" onClick={() => router.back()}>

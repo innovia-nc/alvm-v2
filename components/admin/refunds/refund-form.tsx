@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -57,9 +58,9 @@ export function RefundForm() {
   const paymentIdParam = searchParams.get('paymentId');
 
   // Récupérer les paiements (on peut rembourser n'importe quel paiement)
-  const { data: paymentsData, isLoading: isLoadingPayments } = trpc.payments.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions("un paiement");
+  const { data: paymentsData, isLoading: isLoadingPayments , error: optionsError0, refetch: optionsRetry0} = trpc.payments.list.useQuery({
+    ...optionsPage0.params,
   });
 
   const createRefundMutation = trpc.refunds.create.useMutation({
@@ -116,6 +117,8 @@ export function RefundForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(paymentsData?.total ?? 0, isLoadingPayments, optionsError0, optionsRetry0)}</div>
+
         {/* Informations du remboursement */}
         <Card>
           <CardHeader>
@@ -139,8 +142,8 @@ export function RefundForm() {
                       {paymentsData?.payments.map((payment) => (
                         <SelectItem key={payment.id} value={payment.id}>
                           {payment.invoice.invoiceNumber} - {payment.invoice.parent.firstName}{' '}
-                          {payment.invoice.parent.lastName} ({payment.amount.toLocaleString()} XPF -{' '}
-                          {new Date(payment.paymentDate).toLocaleDateString('fr-FR')})
+                          {payment.invoice.parent.lastName} ({payment.amount.toLocaleString('fr-FR')} XPF -{' '}
+                          {new Date(payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -161,12 +164,12 @@ export function RefundForm() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Montant payé: </span>
-                    <span className="font-medium">{selectedPayment.amount.toLocaleString()} XPF</span>
+                    <span className="font-medium">{selectedPayment.amount.toLocaleString('fr-FR')} XPF</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Date de paiement: </span>
                     <span className="font-medium">
-                      {new Date(selectedPayment.paymentDate).toLocaleDateString('fr-FR')}
+                      {new Date(selectedPayment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                     </span>
                   </div>
                   <div>

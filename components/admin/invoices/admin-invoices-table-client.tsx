@@ -2,7 +2,7 @@
 
 import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
@@ -36,19 +36,22 @@ type InvoiceStatusFilter = 'all' | 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANC
 
 export function AdminInvoicesTableClient() {
   const router = useRouter();
+  const initialStatus = useSearchParams().get("status");
   const [deletingItem, setDeletingItem] = useState<AdminInvoiceType | null>(null);
   const [sendingEmailItem, setSendingEmailItem] = useState<AdminInvoiceType | null>(null);
   const [validatingItem, setValidatingItem] = useState<AdminInvoiceType | null>(null);
   const [paymentDialogItem, setPaymentDialogItem] = useState<AdminInvoiceType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'].includes(initialStatus ?? '') ? initialStatus as InvoiceStatusFilter : 'all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Hook de pagination server-side
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, filtres et recherche
-  const { data, isLoading } = trpc.invoices.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.invoices.list.useQuery({
+    sortBy: pagination.sortBy as 'invoiceNumber' | 'issueDate' | 'dueDate' | 'totalAmount' | 'parent' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter }),
@@ -243,6 +246,7 @@ export function AdminInvoicesTableClient() {
       </div>
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent']}
         columns={columnsWithActions}
         data={data?.invoices || []}
         totalCount={data?.total || 0}

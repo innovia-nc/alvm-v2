@@ -21,6 +21,7 @@ import {
   Tag,
   RefreshCcw,
 } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useMediaQuery } from '@/lib/hooks/use-media-query';
 
 interface NavItem {
@@ -170,6 +171,11 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Users,
         },
         {
+          title: 'Comptes et habilitations',
+          href: '/dashboard/admin/users',
+          icon: Users,
+        },
+        {
           title: 'Personnel ALVM',
           href: '/dashboard/admin/users/staff',
           icon: Users,
@@ -248,7 +254,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isMobile = useMediaQuery('(max-width: 767px)');
 
   const navSections = navigationConfig[role] || [];
 
@@ -266,6 +272,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
           <Button
             variant="ghost"
             size="icon"
+            aria-label={collapsed ? "Développer le menu" : "Réduire le menu"}
             onClick={() => setCollapsed(!collapsed)}
             className="h-8 w-8"
           >
@@ -282,6 +289,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Fermer le menu"
             onClick={() => setMobileOpen(false)}
             className="h-8 w-8"
           >
@@ -312,6 +320,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={false}
                       onClick={() => isMobile && setMobileOpen(false)}
                       className={cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -355,35 +364,18 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
   // Mobile: overlay sidebar
   if (isMobile) {
     return (
-      <>
-        {/* Toggle button mobile */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setMobileOpen(true)}
-          className="fixed left-4 top-4 z-50 md:hidden"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
-
-        {/* Overlay */}
-        {mobileOpen && (
-          <div
-            className="fixed inset-0 z-50 bg-black/50 md:hidden"
-            onClick={() => setMobileOpen(false)}
-          />
-        )}
-
-        {/* Sidebar mobile */}
-        <aside
-          className={cn(
-            'fixed left-0 top-0 z-50 h-full w-72 bg-card border-r transition-transform md:hidden',
-            mobileOpen ? 'translate-x-0' : '-translate-x-full'
-          )}
-        >
+      <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" aria-label="Ouvrir le menu" aria-expanded={mobileOpen} className="fixed left-4 top-4 z-40 md:hidden">
+            <Menu className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="left-0 top-0 h-dvh w-72 translate-x-0 translate-y-0 rounded-none p-0 gap-0 [&>button]:hidden">
+          <DialogTitle className="sr-only">Navigation principale</DialogTitle>
+          <DialogDescription className="sr-only">Accéder aux rubriques de votre espace</DialogDescription>
           <NavContent />
-        </aside>
-      </>
+        </DialogContent>
+      </Dialog>
     );
   }
 

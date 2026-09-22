@@ -1,3 +1,4 @@
+import { ListPagination } from '@/components/shared/list-pagination';
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { createServerTRPC } from '@/lib/trpc';
@@ -12,17 +13,19 @@ import { RegistrationsList } from './registrations-list';
  * Parent Registrations Page
  * Displays all registrations for the parent's children
  */
-export default async function ParentRegistrationsPage() {
+export default async function ParentRegistrationsPage({ searchParams }: { searchParams: Promise<{ page?: string; status?: string }> }) {
   const session = await auth();
 
   if (!session?.user || session.user.role !== 'PARENT') {
     redirect('/auth/signin');
   }
 
+  const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
+  const status = (await searchParams).status === 'PENDING' ? 'PENDING' as const : undefined;
   const trpc = await createServerTRPC();
 
   // Get registrations
-  const registrationsData = await trpc.registrations.list({ limit: 100, offset: 0 });
+  const registrationsData = await trpc.registrations.list({ limit: 20, offset: (page - 1) * 20, status });
   const registrations = registrationsData.registrations;
 
   return (
@@ -74,6 +77,7 @@ export default async function ParentRegistrationsPage() {
           }))}
         />
       )}
+      <ListPagination page={page} total={registrationsData.total} basePath={`/dashboard/parent/registrations${status ? `?status=${status}` : ""}`} />
     </div>
   );
 }

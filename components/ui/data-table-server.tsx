@@ -34,12 +34,10 @@ import * as React from 'react';
 import {
   ColumnDef,
   ColumnFiltersState,
-  SortingState,
   VisibilityState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
@@ -99,6 +97,9 @@ interface DataTableServerProps<TData, TValue> {
    * @default false
    */
   isLoading?: boolean;
+  error?: unknown;
+  onRetry?: () => unknown;
+  sortableColumns?: string[];
 
   /**
    * Placeholder pour l'input de recherche
@@ -348,6 +349,7 @@ export function DataTableServer<TData, TValue>({
   data,
   totalCount,
   isLoading = false,
+  error, onRetry, sortableColumns = [],
   searchPlaceholder = 'Rechercher...',
   searchKey,
   pagination,
@@ -355,7 +357,7 @@ export function DataTableServer<TData, TValue>({
   emptyState,
   className,
 }: DataTableServerProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const sorting = pagination.sorting;
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
@@ -391,11 +393,11 @@ export function DataTableServer<TData, TValue>({
 
   const table = useReactTable({
     data,
-    columns,
+    columns: columns.map(column => ({ ...column, enableSorting: sortableColumns?.includes(column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')) ?? false })),
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    manualSorting: true,
     getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
+    onSortingChange: pagination.onSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     // IMPORTANT: Pas de getPaginationRowModel() car pagination server-side
@@ -443,7 +445,7 @@ export function DataTableServer<TData, TValue>({
         </div>
       )}
 
-      {isLoading ? (
+      {error ? <div role="alert" className="rounded border p-6">Impossible de charger les données. <Button variant="outline" onClick={() => onRetry?.()}>Réessayer</Button></div> : isLoading ? (
         <DataTableSkeleton columns={columns.length} />
       ) : totalCount === 0 && !submittedSearch ? (
         emptyState ?? <DataTableEmpty />
@@ -456,7 +458,7 @@ export function DataTableServer<TData, TValue>({
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
-                      const canSort = header.column.getCanSort();
+                      const canSort = header.column.getCanSort() && sortableColumns.includes(header.column.id);
 
                       return (
                         <TableHead key={header.id}>

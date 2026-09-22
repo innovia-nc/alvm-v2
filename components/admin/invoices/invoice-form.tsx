@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -55,9 +56,9 @@ export function InvoiceForm() {
   const [selectedRegistrationIds, setSelectedRegistrationIds] = useState<string[]>([]);
 
   // Récupérer la liste des parents
-  const { data: parentsData, isLoading: isLoadingParents } = trpc.parents.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions("un client");
+  const { data: parentsData, isLoading: isLoadingParents , error: optionsError0, refetch: optionsRetry0} = trpc.parents.list.useQuery({
+    ...optionsPage0.params,
   });
 
   const createInvoiceMutation = trpc.invoices.create.useMutation({
@@ -150,6 +151,8 @@ export function InvoiceForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(parentsData?.total ?? 0, isLoadingParents, optionsError0, optionsRetry0)}</div>
+
         {/* Informations générales */}
         <Card>
           <CardHeader>
@@ -256,7 +259,7 @@ export function InvoiceForm() {
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Inscription du {new Date(reg.registrationDate).toLocaleDateString('fr-FR')}
+                          Inscription du {new Date(reg.registrationDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                         </div>
                       </label>
                       <div className="text-right">
@@ -330,7 +333,7 @@ export function InvoiceForm() {
               <div className="flex justify-end border-t pt-4">
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Total de la facture</p>
-                  <p className="text-2xl font-bold">{totalAmount.toLocaleString()} XPF</p>
+                  <p className="text-2xl font-bold">{totalAmount.toLocaleString('fr-FR')} XPF</p>
                 </div>
               </div>
             )}

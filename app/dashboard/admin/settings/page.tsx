@@ -69,9 +69,6 @@ const emailSchema = z.object({
 });
 
 const accountingSchema = z.object({
-  fec_journal_code: z.string().max(2, 'Max 2 caractères').min(1, 'Code journal requis'),
-  fec_sales_account: z.string().regex(/^\d{6}$/, '6 chiffres requis'),
-  fec_customers_account: z.string().regex(/^\d{6}$/, '6 chiffres requis'),
   fec_company_code: z.string().min(1, 'Code société requis'),
   // Sert au nom du fichier FEC (SIRENFECAAAAMMJJ.txt, art. A47 A-1 du LPF).
   // Optionnel : l'export reste possible sans, avec le nom historique.
@@ -252,9 +249,6 @@ export default function AdminSettingsPage() {
   const accountingForm = useForm<AccountingFormValues>({
     resolver: zodResolver(accountingSchema),
     defaultValues: {
-      fec_journal_code: 'VE',
-      fec_sales_account: '706000',
-      fec_customers_account: '411000',
       fec_company_code: '',
       fec_siren: '',
     },
@@ -327,9 +321,6 @@ export default function AdminSettingsPage() {
     if (accountingSettings) {
       const data = settingsToFormData<AccountingFormValues>(accountingSettings);
       accountingForm.reset({
-        fec_journal_code: 'VE',
-        fec_sales_account: '706000',
-        fec_customers_account: '411000',
         fec_company_code: '',
         fec_siren: '',
         ...data,
@@ -925,69 +916,7 @@ export default function AdminSettingsPage() {
                 onSubmit={accountingForm.handleSubmit(onSubmitAccounting)}
                 className="space-y-4"
               >
-                <FormField
-                  control={accountingForm.control}
-                  name="fec_journal_code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Code journal ventes</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          maxLength={2}
-                          className="font-mono"
-                          disabled={updateMutation.isPending}
-                        />
-                      </FormControl>
-                      <FormDescription>Code à 2 caractères (ex: VT)</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={accountingForm.control}
-                  name="fec_sales_account"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Compte de produits (ventes)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          maxLength={6}
-                          className="font-mono"
-                          disabled={updateMutation.isPending}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Compte comptable à 6 chiffres (ex: 706000)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={accountingForm.control}
-                  name="fec_customers_account"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Compte clients</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          maxLength={6}
-                          className="font-mono"
-                          disabled={updateMutation.isPending}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Compte comptable à 6 chiffres (ex: 411000)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <p className="text-sm text-muted-foreground">Journal ventes : VE. Compte clients : 411000. Les comptes de produits sont définis par type d’ACM (706000 par défaut).</p>
 
                 <FormField
                   control={accountingForm.control}

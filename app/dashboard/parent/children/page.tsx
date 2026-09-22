@@ -1,3 +1,4 @@
+import { ListPagination } from '@/components/shared/list-pagination';
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { createServerTRPC } from '@/lib/trpc';
@@ -12,17 +13,18 @@ import { ChildrenCards } from './children-cards';
  * Parent Children List Page
  * Displays all children of the parent with management options
  */
-export default async function ParentChildrenPage() {
+export default async function ParentChildrenPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await auth();
 
   if (!session?.user || session.user.role !== 'PARENT') {
     redirect('/auth/signin');
   }
 
+  const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
   const trpc = await createServerTRPC();
 
   // Get children
-  const childrenData = await trpc.children.list({ limit: 100, offset: 0 });
+  const childrenData = await trpc.children.list({ limit: 20, offset: (page - 1) * 20 });
   const children = childrenData.children;
 
   return (
@@ -63,6 +65,7 @@ export default async function ParentChildrenPage() {
       ) : (
         <ChildrenCards initialChildren={children} />
       )}
+      <ListPagination page={page} total={childrenData.total} basePath="/dashboard/parent/children" />
     </div>
   );
 }

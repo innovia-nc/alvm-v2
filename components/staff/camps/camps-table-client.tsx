@@ -49,7 +49,9 @@ export function CampsTableClient() {
 
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  const { data, isLoading } = trpc.camps.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.camps.list.useQuery({
+    sortBy: pagination.sortBy as 'name' | 'startDate' | 'registrationDeadline' | 'createdAt' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search: searchTerm || undefined,
@@ -189,6 +191,7 @@ export function CampsTableClient() {
       </div>
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['name', 'startDate', 'registrationDeadline', 'createdAt']}
         columns={columnsWithActions}
         data={filteredCamps}
         totalCount={data?.total || 0}

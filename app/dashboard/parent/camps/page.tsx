@@ -1,3 +1,4 @@
+import { ListPagination } from '@/components/shared/list-pagination';
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { createServerTRPC } from '@/lib/trpc';
@@ -12,15 +13,16 @@ import Link from 'next/link';
  * Parent Camps List Page
  * Displays available camps for registration
  */
-export default async function ParentCampsPage() {
+export default async function ParentCampsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await auth();
 
   if (!session?.user || session.user.role !== 'PARENT') {
     redirect('/auth/signin');
   }
 
+  const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
   const trpc = await createServerTRPC();
-  const campsData = await trpc.camps.list({ limit: 100, offset: 0 });
+  const campsData = await trpc.camps.list({ limit: 20, offset: (page - 1) * 20 });
   const camps = campsData.camps;
 
   // Filter only published camps
@@ -102,6 +104,7 @@ export default async function ParentCampsPage() {
           ))}
         </div>
       )}
+      <ListPagination page={page} total={campsData.total} basePath="/dashboard/parent/camps" />
     </div>
   );
 }

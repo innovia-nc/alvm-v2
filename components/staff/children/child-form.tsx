@@ -385,7 +385,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                   </div>
                 ))}
               </div>
-              <Alert className="mt-4">
+              {!basePath.includes("/parent/") && <Alert className="mt-4">
                 <Info className="h-4 w-4" />
                 <AlertDescription className="flex items-center gap-2">
                   <span>Pour modifier les parents associés, utilisez la page dédiée :</span>
@@ -396,7 +396,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                     </Link>
                   </Button>
                 </AlertDescription>
-              </Alert>
+              </Alert>}
             </CardContent>
           </Card>
         )}

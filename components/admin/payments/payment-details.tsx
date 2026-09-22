@@ -1,4 +1,5 @@
 'use client';
+import { formatNumber } from '@/lib/format';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -87,12 +88,12 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Montant</p>
-              <p className="text-2xl font-bold">{payment.amount.toLocaleString()} XPF</p>
+              <p className="text-2xl font-bold">{formatNumber(payment.amount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date de paiement</p>
               <p className="font-medium">
-                {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
+                {new Date(payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </p>
             </div>
             <div>
@@ -160,16 +161,16 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
           <div className="grid grid-cols-3 gap-4 pt-4 border-t">
             <div>
               <p className="text-sm text-muted-foreground">Total facture</p>
-              <p className="font-semibold">{payment.invoice.totalAmount.toLocaleString()} XPF</p>
+              <p className="font-semibold">{formatNumber(payment.invoice.totalAmount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total payé</p>
-              <p className="font-semibold">{payment.invoice.paidAmount.toLocaleString()} XPF</p>
+              <p className="font-semibold">{formatNumber(payment.invoice.paidAmount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Reste à payer</p>
               <p className="font-semibold text-primary">
-                {payment.invoice.remainingAmount.toLocaleString()} XPF
+                {formatNumber(payment.invoice.remainingAmount)} XPF
               </p>
             </div>
           </div>

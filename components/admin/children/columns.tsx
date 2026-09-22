@@ -22,16 +22,10 @@ export type AdminChildType = {
   birthDate: Date;
   gender: 'MALE' | 'FEMALE' | 'OTHER';
   ecole?: string | null;
-  medicalInfo: {
-    allergies: string[];
-    medications: string[];
-    conditions: string[];
-    diet_restrictions: string[];
-    notes: string;
-  };
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
-  emergencyContactRelation: string | null;
+  allergyCount: number;
+  conditionCount: number;
   parents: Array<{
     id: string;
     parentId: string;
@@ -129,7 +123,7 @@ export const adminChildColumns: ColumnDef<AdminChildType>[] = [
     cell: ({ row }) => {
       const child = row.original;
       const age = calculateAge(child.birthDate);
-      const birthDateStr = new Date(child.birthDate).toLocaleDateString('fr-FR');
+      const birthDateStr = new Date(child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' });
 
       return (
         <div className="text-sm">

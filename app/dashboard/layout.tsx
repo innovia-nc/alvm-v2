@@ -26,10 +26,10 @@ export default async function DashboardLayout({
       <DashboardSidebar role={role} />
 
       {/* Contenu principal */}
-      <div className="flex-1 flex flex-col">
+      <div className="min-w-0 flex-1 flex flex-col">
         <DashboardHeader />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

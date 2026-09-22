@@ -40,6 +40,7 @@ interface ChildRegistrationsHistoryProps {
 function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
     year: 'numeric',
     month: 'long',
     day: 'numeric',

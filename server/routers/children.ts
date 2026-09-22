@@ -200,7 +200,7 @@ export const childrenRouter = router({
         ctx.prisma.child.count({ where }),
       ]);
 
-      return { children: children.map(child => { const mapped = mapChild(child); return { ...mapped, allergyCount: mapped.medicalInfo.allergies.length, conditionCount: mapped.medicalInfo.conditions.length }; }), total };
+      return { children: children.map(child => { const mapped = mapChild(child); return { ...mapped, allergyCount: Array.isArray(mapped.medicalInfo.allergies) ? mapped.medicalInfo.allergies.length : 0, conditionCount: Array.isArray(mapped.medicalInfo.conditions) ? mapped.medicalInfo.conditions.length : 0 }; }), total };
     }),
 
   getById: protectedProcedure

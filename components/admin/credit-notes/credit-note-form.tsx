@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -73,13 +74,12 @@ export function CreditNoteForm() {
   // NB : `limit` est plafonné à 100 côté routeur — au-delà, la requête est
   // rejetée par Zod et la liste revenait vide sans le moindre message
   // (US-FACT-02-bis : cause exacte du bug constaté en recette).
+  const optionsPage0 = usePagedOptions("une facture");
   const {
     data: invoicesData,
     isLoading: loadingInvoices,
-    error: invoicesError,
-  } = trpc.invoices.list.useQuery({
-    limit: 100,
-    offset: 0,
+    error: invoicesError, error: optionsError0, refetch: optionsRetry0} = trpc.invoices.list.useQuery({
+    ...optionsPage0.params,
     statuses: ['SENT', 'PAID', 'OVERDUE'],
   });
 
@@ -166,6 +166,8 @@ export function CreditNoteForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(invoicesData?.total ?? 0, loadingInvoices, optionsError0, optionsRetry0)}</div>
+
         {/* Sélection de la facture */}
         <Card>
           <CardHeader>

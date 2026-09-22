@@ -68,6 +68,7 @@ export function Breadcrumbs() {
 
       // Segments à toujours masquer
       if (segment === 'dashboard') continue;
+      if (segment === 'fec' && segments[i + 1] === 'export') continue;
 
       // Masquer les IDs dynamiques (segments qui ressemblent à des UUIDs ou IDs numériques)
       // Format UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -93,7 +94,7 @@ export function Breadcrumbs() {
 
       items.push({
         href: currentPath,
-        label: segmentLabels[segment] || segment,
+        label: segment === 'export' && segments[i - 1] === 'fec' ? 'Export FEC' : segmentLabels[segment] || segment,
       });
     }
 
@@ -126,6 +127,7 @@ export function Breadcrumbs() {
             ) : (
               <Link
                 href={item.href}
+                prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}

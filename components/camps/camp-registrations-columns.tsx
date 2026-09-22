@@ -205,7 +205,7 @@ export function createCampRegistrationColumns(
       cell: ({ row }) => {
         return (
           <div className="text-sm">
-            {new Date(row.original.createdAt).toLocaleDateString('fr-FR')}
+            {new Date(row.original.createdAt).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
           </div>
         );
       },

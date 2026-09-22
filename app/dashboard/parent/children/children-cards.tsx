@@ -106,7 +106,7 @@ export function ChildrenCards({ initialChildren }: ChildrenCardsProps) {
               {/* Date of birth */}
               <div className="flex items-center text-sm text-gray-600">
                 <Calendar className="mr-2 h-4 w-4" />
-                Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR')}
+                Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </div>
 
               {/* Medical info (if any) */}

@@ -4,7 +4,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { UserPlus } from 'lucide-react';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
 import { getUsersColumns } from '@/components/admin/users/users-table-columns';
 import { trpc } from '@/lib/trpc/client';
 import { useRouter } from 'next/navigation';
@@ -30,9 +31,12 @@ export default function AdminUsersPage() {
   const [tempPassword, setTempPassword] = useState<string>('');
 
   // Fetch users with tRPC
-  const { data, isLoading } = trpc.users.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const pagination = useServerPagination();
+  const [search, setSearch] = useState('');
+  const { data, isLoading, error, refetch } = trpc.users.list.useQuery({
+    limit: pagination.limit,
+    offset: pagination.offset,
+    search: search || undefined,
   });
 
   // Mutations
@@ -99,13 +103,17 @@ export default function AdminUsersPage() {
         {/* Liste des utilisateurs avec DataTable */}
         <Card>
           <CardContent className="pt-6">
-            <DataTable
+            <DataTableServer
               columns={columns}
               data={data?.users ?? []}
               isLoading={isLoading}
               searchKey="name"
               searchPlaceholder="Rechercher par nom ou email..."
-              pageSize={20}
+              totalCount={data?.total ?? 0}
+              pagination={pagination}
+              error={error}
+              onRetry={refetch}
+              onSearchChange={value => { setSearch(value); pagination.resetToFirstPage(); }}
             />
           </CardContent>
         </Card>
@@ -117,8 +125,7 @@ export default function AdminUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
-              Toutes les données associées (profil, inscriptions) seront également supprimées.
+              Le compte sera désactivé et ses sessions seront révoquées. Les pièces comptables et les liens familiaux seront conservés.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

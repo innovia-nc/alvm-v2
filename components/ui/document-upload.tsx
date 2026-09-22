@@ -20,6 +20,7 @@ interface DocumentUploadProps {
    * ID de l'enfant pour upload
    */
   childId: string;
+  kind?: "child" | "staff";
 
   /**
    * Callback appelé lors de l'upload réussi
@@ -43,6 +44,7 @@ interface DocumentUploadProps {
 
 export function DocumentUpload({
   childId,
+  kind = "child",
   onUploadComplete,
   description,
   className,
@@ -97,13 +99,13 @@ export function DocumentUpload({
         // Créer FormData
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('childId', childId);
+        formData.append(kind === 'staff' ? 'staffId' : 'childId', childId);
         if (description) {
           formData.append('description', description);
         }
 
         // Appeler l'API route
-        const response = await fetch('/api/upload/child-documents', {
+        const response = await fetch(`/api/upload/${kind}-documents`, {
           method: 'POST',
           body: formData,
         });

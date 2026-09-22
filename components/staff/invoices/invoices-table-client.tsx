@@ -2,7 +2,7 @@
 
 import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
@@ -28,6 +28,7 @@ import { PaymentDialog } from '@/components/admin/payment-dialog';
 
 export function InvoicesTableClient() {
   const router = useRouter();
+  const status = useSearchParams().get("status") === "OVERDUE" ? "OVERDUE" as const : undefined;
   const [validatingItem, setValidatingItem] = useState<StaffInvoiceType | null>(null);
   const [deletingItem, setDeletingItem] = useState<StaffInvoiceType | null>(null);
   const [paymentDialogItem, setPaymentDialogItem] = useState<StaffInvoiceType | null>(null);
@@ -38,10 +39,13 @@ export function InvoicesTableClient() {
 
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  const { data, isLoading } = trpc.invoices.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.invoices.list.useQuery({
+    sortBy: pagination.sortBy as 'invoiceNumber' | 'issueDate' | 'dueDate' | 'totalAmount' | 'parent' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search,
+    status,
   });
 
   const utils = trpc.useUtils();
@@ -146,6 +150,7 @@ export function InvoicesTableClient() {
       )}
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent']}
         columns={columnsWithActions}
         data={data?.invoices || []}
         totalCount={data?.total || 0}

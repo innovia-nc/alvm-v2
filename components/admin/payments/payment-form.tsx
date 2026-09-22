@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -57,9 +58,10 @@ export function PaymentForm() {
   const invoiceIdParam = searchParams.get('invoiceId');
 
   // Récupérer les factures non payées
-  const { data: invoicesData, isLoading: isLoadingInvoices } = trpc.invoices.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions("une facture");
+  const { data: invoicesData, isLoading: isLoadingInvoices , error: optionsError0, refetch: optionsRetry0} = trpc.invoices.list.useQuery({
+    ...optionsPage0.params,
+    statuses: ["SENT", "OVERDUE"],
     status: undefined, // Toutes les factures
   });
 
@@ -124,6 +126,8 @@ export function PaymentForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(invoicesData?.total ?? 0, isLoadingInvoices, optionsError0, optionsRetry0)}</div>
+
         {/* Informations du paiement */}
         <Card>
           <CardHeader>
@@ -147,7 +151,7 @@ export function PaymentForm() {
                       {unpaidInvoices.map((invoice) => (
                         <SelectItem key={invoice.id} value={invoice.id}>
                           {invoice.invoiceNumber} - {invoice.parent.firstName} {invoice.parent.lastName}
-                          (Reste: {invoice.remainingAmount.toLocaleString()} XPF)
+                          (Reste: {invoice.remainingAmount.toLocaleString('fr-FR')} XPF)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -164,15 +168,15 @@ export function PaymentForm() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">Total: </span>
-                    <span className="font-medium">{selectedInvoice.totalAmount.toLocaleString()} XPF</span>
+                    <span className="font-medium">{selectedInvoice.totalAmount.toLocaleString('fr-FR')} XPF</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Payé: </span>
-                    <span className="font-medium">{selectedInvoice.paidAmount.toLocaleString()} XPF</span>
+                    <span className="font-medium">{selectedInvoice.paidAmount.toLocaleString('fr-FR')} XPF</span>
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Reste à payer: </span>
-                    <span className="font-semibold text-primary">{selectedInvoice.remainingAmount.toLocaleString()} XPF</span>
+                    <span className="font-semibold text-primary">{selectedInvoice.remainingAmount.toLocaleString('fr-FR')} XPF</span>
                   </div>
                 </div>
               </div>

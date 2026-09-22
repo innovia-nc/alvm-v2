@@ -1,20 +1,8 @@
 'use client';
-
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { XCircle, AlertTriangle } from 'lucide-react';
-
-interface CancelRegistrationDialogProps {
+import { RegistrationCancellationDialog } from '@/components/admin/registrations/registration-cancellation-dialog';
+interface Props {
   registrationId: string;
   childName: string;
   campName: string;
@@ -22,89 +10,30 @@ interface CancelRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export function CancelRegistrationDialog({
   registrationId,
   childName,
   campName,
-  hasInvoice,
   open,
   onOpenChange,
-}: CancelRegistrationDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
+}: Props) {
   const utils = trpc.useUtils();
-
-  const updateMutation = trpc.registrations.updateStatus.useMutation({
-    onSuccess: () => {
-      toast.success('Inscription annulée avec succès');
-      utils.registrations.list.invalidate();
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Erreur lors de l\'annulation');
-    },
-    onSettled: () => {
-      setIsLoading(false);
-    },
-  });
-
-  const handleConfirm = async () => {
-    setIsLoading(true);
-    updateMutation.mutate({
-      id: registrationId,
-      status: 'CANCELLED',
-    });
-  };
-
+  const router = useRouter();
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <XCircle className="h-6 w-6 text-red-600" />
-            <DialogTitle>Annuler l'inscription</DialogTitle>
-          </div>
-          <DialogDescription>
-            Êtes-vous sûr de vouloir annuler l'inscription de {childName} pour le camp "{campName}" ?
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="rounded-lg bg-red-50 dark:bg-red-950 p-4 text-sm text-red-800 dark:text-red-200">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium mb-1">Attention</p>
-              <p className="text-xs">
-                Cette action marquera l'inscription comme annulée. La place sera libérée dans la
-                capacité du camp.
-              </p>
-              {hasInvoice && (
-                <p className="text-xs mt-2 font-medium">
-                  Une facture existe pour cette inscription. Vous devrez créer un avoir si
-                  nécessaire.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
-            Retour
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={isLoading}
-            variant="destructive"
-          >
-            {isLoading ? 'Annulation...' : 'Confirmer l\'annulation'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <RegistrationCancellationDialog
+      registration={{
+        id: registrationId,
+        child: { firstName: childName, lastName: '' },
+        camp: { name: campName },
+      }}
+      open={open}
+      onOpenChange={onOpenChange}
+      onSuccess={() => {
+        utils.registrations.list.invalidate();
+        utils.invoices.list.invalidate();
+        router.refresh();
+        onOpenChange(false);
+      }}
+    />
   );
 }

@@ -46,7 +46,7 @@ export const adminPaymentColumns: ColumnDef<AdminPaymentType>[] = [
     cell: ({ row }) => {
       return (
         <div className="text-sm">
-          {new Date(row.original.paymentDate).toLocaleDateString('fr-FR')}
+          {new Date(row.original.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </div>
       );
     },

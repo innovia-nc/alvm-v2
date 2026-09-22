@@ -19,6 +19,8 @@ const appSettingFindUnique = vi.fn();
 const childDocumentCreate = vi.fn();
 const childFindFirst = vi.fn();
 const childParentFindFirst = vi.fn();
+const staffFindFirst = vi.fn();
+const staffDocumentCreate = vi.fn();
 
 vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
 
@@ -31,6 +33,8 @@ vi.mock('@/lib/storage/blob-storage', () => ({
 vi.mock('@/server/db', () => ({
   prisma: {
     appSetting: { findUnique: (...a: unknown[]) => appSettingFindUnique(...a) },
+    staffMember: { findFirst: (...a: unknown[]) => staffFindFirst(...a) },
+    staffDocument: { create: (...a: unknown[]) => staffDocumentCreate(...a) },
     childDocument: { create: (...a: unknown[]) => childDocumentCreate(...a) },
     child: { findFirst: (...a: unknown[]) => childFindFirst(...a) },
     childParent: { findFirst: (...a: unknown[]) => childParentFindFirst(...a) },
@@ -39,6 +43,7 @@ vi.mock('@/server/db', () => ({
 
 import { POST as logoPost, DELETE as logoDelete } from '@/app/api/upload/logo/route';
 import { POST as documentPost } from '@/app/api/upload/child-documents/route';
+import { POST as staffPost } from '@/app/api/upload/staff-documents/route';
 
 const ADMIN = { user: { id: 'a0000000-0000-4000-a000-000000000001', role: 'ADMIN' } };
 const PARENT = { user: { id: 'a0000000-0000-4000-a000-000000000003', role: 'PARENT' } };
@@ -285,6 +290,7 @@ describe('POST /api/upload/child-documents', () => {
         new RegExp(`^child-documents/${CHILD_ID}/[0-9a-f-]{36}\\.pdf$`),
       ),
       contentType: 'application/pdf',
+      access: 'private',
     });
   });
 
@@ -310,5 +316,18 @@ describe('POST /api/upload/child-documents', () => {
 
     expect(res.status).toBe(404);
     expect(uploadToStorage).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('POST /api/upload/staff-documents', () => {
+  function form() { const data=new FormData();data.set('staffId',CHILD_ID);data.set('file',pdfFile());return postRequest(data); }
+  it('refuses a parent before uploading', async () => { authMock.mockResolvedValue(PARENT);expect((await staffPost(form())).status).toBe(404);expect(uploadToStorage).not.toHaveBeenCalled(); });
+  it('stores a staff PDF privately and returns only its authenticated route', async () => {
+    authMock.mockResolvedValue(ADMIN);staffFindFirst.mockResolvedValue({userId:CHILD_ID});staffDocumentCreate.mockImplementation(async ({data}: {data: Record<string,unknown>})=>({id:CHILD_ID,...data}));
+    const response=await staffPost(form());expect(response.status).toBe(200);expect((await response.json()).fileUrl).toBe(`/api/documents/staff/${CHILD_ID}`);expect(uploadToStorage).toHaveBeenCalledWith(expect.any(Buffer),expect.objectContaining({access:'private'}));
+  });
+  it('cleans up the private blob after a failed database insert', async () => {
+    authMock.mockResolvedValue(ADMIN);staffFindFirst.mockResolvedValue({userId:CHILD_ID});staffDocumentCreate.mockRejectedValue(new Error('rollback'));expect((await staffPost(form())).status).toBe(500);expect(deleteFromStorageBestEffort).toHaveBeenCalled();
   });
 });

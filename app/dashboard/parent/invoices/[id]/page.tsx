@@ -369,10 +369,9 @@ export default async function InvoiceDetailPage({
                 </Button>
               )}
               {canPay && invoice.remainingAmount > 0 && (
-                <Button className="w-full">
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  Payer maintenant
-                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Pour régler cette facture, contactez le secrétariat ALVM afin de convenir du moyen de paiement. Indiquez la référence {invoice.invoiceNumber}.
+                </p>
               )}
             </CardContent>
           </Card>

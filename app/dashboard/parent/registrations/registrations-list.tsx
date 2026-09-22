@@ -153,8 +153,8 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
               {/* Camp period */}
               <div className="text-sm">
                 <p className="text-gray-700">
-                  Du {new Date(registration.camp.startDate).toLocaleDateString('fr-FR')} au{' '}
-                  {new Date(registration.camp.endDate).toLocaleDateString('fr-FR')}
+                  Du {new Date(registration.camp.startDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })} au{' '}
+                  {new Date(registration.camp.endDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                 </p>
                 <p className="text-gray-600">
                   {registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''} au total

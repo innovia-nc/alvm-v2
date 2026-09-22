@@ -270,6 +270,7 @@ export default async function CampDetailPage({
           campId={camp.id}
           campName={camp.name}
           pricePerDay={camp.pricePerDay}
+          totalPrice={camp.totalPrice}
           availableSpots={camp.availableSpots}
           startDate={camp.startDate instanceof Date ? camp.startDate.toISOString().split('T')[0]! : camp.startDate || ''}
           endDate={camp.endDate instanceof Date ? camp.endDate.toISOString().split('T')[0]! : camp.endDate || ''}

@@ -164,6 +164,7 @@ export function ChildDetails({ child }: ChildDetailsProps) {
                 <p className="text-sm font-medium text-muted-foreground">Date de naissance</p>
                 <p className="text-base">
                   {new Date(child.birthDate).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',

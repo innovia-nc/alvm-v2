@@ -58,6 +58,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
   // Format date for display
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
       weekday: 'long',
       day: 'numeric',
       month: 'long',

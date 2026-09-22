@@ -136,7 +136,7 @@ export function InvoiceEditForm({
             <div>
               <p className="text-muted-foreground">Date d'échéance</p>
               <p className="font-medium">
-                {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}
+                {new Date(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </p>
             </div>
             <div>

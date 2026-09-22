@@ -33,7 +33,9 @@ export function StaffTableClient() {
 
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  const { data, isLoading } = trpc.staff.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.staff.list.useQuery({
+    sortBy: pagination.sortBy as 'lastName' | 'firstName' | 'createdAt' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search,
@@ -102,6 +104,7 @@ export function StaffTableClient() {
       )}
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['lastName', 'firstName', 'createdAt']}
         columns={columnsWithActions}
         data={data?.staff || []}
         totalCount={data?.total || 0}

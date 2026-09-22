@@ -21,6 +21,7 @@ type CampDetail = {
   endDate: Date | null;
   registrationDeadline: Date;
   pricePerDay: number;
+  totalPrice?: number;
   status: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
   campType: {
     id: string;
@@ -43,6 +44,7 @@ interface CampDetailTabProps {
 function formatDate(date: Date | null) {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -138,7 +140,7 @@ export function CampDetailTab({ camp }: CampDetailTabProps) {
           <div className="flex justify-between">
             <span className="text-muted-foreground">Prix total</span>
             <span className="font-medium">
-              {formatCurrency(camp.pricePerDay * camp.daysCount)}
+              {formatCurrency(camp.totalPrice ?? camp.pricePerDay * camp.daysCount)}
             </span>
           </div>
         </CardContent>

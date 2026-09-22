@@ -44,7 +44,9 @@ export function AdminChildrenTableClient() {
   const ageRange = ageFilter !== 'all' ? ageFilter.split('-').map(Number) : null;
 
   // Query tRPC avec pagination, recherche et filtre âge côté serveur
-  const { data, isLoading } = trpc.children.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.children.list.useQuery({
+    sortBy: pagination.sortBy as 'lastName' | 'firstName' | 'birthDate' | 'createdAt' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
@@ -137,6 +139,7 @@ export function AdminChildrenTableClient() {
 
       {/* Table avec pagination */}
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['lastName', 'firstName', 'birthDate', 'createdAt']}
         columns={columnsWithActions}
         data={children}
         totalCount={data?.total || 0}

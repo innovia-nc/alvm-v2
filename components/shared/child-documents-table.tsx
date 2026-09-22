@@ -146,6 +146,7 @@ export function ChildDocumentsTable({
 
   const formatDate = (date: Date): string => {
     return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

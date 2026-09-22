@@ -1,5 +1,6 @@
 'use client';
 
+import { DocumentUpload } from '@/components/ui/document-upload';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,6 +127,7 @@ return (
         </div>
     </CardHeader>
 
+    {canDelete && <CardContent><DocumentUpload childId={staffId} kind="staff" onUploadComplete={() => { void refetchDocuments(); }} /></CardContent>}
     {/* US-PERS-02 : fiche épurée — sans document, la carte se limite à son
         en-tête (titre + bouton de génération). Plus de libellé « Aucun
         document PDF pour ce personnel. ». */}

@@ -67,7 +67,7 @@ export default async function CreditNoteDetailsPage({ params }: PageProps) {
             <div>
               <div className="text-sm text-muted-foreground">Date d'émission</div>
               <div className="font-medium">
-                {new Date(creditNote.issueDate).toLocaleDateString('fr-FR')}
+                {new Date(creditNote.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </div>
             </div>
 

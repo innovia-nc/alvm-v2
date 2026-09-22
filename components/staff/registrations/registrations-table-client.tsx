@@ -2,7 +2,7 @@
 
 import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
@@ -29,8 +29,9 @@ type StatusFilter = 'all' | 'PENDING' | 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
 export function RegistrationsTableClient() {
   const router = useRouter();
+  const initialStatus = useSearchParams().get("status");
   const utils = trpc.useUtils();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(['PENDING', 'CONFIRMED', 'WAITLIST', 'CANCELLED'].includes(initialStatus ?? '') ? initialStatus as StatusFilter : 'all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const createInvoiceMutation = trpc.invoices.createFromRegistration.useMutation({
@@ -65,7 +66,9 @@ export function RegistrationsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, filtre statut et recherche server-side
-  const { data, isLoading } = trpc.registrations.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.registrations.list.useQuery({
+    sortBy: pagination.sortBy as 'registrationDate' | 'childName' | 'status' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter }),
@@ -170,6 +173,7 @@ export function RegistrationsTableClient() {
 
       {/* Table avec pagination */}
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['registrationDate', 'childName', 'status']}
         columns={columnsWithActions}
         data={data?.registrations || []}
         totalCount={data?.total || 0}

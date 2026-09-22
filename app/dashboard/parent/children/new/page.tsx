@@ -19,6 +19,7 @@ export default async function NewChildPage() {
 
   return (
     <div className="space-y-6">
+      <Link className="block underline mb-4" href="/dashboard/parent/children/adult">Inscrire un participant adulte autonome</Link>
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="icon">
           <Link href="/dashboard/parent/children">

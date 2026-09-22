@@ -103,6 +103,15 @@ describe('children router', () => {
       await expect(caller.children.list({})).rejects.toThrow(TRPCError);
     });
 
+    it('lists legacy empty medical JSON without leaking it or throwing', async () => {
+      admin.mockPrisma.child.findMany.mockResolvedValue([makeChild({ medicalInfo: {}, parentLinks: [] })]);
+      admin.mockPrisma.child.count.mockResolvedValue(1);
+      const result = await admin.caller.children.list({});
+      expect(result.children[0].allergyCount).toBe(0);
+      expect(result.children[0].conditionCount).toBe(0);
+      expect(result.children[0]).not.toHaveProperty('medicalInfo');
+    });
+
     it('should return children for ADMIN (sees all)', async () => {
       const childWithLinks = makeChild({
         parentLinks: [makeParentLink()],

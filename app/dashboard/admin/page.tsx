@@ -1,3 +1,4 @@
+import { DashboardSummary } from '@/components/shared/dashboard-summary';
 import { requireRole } from '@/lib/auth';
 import { PageHeader } from '@/components/shared/page-header';
 import {
@@ -20,6 +21,7 @@ export default async function AdminDashboardPage() {
         title="Dashboard Admin"
         description="Administration et supervision du système"
       />
+      <DashboardSummary role="admin" />
 
 
 

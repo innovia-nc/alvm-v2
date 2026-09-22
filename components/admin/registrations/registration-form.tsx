@@ -1,4 +1,5 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -54,37 +55,6 @@ export function RegistrationForm() {
   const [childSearch, setChildSearch] = useState('');
   const [showChildDropdown, setShowChildDropdown] = useState(false);
 
-  // Récupérer les camps publiés
-  const { data: campsData, isLoading: isLoadingCamps } = trpc.camps.list.useQuery({
-    limit: 100,
-    offset: 0,
-    status: 'PUBLISHED',
-  });
-
-  // Récupérer les parents
-  const { data: parentsData, isLoading: isLoadingParents } = trpc.parents.list.useQuery({
-    limit: 100,
-    offset: 0,
-  });
-
-  // Récupérer les enfants
-  const { data: childrenData, isLoading: isLoadingChildren } = trpc.children.list.useQuery({
-    limit: 100,
-    offset: 0,
-  });
-
-  const createRegistrationMutation = trpc.registrations.createByStaff.useMutation({
-    onSuccess: () => {
-      toast.success('Inscription créée avec succès');
-      router.push(`${basePath}/registrations`);
-      router.refresh();
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Erreur lors de la création de l\'inscription');
-      setIsSubmitting(false);
-    },
-  });
-
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationFormSchema),
     defaultValues: {
@@ -98,6 +68,38 @@ export function RegistrationForm() {
 
   const watchCampId = form.watch('campId');
   const watchParentId = form.watch('parentId');
+
+  // Récupérer les camps publiés
+  const optionsPage0 = usePagedOptions("un camp");
+  const { data: campsData, isLoading: isLoadingCamps , error: optionsError0, refetch: optionsRetry0} = trpc.camps.list.useQuery({
+    ...optionsPage0.params,
+    status: 'PUBLISHED',
+  });
+
+  // Récupérer les parents
+  const optionsPage1 = usePagedOptions("un client");
+  const { data: parentsData, isLoading: isLoadingParents , error: optionsError1, refetch: optionsRetry1} = trpc.parents.list.useQuery({
+    ...optionsPage1.params,
+  });
+
+  // Récupérer les enfants
+  const optionsPage2 = usePagedOptions("un participant");
+  const { data: childrenData, isLoading: isLoadingChildren , error: optionsError2, refetch: optionsRetry2} = trpc.children.list.useQuery({
+    ...optionsPage2.params,
+    parentId: watchParentId || undefined,
+  });
+
+  const createRegistrationMutation = trpc.registrations.createByStaff.useMutation({
+    onSuccess: () => {
+      toast.success('Inscription créée avec succès');
+      router.push(`${basePath}/registrations`);
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erreur lors de la création de l\'inscription');
+      setIsSubmitting(false);
+    },
+  });
 
   // Filtrer les enfants en fonction du parent sélectionné et de la recherche
   const filteredChildren = useMemo(() => {
@@ -153,7 +155,7 @@ export function RegistrationForm() {
 
   const calculateTotalAmount = () => {
     if (!selectedCamp) return 0;
-    return selectedCamp.daysCount * selectedCamp.pricePerDay;
+    return selectedCamp.totalPrice ?? selectedCamp.daysCount * selectedCamp.pricePerDay;
   };
 
   const onSubmit = async (values: RegistrationFormValues) => {
@@ -172,6 +174,8 @@ export function RegistrationForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-3">{optionsPage0.controls(campsData?.total ?? 0, isLoadingCamps, optionsError0, optionsRetry0)}{optionsPage1.controls(parentsData?.total ?? 0, isLoadingParents, optionsError1, optionsRetry1)}{optionsPage2.controls(childrenData?.total ?? 0, isLoadingChildren, optionsError2, optionsRetry2)}</div>
+
         {/* Informations de l'inscription */}
         <Card>
           <CardHeader>
@@ -220,7 +224,7 @@ export function RegistrationForm() {
                     <SelectContent>
                       {campsData?.camps.map((camp) => (
                         <SelectItem key={camp.id} value={camp.id}>
-                          {camp.name} - {camp.location} ({camp.pricePerDay.toLocaleString()} XPF/jour)
+                          {camp.name} - {camp.location} ({camp.pricePerDay.toLocaleString('fr-FR')} XPF/jour)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -305,7 +309,7 @@ export function RegistrationForm() {
                     {selectedChild && (
                       <FormDescription className="text-xs">
                         Sélectionné: {selectedChild.firstName} {selectedChild.lastName} (
-                        {new Date(selectedChild.birthDate).toLocaleDateString('fr-FR')})
+                        {new Date(selectedChild.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })})
                       </FormDescription>
                     )}
 
@@ -335,7 +339,7 @@ export function RegistrationForm() {
                               )}
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR')}
+                              Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                             </span>
                           </button>
                         ))}
@@ -367,13 +371,13 @@ export function RegistrationForm() {
                     <div>
                       <span className="text-muted-foreground">Prix par jour: </span>
                       <span className="font-medium">
-                        {selectedCamp.pricePerDay.toLocaleString()} XPF
+                        {selectedCamp.pricePerDay.toLocaleString('fr-FR')} XPF
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Date limite: </span>
                       <span className="font-medium">
-                        {new Date(selectedCamp.registrationDeadline).toLocaleDateString('fr-FR')}
+                        {new Date(selectedCamp.registrationDeadline).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                       </span>
                     </div>
                     <div>
@@ -383,8 +387,8 @@ export function RegistrationForm() {
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Période: </span>
                       <span className="font-medium">
-                        Du {selectedCamp.startDate ? new Date(selectedCamp.startDate).toLocaleDateString('fr-FR') : '—'} au{' '}
-                        {selectedCamp.endDate ? new Date(selectedCamp.endDate).toLocaleDateString('fr-FR') : '—'} ({selectedCamp.daysCount} jours)
+                        Du {selectedCamp.startDate ? new Date(selectedCamp.startDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' }) : '—'} au{' '}
+                        {selectedCamp.endDate ? new Date(selectedCamp.endDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' }) : '—'} ({selectedCamp.daysCount} jours)
                       </span>
                     </div>
                   </div>
@@ -398,7 +402,7 @@ export function RegistrationForm() {
                     </span>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Montant total</p>
-                      <p className="text-2xl font-bold">{calculateTotalAmount().toLocaleString()} XPF</p>
+                      <p className="text-2xl font-bold">{calculateTotalAmount().toLocaleString('fr-FR')} XPF</p>
                     </div>
                   </div>
                 </div>

@@ -30,7 +30,9 @@ export function AdminPaymentsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination + recherche server-side
-  const { data, isLoading } = trpc.payments.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.payments.list.useQuery({
+    sortBy: pagination.sortBy as 'paymentDate' | 'amount' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     ...(searchTerm && searchTerm.trim() !== '' && { search: searchTerm }),
@@ -93,6 +95,7 @@ export function AdminPaymentsTableClient() {
       )}
 
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['paymentDate', 'amount']}
         columns={columnsWithActions}
         data={data?.payments || []}
         totalCount={data?.total || 0}

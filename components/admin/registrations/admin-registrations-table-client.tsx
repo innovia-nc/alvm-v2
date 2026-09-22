@@ -1,8 +1,9 @@
 'use client';
+import { usePagedOptions } from '@/hooks/use-paged-options';
 
 import type { Row } from '@tanstack/react-table';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
@@ -39,10 +40,11 @@ type StatusFilter = 'all' | 'PENDING' | 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
 export function AdminRegistrationsTableClient() {
   const router = useRouter();
+  const initialStatus = useSearchParams().get("status");
   const [deletingItem, setDeletingItem] = useState<AdminRegistrationType | null>(null);
   const [confirmingItem, setConfirmingItem] = useState<AdminRegistrationType | null>(null);
   const [cancellingItem, setCancellingItem] = useState<AdminRegistrationType | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(['PENDING', 'CONFIRMED', 'WAITLIST', 'CANCELLED'].includes(initialStatus ?? '') ? initialStatus as StatusFilter : 'all');
   const [campFilter, setCampFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -51,15 +53,17 @@ export function AdminRegistrationsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Charger la liste des camps pour le dropdown
-  const { data: campsData } = trpc.camps.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions("un camp");
+  const { data: campsData , error: optionsError0, refetch: optionsRetry0} = trpc.camps.list.useQuery({
+    ...optionsPage0.params,
     sortBy: 'name',
     sortOrder: 'asc',
   });
 
   // Query tRPC avec pagination, filtres serveur et recherche
-  const { data, isLoading } = trpc.registrations.list.useQuery({
+  const { data, isLoading, error: listError, refetch: retryList } = trpc.registrations.list.useQuery({
+    sortBy: pagination.sortBy as 'registrationDate' | 'childName' | 'status' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     ...(statusFilter !== 'all' && { status: statusFilter }),
@@ -176,6 +180,8 @@ export function AdminRegistrationsTableClient() {
 
   return (
     <div className="space-y-4">
+      <div className="space-y-3">{optionsPage0.controls(campsData?.total ?? 0, isLoading, optionsError0, optionsRetry0)}</div>
+
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -242,6 +248,7 @@ export function AdminRegistrationsTableClient() {
 
       {/* Table avec pagination */}
       <DataTableServer
+        error={listError} onRetry={retryList} sortableColumns={['registrationDate', 'childName', 'status']}
         columns={columnsWithActions}
         data={registrations}
         totalCount={data?.total || 0}

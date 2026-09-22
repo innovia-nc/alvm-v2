@@ -1,4 +1,5 @@
 'use client';
+import { formatNumber } from '@/lib/format';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -85,12 +86,12 @@ export function RefundDetails({ refund }: { refund: Refund }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Montant remboursé</p>
-              <p className="text-2xl font-bold">{refund.amount.toLocaleString()} XPF</p>
+              <p className="text-2xl font-bold">{formatNumber(refund.amount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date de remboursement</p>
               <p className="font-medium">
-                {new Date(refund.refundDate).toLocaleDateString('fr-FR')}
+                {new Date(refund.refundDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
               </p>
             </div>
             <div>
@@ -142,12 +143,12 @@ export function RefundDetails({ refund }: { refund: Refund }) {
             <div className="space-y-2">
               <div>
                 <p className="text-sm text-muted-foreground">Montant du paiement original</p>
-                <p className="font-semibold text-lg">{refund.payment.amount.toLocaleString()} XPF</p>
+                <p className="font-semibold text-lg">{formatNumber(refund.payment.amount)} XPF</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Date de paiement</p>
                 <p className="font-medium">
-                  {new Date(refund.payment.paymentDate).toLocaleDateString('fr-FR')}
+                  {new Date(refund.payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                 </p>
               </div>
               <div>
