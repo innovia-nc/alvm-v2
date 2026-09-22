@@ -1,3 +1,5 @@
+import { effectiveInvoiceStatus, overdueWhere } from '@/server/helpers/invoice-status';
+import { issueInvoice, cancelUnpaidInvoice, validateInvoiceRegistrations } from '@/server/services/invoice-lifecycle.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import {
@@ -9,8 +11,6 @@ import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
-import { createInvoiceAccountingEntries } from '@/server/services/accounting.service';
-import { applyAvailableCreditsToInvoice } from '@/server/services/credit-application.service';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 import { generateAndStoreInvoicePdf } from '@/server/services/invoice-pdf.service';
 
@@ -43,6 +43,7 @@ const invoiceSchema = z.object({
   taxRate: z.number().optional(),
   totalAmount: z.number(),
   paidAmount: z.number(),
+  creditedAmount: z.number(),
   status: invoiceStatusEnum,
   version: z.number().int(),
   pdfUrl: z.string().nullable(),
@@ -152,9 +153,10 @@ function mapInvoiceWithDetails(inv: any, role?: string) {
     taxRate: inv.taxRate ? toNum(inv.taxRate) : undefined,
     totalAmount,
     paidAmount,
-    status: inv.status as InvStatus,
+    creditedAmount: toNum(inv.creditedAmount),
+    status: effectiveInvoiceStatus(inv),
     version: inv.version,
-    pdfUrl: inv.pdfUrl,
+    pdfUrl: `/api/documents/invoice/${inv.id}`,
     accountingExportedAt: inv.accountingExportedAt,
     createdAt: inv.createdAt,
     updatedAt: inv.updatedAt,
@@ -174,7 +176,7 @@ function mapInvoiceWithDetails(inv: any, role?: string) {
       paymentDate: p.paymentDate,
       paymentMethod: p.paymentMethod?.name || 'Unknown',
     })),
-    remainingAmount: totalAmount - paidAmount,
+    remainingAmount: Math.max(0, totalAmount - paidAmount - toNum(inv.creditedAmount)),
     creatorName,
     validatorName,
   };
@@ -192,9 +194,10 @@ function mapInvoice(inv: any) {
     taxRate: inv.taxRate ? toNum(inv.taxRate) : undefined,
     totalAmount: toNum(inv.totalAmount),
     paidAmount: toNum(inv.paidAmount),
-    status: inv.status as InvStatus,
+    creditedAmount: toNum(inv.creditedAmount),
+    status: effectiveInvoiceStatus(inv),
     version: inv.version,
-    pdfUrl: inv.pdfUrl,
+    pdfUrl: `/api/documents/invoice/${inv.id}`,
     accountingExportedAt: inv.accountingExportedAt,
     createdAt: inv.createdAt,
     updatedAt: inv.updatedAt,
@@ -223,7 +226,7 @@ export const invoicesRouter = router({
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }))
     .output(z.object({
-      invoices: z.array(invoiceWithDetailsSchema),
+      invoices: z.array(invoiceSchema.extend({ parent: z.object({ firstName: z.string(), lastName: z.string(), email: z.string() }), remainingAmount: z.number() })),
       total: z.number(),
     }))
     .query(async ({ ctx, input }) => {
@@ -240,7 +243,9 @@ export const invoicesRouter = router({
         where.parentId = parentId;
       }
 
-      if (status) where.status = status;
+      if (status === 'OVERDUE') Object.assign(where, overdueWhere());
+      else if (status === 'SENT') Object.assign(where, { status: 'SENT', dueDate: { gte: new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Noumea' })) } });
+      else if (status) where.status = status;
       else if (statuses && statuses.length > 0) where.status = { in: statuses };
 
       if (search && search.trim().length > 0) {
@@ -264,8 +269,8 @@ export const invoicesRouter = router({
       const [invoices, total] = await Promise.all([
         ctx.prisma.invoice.findMany({
           where,
-          include: invoiceInclude,
-          orderBy,
+          include: { parent: { select: { firstName: true, lastName: true, email: true } } },
+          orderBy: [...(Array.isArray(orderBy) ? orderBy : [orderBy]), { id: 'asc' }],
           take: limit,
           skip: offset,
         }),
@@ -318,6 +323,8 @@ export const invoicesRouter = router({
       );
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await validateInvoiceRegistrations(tx, input.parentId, input.lines.map(l => l.registrationId));
         const taxRate = await getTaxRateDecimal(tx);
         const taxAmount = subtotalHt * taxRate;
         const totalAmount = subtotalHt + taxAmount;
@@ -368,7 +375,7 @@ export const invoicesRouter = router({
       const reg = await ctx.prisma.registration.findFirst({
         where: { id: input.registrationId, deletedAt: null },
         include: {
-          camp: { select: { name: true, startDate: true, endDate: true, pricePerDay: true, campType: { select: { accountingCode: true } } } },
+          camp: { select: { name: true, startDate: true, endDate: true, pricePerDay: true, totalPrice: true, campType: { select: { accountingCode: true } } } },
           child: { select: { firstName: true, lastName: true } },
         },
       });
@@ -403,7 +410,7 @@ export const invoicesRouter = router({
       // 4. Calculate amounts
       const daysCount = computeDaysCount(reg.camp.startDate, reg.camp.endDate);
       const pricePerDay = toNum(reg.camp.pricePerDay);
-      const subtotalHt = daysCount * pricePerDay;
+      const subtotalHt = reg.camp.totalPrice == null ? daysCount * pricePerDay : toNum(reg.camp.totalPrice);
 
       // 5. Create invoice with line
       const startStr = reg.camp.startDate
@@ -415,6 +422,8 @@ export const invoicesRouter = router({
       const description = `Camp "${reg.camp.name}" - ${reg.child.firstName} ${reg.child.lastName} (${startStr} - ${endStr})`;
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await validateInvoiceRegistrations(tx, reg.parentId, [reg.id]);
         const taxRate = await getTaxRateDecimal(tx);
         const taxAmount = subtotalHt * taxRate;
         const totalAmount = subtotalHt + taxAmount;
@@ -433,7 +442,7 @@ export const invoicesRouter = router({
             subtotalHt,
             taxAmount,
             taxRate,
-            status: input.status,
+            status: 'DRAFT',
             createdById: ctx.user.id,
           },
         });
@@ -443,30 +452,13 @@ export const invoicesRouter = router({
             invoiceId: created.id,
             registrationId: reg.id,
             description,
-            quantity: daysCount,
-            unitPrice: pricePerDay,
+            quantity: 1,
+            unitPrice: subtotalHt,
             totalPrice: subtotalHt,
           },
         });
 
-        // Generate accounting entries if invoice is created as SENT
-        if (input.status === 'SENT') {
-          const accountingCode =
-            reg.camp.campType?.accountingCode || '706000';
-
-          await createInvoiceAccountingEntries(tx, {
-            invoiceId: created.id,
-            parentId: reg.parentId,
-            invoiceNumber: created.invoiceNumber,
-            issueDate: created.issueDate,
-            subtotalHt,
-            taxAmount,
-            totalAmount,
-            taxRate,
-            accountingCode,
-            userId: ctx.user.id,
-          });
-        }
+        if (input.status === 'SENT') return issueInvoice(tx, created.id, ctx.user.id);
 
         return created;
       });
@@ -489,7 +481,7 @@ export const invoicesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.invoice.findFirst({
         where: { id: input.id, deletedAt: null },
-        select: { id: true, status: true, taxRate: true, version: true },
+        select: { id: true, parentId: true, status: true, taxRate: true, version: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
@@ -510,10 +502,13 @@ export const invoicesRouter = router({
       const totalAmount = subtotalHt + taxAmount;
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await validateInvoiceRegistrations(tx, existing.parentId, input.lines.map(l => l.registrationId), input.id);
         // Optimistic lock + recompute totals
         const result = await tx.invoice.updateMany({
           where: { id: input.id, version: input.version, status: 'DRAFT' },
           data: {
+            pdfUrl: null,
             subtotalHt,
             taxAmount,
             totalAmount,
@@ -553,169 +548,32 @@ export const invoicesRouter = router({
       return mapInvoice(invoice);
     }),
 
-  validate: staffProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .output(invoiceSchema)
-    .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.invoice.findFirst({
-        where: { id: input.id, deletedAt: null },
-      });
-      if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
-      }
-      if (existing.status !== 'DRAFT') {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Seules les factures en brouillon peuvent être validées',
-        });
-      }
+  validate: staffProcedure.input(z.object({ id: z.string().uuid() })).output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
+      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+      return mapInvoice(await issueInvoice(tx, input.id, ctx.user.id));
+    })),
 
-      const invoice = await ctx.prisma.$transaction(async (tx) => {
-        const updated = await tx.invoice.update({
-          where: { id: input.id },
-          data: { status: 'SENT', pdfUrl: null, validatedById: ctx.user.id },
-        });
-
-        // Fetch invoice with lines and camp type accounting code
-        const invoiceWithLines = await tx.invoice.findUniqueOrThrow({
-          where: { id: input.id },
-          include: {
-            lines: {
-              where: { deletedAt: null },
-              include: {
-                registration: {
-                  include: {
-                    camp: {
-                      include: {
-                        campType: { select: { accountingCode: true } },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        // Derive accountingCode from the first line's camp type, fallback to default
-        const firstLine = invoiceWithLines.lines[0];
-        const accountingCode =
-          firstLine?.registration?.camp?.campType?.accountingCode || '706000';
-
-        await createInvoiceAccountingEntries(tx, {
-          invoiceId: updated.id,
-          parentId: updated.parentId,
-          invoiceNumber: updated.invoiceNumber,
-          issueDate: updated.issueDate,
-          subtotalHt: toNum(updated.subtotalHt),
-          taxAmount: toNum(updated.taxAmount),
-          totalAmount: toNum(updated.totalAmount),
-          taxRate: toNum(updated.taxRate),
-          accountingCode,
-          userId: ctx.user.id,
-        });
-
-        // US-FACT-02 — imputation FIFO des avoirs disponibles du client, après
-        // les écritures VE (la facture doit exister au journal avant d'être
-        // partiellement soldée). Le service crée les paiements « Avoir »
-        // correspondants et leurs écritures BQ.
-        const credits = await applyAvailableCreditsToInvoice(tx, {
-          invoiceId: updated.id,
-          invoiceNumber: updated.invoiceNumber,
-          parentId: updated.parentId,
-          totalAmount: toNum(updated.totalAmount),
-          paidAmount: toNum(updated.paidAmount),
-          userId: ctx.user.id,
-        });
-
-        if (credits.totalApplied === 0) {
-          return updated;
-        }
-
-        // Le montant réglé et le statut sont portés ici (et non dans le
-        // service) : la décision de solder la facture appartient au router,
-        // seul détenteur de la machine à états.
-        const newPaidAmount = toNum(updated.paidAmount) + credits.totalApplied;
-
-        return tx.invoice.update({
-          where: { id: updated.id },
-          data: {
-            paidAmount: newPaidAmount,
-            status: credits.remainingDue <= 0 ? 'PAID' : updated.status,
-          },
-        });
-      });
-
-      return mapInvoice(invoice);
-    }),
-
-  updateStatus: staffProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      status: z.enum(['SENT', 'PAID', 'OVERDUE', 'CANCELLED']),
-      version: z.number().int().min(0),
-    }))
-    .output(invoiceSchema)
-    .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.invoice.findFirst({
-        where: { id: input.id, deletedAt: null },
-      });
-      if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
-      }
-
-      // Validate status transitions
-      const currentStatus = existing.status as InvStatus;
-      const validTransitions: Record<InvStatus, InvStatus[]> = {
-        DRAFT: ['SENT', 'CANCELLED'],
-        SENT: ['PAID', 'OVERDUE', 'CANCELLED'],
-        OVERDUE: ['PAID', 'CANCELLED'],
-        PAID: ['CREDITED'],
-        CANCELLED: [],
-        CREDITED: [],
-      };
-
-      const allowed = validTransitions[currentStatus] || [];
-      if (!allowed.includes(input.status as InvStatus)) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: `Transition de statut invalide : ${currentStatus} -> ${input.status}`,
-        });
-      }
-
-      // Block cancellation of paid invoices without prior refund
-      if (input.status === 'CANCELLED' && toNum(existing.paidAmount) > 0) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Impossible d\'annuler une facture avec des paiements. Creer un avoir ou un remboursement d\'abord.',
-        });
-      }
-
-      // Optimistic locking
-      const result = await ctx.prisma.invoice.updateMany({
-        where: { id: input.id, version: input.version },
-        data: { status: input.status, version: { increment: 1 } },
-      });
-
-      if (result.count === 0) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: 'La facture a été modifiée par un autre utilisateur. Rechargez et réessayez.',
-        });
-      }
-
-      const invoice = await ctx.prisma.invoice.findUniqueOrThrow({
-        where: { id: input.id },
-      });
-
-      return mapInvoice(invoice);
-    }),
+  updateStatus: staffProcedure.input(z.object({ id: z.string().uuid(), status: z.enum(['SENT', 'PAID', 'OVERDUE', 'CANCELLED']), version: z.number().int().min(0) })).output(invoiceSchema)
+    .mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
+      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+      const invoice = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
+      if (!invoice) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+      if (invoice.version !== input.version) throw new TRPCError({ code: 'CONFLICT', message: 'Rechargez la facture modifiée' });
+      if (input.status === 'SENT') return mapInvoice(await issueInvoice(tx, input.id, ctx.user.id));
+      if (input.status === 'CANCELLED') return mapInvoice(await cancelUnpaidInvoice(tx, input.id, ctx.user.id, input.version));
+      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Le statut de paiement et le retard sont calculés automatiquement' });
+    })),
 
   delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        const document = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
+        if (!document) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+        if (document.status !== 'DRAFT') throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Seul un brouillon peut être supprimé' });
         // Check for payments
         const paymentCount = await tx.payment.count({
           where: { invoiceId: input.id },
@@ -887,7 +745,7 @@ export const invoicesRouter = router({
           deletedAt: null,
         },
         include: {
-          camp: { select: { id: true, name: true, startDate: true, endDate: true, pricePerDay: true } },
+          camp: { select: { id: true, name: true, startDate: true, endDate: true, pricePerDay: true, totalPrice: true } },
           child: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { registrationDate: 'desc' },
@@ -904,7 +762,7 @@ export const invoicesRouter = router({
             childFirstName: r.child.firstName,
             childLastName: r.child.lastName,
             registrationDate: r.registrationDate,
-            totalAmount: daysCount * toNum(r.camp.pricePerDay),
+            totalAmount: r.camp.totalPrice == null ? daysCount * toNum(r.camp.pricePerDay) : toNum(r.camp.totalPrice),
             status: 'CONFIRMED' as const,
             paymentStatus: 'UNPAID' as const,
           };

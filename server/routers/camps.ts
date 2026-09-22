@@ -1,3 +1,4 @@
+import { syncCampDays } from '@/server/services/camp-days.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import {
@@ -23,6 +24,7 @@ const campSchema = z.object({
   endDate: z.date().nullable(),
   registrationDeadline: z.date(),
   pricePerDay: z.number(),
+  totalPrice: z.number(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'CLOSED', 'CANCELLED']),
   createdBy: z.string().uuid(),
   createdAt: z.date(),
@@ -56,6 +58,7 @@ function mapCamp(c: any) {
     endDate: c.endDate,
     registrationDeadline: c.registrationDeadline,
     pricePerDay: toNum(c.pricePerDay),
+    totalPrice: c.totalPrice == null ? computeDaysCount(c.startDate, c.endDate) * toNum(c.pricePerDay) : toNum(c.totalPrice),
     status: c.status as Status,
     createdBy: c.createdBy,
     createdAt: c.createdAt,
@@ -117,7 +120,7 @@ export const campsRouter = router({
               },
             },
           },
-          orderBy: { [sortBy]: sortOrder },
+          orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
         }),
@@ -137,7 +140,7 @@ export const campsRouter = router({
             },
             daysCount,
             registrationsCount: regCount,
-            availableSpots: c.maxCapacity - regCount,
+            availableSpots: Math.max(0, c.maxCapacity - regCount),
           };
         }),
         total,
@@ -183,7 +186,7 @@ export const campsRouter = router({
         },
         daysCount,
         registrationsCount: regCount,
-        availableSpots: camp.maxCapacity - regCount,
+        availableSpots: Math.max(0, camp.maxCapacity - regCount),
       };
     }),
 
@@ -205,7 +208,10 @@ export const campsRouter = router({
     ))
     .output(campSchema)
     .mutation(async ({ ctx, input }) => {
-      const campType = await ctx.prisma.campType.findFirst({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const campType = await tx.campType.findFirst({
         where: { id: input.campTypeId, active: true },
       });
       if (!campType) {
@@ -218,7 +224,7 @@ export const campsRouter = router({
       );
       const pricePerDay = daysCount > 0 ? input.totalPrice / daysCount : 0;
 
-      const camp = await ctx.prisma.camp.create({
+      const camp = await tx.camp.create({
         data: {
           name: input.name,
           description: input.description,
@@ -229,12 +235,15 @@ export const campsRouter = router({
           endDate: new Date(input.endDate),
           registrationDeadline: new Date(input.registrationDeadline),
           pricePerDay,
+          totalPrice: input.totalPrice,
           status: input.status,
           createdBy: ctx.user.id,
         },
       });
 
+      await syncCampDays(tx, camp);
       return mapCamp(camp);
+      });
     }),
 
   update: staffProcedure
@@ -259,7 +268,10 @@ export const campsRouter = router({
     ))
     .output(campSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.camp.findFirst({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const existing = await tx.camp.findFirst({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
@@ -279,26 +291,38 @@ export const campsRouter = router({
       if (rest.registrationDeadline !== undefined) data.registrationDeadline = new Date(rest.registrationDeadline);
       if (rest.status !== undefined) data.status = rest.status;
 
-      if (totalPrice !== undefined) {
+      if (totalPrice !== undefined || startDate !== undefined || endDate !== undefined) {
+        const acceptedPrice = totalPrice ?? toNum(existing.totalPrice ?? (toNum(existing.pricePerDay) * computeDaysCount(existing.startDate, existing.endDate)));
+        data.totalPrice = acceptedPrice;
         const sDate = startDate ? new Date(startDate) : existing.startDate;
         const eDate = endDate ? new Date(endDate) : existing.endDate;
         const daysCount = computeDaysCount(sDate, eDate);
-        data.pricePerDay = daysCount > 0 ? totalPrice / daysCount : 0;
+        data.pricePerDay = daysCount > 0 ? acceptedPrice / daysCount : 0;
       }
 
       if (Object.keys(data).length === 0) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Aucune modification fournie' });
       }
 
-      const camp = await ctx.prisma.camp.update({ where: { id }, data });
+      const newStart = startDate ? new Date(startDate) : existing.startDate;
+      const newEnd = endDate ? new Date(endDate) : existing.endDate;
+      if (newEnd < newStart) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Période invalide' });
+      if (rest.maxCapacity !== undefined && await tx.registration.count({ where: { campId: id, status: 'CONFIRMED', deletedAt: null } }) > rest.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité inférieure aux inscriptions confirmées' });
+      if ((startDate || endDate) && await tx.attendance.count({ where: { registration: { campId: id }, OR: [{ attendanceDate: { lt: newStart } }, { attendanceDate: { gt: newEnd } }] } }) > 0) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Des présences existent hors de cette période' });
+      const camp = await tx.camp.update({ where: { id }, data });
+      await syncCampDays(tx, camp);
       return mapCamp(camp);
+      });
     }),
 
   delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const confirmedRegs = await ctx.prisma.registration.count({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const confirmedRegs = await tx.registration.count({
         where: { campId: input.id, status: 'CONFIRMED', deletedAt: null },
       });
       if (confirmedRegs > 0) {
@@ -308,7 +332,7 @@ export const campsRouter = router({
         });
       }
 
-      const result = await ctx.prisma.camp.updateMany({
+      const result = await tx.camp.updateMany({
         where: { id: input.id, deletedAt: null },
         data: { deletedAt: new Date() },
       });
@@ -317,6 +341,7 @@ export const campsRouter = router({
       }
 
       return { success: true };
+      });
     }),
 
   listCampTypes: publicProcedure
@@ -342,7 +367,10 @@ export const campsRouter = router({
     }))
     .output(campSchema)
     .mutation(async ({ ctx, input }) => {
-      const source = await ctx.prisma.camp.findFirst({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const source = await tx.camp.findFirst({
         where: { id: input.id, deletedAt: null },
       });
       if (!source) {
@@ -352,7 +380,7 @@ export const campsRouter = router({
       const targetCampTypeId = input.campTypeId ?? source.campTypeId;
 
       if (input.campTypeId && input.campTypeId !== source.campTypeId) {
-        const campType = await ctx.prisma.campType.findFirst({
+        const campType = await tx.campType.findFirst({
           where: { id: input.campTypeId, active: true },
           select: { id: true },
         });
@@ -364,7 +392,7 @@ export const campsRouter = router({
         }
       }
 
-      const camp = await ctx.prisma.camp.create({
+      const camp = await tx.camp.create({
         data: {
           name: input.name,
           description: source.description,
@@ -375,11 +403,14 @@ export const campsRouter = router({
           endDate: source.endDate,
           registrationDeadline: source.registrationDeadline,
           pricePerDay: source.pricePerDay,
+          totalPrice: source.totalPrice,
           status: 'DRAFT',
           createdBy: ctx.user.id,
         },
       });
 
+      await syncCampDays(tx, camp);
       return mapCamp(camp);
+      });
     }),
 });

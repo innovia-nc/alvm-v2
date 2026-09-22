@@ -370,11 +370,12 @@ describe('creditNotes router', () => {
 
       expect(result).toEqual({
         success: true,
-        pdfUrl: 'https://store.blob.vercel-storage.com/credit-notes/AVO-2025-0001.pdf',
+        pdfUrl: `/api/documents/credit/${creditNoteId}`,
       });
       expect(uploadToStorage).toHaveBeenCalledWith(expect.anything(), {
         pathname: `credit-notes/AVO-2025-0001-${creditNoteId}.pdf`,
         contentType: 'application/pdf',
+        access: 'private',
       });
       expect(admin.mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: creditNoteId },

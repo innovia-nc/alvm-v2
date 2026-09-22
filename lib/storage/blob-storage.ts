@@ -4,7 +4,7 @@ import type { Readable } from 'node:stream';
 interface UploadOptions {
   pathname: string;
   contentType?: string;
-  access?: 'public';
+  access?: 'public' | 'private';
 }
 
 type UploadData = Buffer | Blob | File | Readable | ReadableStream;
@@ -13,7 +13,8 @@ export async function uploadToStorage(
   data: UploadData,
   options: UploadOptions,
 ): Promise<{ pathname: string; url: string }> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const token = options.access === 'private' ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
     throw new Error(
       'Vercel Blob non configuré. BLOB_READ_WRITE_TOKEN absent — connecter le store Blob au projet sur Vercel.',
     );
@@ -21,6 +22,7 @@ export async function uploadToStorage(
 
   const blob = await put(options.pathname, data, {
     access: options.access ?? 'public',
+    token,
     contentType: options.contentType,
     addRandomSuffix: false,
     allowOverwrite: true,
@@ -30,13 +32,13 @@ export async function uploadToStorage(
 }
 
 export async function deleteFromStorage(url: string): Promise<void> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!(url.includes('.private.blob.') ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : process.env.BLOB_READ_WRITE_TOKEN)) {
     throw new Error(
       'Vercel Blob non configuré. BLOB_READ_WRITE_TOKEN absent — connecter le store Blob au projet sur Vercel.',
     );
   }
 
-  await del(url);
+  await del(url, { token: url.includes('.private.blob.') ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : process.env.BLOB_READ_WRITE_TOKEN });
 }
 
 /**

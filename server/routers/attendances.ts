@@ -217,8 +217,11 @@ export const attendancesRouter = router({
     }))
     .output(attendanceSchema)
     .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
       // Verify registration exists and is confirmed
-      const reg = await ctx.prisma.registration.findFirst({
+      const reg = await tx.registration.findFirst({
         where: { id: input.registrationId, status: 'CONFIRMED', deletedAt: null },
         include: { camp: { select: { startDate: true, endDate: true } } },
       });
@@ -236,7 +239,7 @@ export const attendancesRouter = router({
       }
 
       // Upsert attendance
-      const existing = await ctx.prisma.attendance.findUnique({
+      const existing = await tx.attendance.findUnique({
         where: {
           registrationId_attendanceDate: {
             registrationId: input.registrationId,
@@ -254,11 +257,11 @@ export const attendancesRouter = router({
       };
 
       const attendance = existing
-        ? await ctx.prisma.attendance.update({
+        ? await tx.attendance.update({
             where: { id: existing.id },
             data,
           })
-        : await ctx.prisma.attendance.create({
+        : await tx.attendance.create({
             data: {
               registrationId: input.registrationId,
               attendanceDate: attDate,
@@ -278,6 +281,7 @@ export const attendancesRouter = router({
         createdAt: attendance.createdAt,
         updatedAt: attendance.updatedAt,
       };
+      });
     }),
 
   markBulkAttendance: staffProcedure
@@ -291,7 +295,10 @@ export const attendancesRouter = router({
     }))
     .output(z.object({ success: z.boolean(), count: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const camp = await ctx.prisma.camp.findFirst({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const camp = await tx.camp.findFirst({
         where: { id: input.campId, deletedAt: null },
         select: { startDate: true, endDate: true },
       });
@@ -304,9 +311,13 @@ export const attendancesRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'La date est en dehors de la période du camp' });
       }
 
+      const ids = input.attendances.map(a => a.registrationId);
+      if (new Set(ids).size !== ids.length) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Inscription présente plusieurs fois dans le lot' });
+      const registrations = await tx.registration.findMany({ where: { id: { in: ids }, campId: input.campId, status: 'CONFIRMED', deletedAt: null }, select: { id: true } });
+      if (registrations.length !== ids.length) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Le lot contient une inscription non confirmée ou étrangère au camp' });
       let count = 0;
       for (const att of input.attendances) {
-        const existing = await ctx.prisma.attendance.findUnique({
+        const existing = await tx.attendance.findUnique({
           where: {
             registrationId_attendanceDate: {
               registrationId: att.registrationId,
@@ -316,12 +327,12 @@ export const attendancesRouter = router({
         });
 
         if (existing) {
-          await ctx.prisma.attendance.update({
+          await tx.attendance.update({
             where: { id: existing.id },
             data: { status: att.status as AttendanceStatus, recordedBy: ctx.user.id },
           });
         } else {
-          await ctx.prisma.attendance.create({
+          await tx.attendance.create({
             data: {
               registrationId: att.registrationId,
               attendanceDate: attDate,
@@ -334,6 +345,7 @@ export const attendancesRouter = router({
       }
 
       return { success: true, count };
+      });
     }),
 
   delete: staffProcedure

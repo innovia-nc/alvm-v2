@@ -1,3 +1,4 @@
+import { cancelRegistrationWithAccounting } from '@/server/services/registration-cancellation.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import {
@@ -30,6 +31,7 @@ const registrationSchema = z.object({
   status: registrationStatusEnum,
   registrationDate: z.date(),
   specialRequirements: z.string().nullable(),
+  cancellationRequestedAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -73,6 +75,7 @@ const registrationInclude = {
       startDate: true,
       endDate: true,
       pricePerDay: true,
+      totalPrice: true,
       registrationDeadline: true,
       status: true,
     },
@@ -114,6 +117,7 @@ function mapRegistrationWithDetails(r: any) {
     status: r.status as RegStatus,
     registrationDate: r.registrationDate,
     specialRequirements: r.specialRequirements,
+    cancellationRequestedAt: r.cancellationRequestedAt ?? null,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     camp: {
@@ -139,7 +143,7 @@ function mapRegistrationWithDetails(r: any) {
       email: r.parent.email,
       phone: r.parent.phone,
     },
-    totalAmount: daysCount * pricePerDay,
+    totalAmount: r.camp.totalPrice == null ? daysCount * pricePerDay : toNum(r.camp.totalPrice),
     invoiceId: r.invoiceLines?.[0]?.invoiceId ?? null,
     invoiceNumber: r.invoiceLines?.[0]?.invoice?.invoiceNumber ?? null,
     invoiceStatus: r.invoiceLines?.[0]?.invoice?.status ?? null,
@@ -155,6 +159,7 @@ function mapRegistration(r: any) {
     status: r.status as RegStatus,
     registrationDate: r.registrationDate,
     specialRequirements: r.specialRequirements,
+    cancellationRequestedAt: r.cancellationRequestedAt ?? null,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
@@ -214,7 +219,7 @@ export const registrationsRouter = router({
         ctx.prisma.registration.findMany({
           where,
           include: registrationInclude,
-          orderBy: orderByMap[sortBy],
+          orderBy: [orderByMap[sortBy], { id: 'asc' }],
           take: limit,
           skip: offset,
         }),
@@ -257,10 +262,16 @@ export const registrationsRouter = router({
     }))
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
-      const parentId = input.parentId || ctx.user.id;
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      if (ctx.user.role === 'PARENT' && input.parentId && input.parentId !== ctx.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Inscription réservée à votre famille' });
+      }
+      const parentId = ctx.user.role === 'PARENT' ? ctx.user.id : (input.parentId || ctx.user.id);
 
       // 1. Verify child exists and belongs to parent
-      const childLink = await ctx.prisma.childParent.findFirst({
+      const childLink = await tx.childParent.findFirst({
         where: {
           childId: input.childId,
           parentId,
@@ -275,7 +286,7 @@ export const registrationsRouter = router({
       }
 
       // 2. Verify camp is published and open for registration
-      const camp = await ctx.prisma.camp.findFirst({
+      const camp = await tx.camp.findFirst({
         where: { id: input.campId, deletedAt: null },
         select: {
           id: true,
@@ -310,8 +321,8 @@ export const registrationsRouter = router({
       }
 
       // 3. Check no existing registration for this child at this camp
-      const existing = await ctx.prisma.registration.findFirst({
-        where: { campId: input.campId, childId: input.childId, deletedAt: null },
+      const existing = await tx.registration.findFirst({
+        where: { campId: input.campId, childId: input.childId, deletedAt: null, status: { not: 'CANCELLED' } },
       });
       if (existing) {
         throw new TRPCError({
@@ -321,7 +332,7 @@ export const registrationsRouter = router({
       }
 
       // 4. Get all camp_days for selected_days
-      const campDays = await ctx.prisma.campDay.findMany({
+      const campDays = await tx.campDay.findMany({
         where: { campId: input.campId },
         select: { id: true },
         orderBy: { date: 'asc' },
@@ -333,7 +344,7 @@ export const registrationsRouter = router({
         camp._count.registrations >= camp.maxCapacity ? 'WAITLIST' : 'PENDING';
 
       // 6. Create registration
-      const registration = await ctx.prisma.registration.create({
+      const registration = await tx.registration.create({
         data: {
           campId: input.campId,
           childId: input.childId,
@@ -346,6 +357,7 @@ export const registrationsRouter = router({
       });
 
       return mapRegistration(registration);
+      });
     }),
 
   createByStaff: staffProcedure
@@ -358,8 +370,11 @@ export const registrationsRouter = router({
     }))
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
       // 1. Verify child belongs to parent
-      const childLink = await ctx.prisma.childParent.findFirst({
+      const childLink = await tx.childParent.findFirst({
         where: {
           childId: input.childId,
           parentId: input.parentId,
@@ -374,7 +389,7 @@ export const registrationsRouter = router({
       }
 
       // 2. Verify camp exists
-      const camp = await ctx.prisma.camp.findFirst({
+      const camp = await tx.camp.findFirst({
         where: { id: input.campId, deletedAt: null },
       });
       if (!camp) {
@@ -382,8 +397,8 @@ export const registrationsRouter = router({
       }
 
       // 3. Check no duplicate
-      const existing = await ctx.prisma.registration.findFirst({
-        where: { campId: input.campId, childId: input.childId, deletedAt: null },
+      const existing = await tx.registration.findFirst({
+        where: { campId: input.campId, childId: input.childId, deletedAt: null, status: { not: 'CANCELLED' } },
       });
       if (existing) {
         throw new TRPCError({
@@ -393,7 +408,7 @@ export const registrationsRouter = router({
       }
 
       // 4. Get camp_days for selected_days
-      const campDays = await ctx.prisma.campDay.findMany({
+      const campDays = await tx.campDay.findMany({
         where: { campId: input.campId },
         select: { id: true },
         orderBy: { date: 'asc' },
@@ -401,7 +416,8 @@ export const registrationsRouter = router({
       const selectedDays = campDays.map((d) => d.id);
 
       // 5. Create with staff-specified status
-      const registration = await ctx.prisma.registration.create({
+      if (input.status === 'CONFIRMED' && await tx.registration.count({ where: { campId: input.campId, status: 'CONFIRMED', deletedAt: null } }) >= camp.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité du camp atteinte' });
+      const registration = await tx.registration.create({
         data: {
           campId: input.campId,
           childId: input.childId,
@@ -414,6 +430,7 @@ export const registrationsRouter = router({
       });
 
       return mapRegistration(registration);
+      });
     }),
 
   updateByStaff: staffProcedure
@@ -424,9 +441,12 @@ export const registrationsRouter = router({
     }))
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
       const { id, ...updates } = input;
 
-      const existing = await ctx.prisma.registration.findFirst({
+      const existing = await tx.registration.findFirst({
         where: { id, deletedAt: null },
       });
       if (!existing) {
@@ -448,12 +468,19 @@ export const registrationsRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Aucune modification fournie' });
       }
 
-      const registration = await ctx.prisma.registration.update({
+      if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
+        const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
+        const count = await tx.registration.count({ where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null } });
+        if (!camp || count >= camp.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité du camp atteinte' });
+      }
+      if (input.status && input.status !== 'CONFIRMED' && await tx.invoiceLine.count({ where: { registrationId: existing.id, deletedAt: null, invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } } } }) > 0) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Utilisez le parcours d’annulation avec traitement de la facture' });
+      const registration = await tx.registration.update({
         where: { id },
         data,
       });
 
       return mapRegistration(registration);
+      });
     }),
 
   updateStatus: staffProcedure
@@ -463,7 +490,10 @@ export const registrationsRouter = router({
     }))
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.registration.findFirst({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const existing = await tx.registration.findFirst({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
@@ -483,14 +513,20 @@ export const registrationsRouter = router({
         });
       }
 
-      const registration = await ctx.prisma.registration.update({
+      if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
+        const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
+        const count = await tx.registration.count({ where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null } });
+        if (!camp || count >= camp.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité du camp atteinte' });
+      }
+      if (input.status && input.status !== 'CONFIRMED' && await tx.invoiceLine.count({ where: { registrationId: existing.id, deletedAt: null, invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } } } }) > 0) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Utilisez le parcours d’annulation avec traitement de la facture' });
+      const registration = await tx.registration.update({
         where: { id: input.id },
         data: { status: input.status },
       });
 
       // Promote waitlisted registration when a spot opens
       if (input.status === 'CANCELLED') {
-        const nextInLine = await ctx.prisma.registration.findFirst({
+        const nextInLine = await tx.registration.findFirst({
           where: {
             campId: existing.campId,
             status: 'WAITLIST',
@@ -499,7 +535,7 @@ export const registrationsRouter = router({
           orderBy: { createdAt: 'asc' },
         });
         if (nextInLine) {
-          await ctx.prisma.registration.update({
+          await tx.registration.update({
             where: { id: nextInLine.id },
             data: { status: 'PENDING' },
           });
@@ -507,6 +543,7 @@ export const registrationsRouter = router({
       }
 
       return mapRegistration(registration);
+      });
     }),
 
   analyzeRegistrationStatus: staffProcedure
@@ -535,10 +572,10 @@ export const registrationsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
       }
 
-      if (reg.status !== 'CONFIRMED') {
+      if (reg.status === 'CANCELLED') {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Seules les inscriptions confirmées peuvent être analysées pour annulation',
+          message: 'Inscription déjà annulée',
         });
       }
 
@@ -546,6 +583,7 @@ export const registrationsRouter = router({
       const invoice = await ctx.prisma.invoice.findFirst({
         where: {
           invoiceType: 'INVOICE',
+          status: { notIn: ['CANCELLED', 'CREDITED'] },
           deletedAt: null,
           lines: {
             some: { registrationId: input.registrationId },
@@ -557,6 +595,9 @@ export const registrationsRouter = router({
           status: true,
           totalAmount: true,
           paidAmount: true,
+          creditedAmount: true,
+          taxRate: true,
+          lines: { where: { registrationId: input.registrationId, deletedAt: null }, select: { totalPrice: true } },
         },
       });
 
@@ -573,8 +614,9 @@ export const registrationsRouter = router({
         };
       }
 
-      const totalAmount = toNum(invoice.totalAmount);
-      const paidAmount = toNum(invoice.paidAmount);
+      const totalAmount = Math.round(invoice.lines.reduce((sum, line) => sum + toNum(line.totalPrice), 0) * (1 + toNum(invoice.taxRate)) * 100) / 100;
+      const effective = toNum(invoice.totalAmount) - toNum(invoice.creditedAmount);
+      const paidAmount = effective > 0 ? Math.round(Math.min(totalAmount, toNum(invoice.paidAmount) * totalAmount / effective) * 100) / 100 : 0;
 
       if (invoice.status === 'DRAFT') {
         return {
@@ -589,7 +631,7 @@ export const registrationsRouter = router({
         };
       }
 
-      if (invoice.status === 'SENT' && paidAmount === 0) {
+      if (paidAmount === 0) {
         return {
           hasInvoice: true,
           invoiceStatus: 'SENT',
@@ -609,9 +651,9 @@ export const registrationsRouter = router({
           totalAmount,
           paidAmount,
           suggestedCase: 'PARTIALLY_PAID' as const,
-          requiredSteps: 3,
+          requiredSteps: 4,
           requiresRefundChoice: true,
-          requiresPaymentMethod: false,
+          requiresPaymentMethod: true,
         };
       }
 
@@ -639,6 +681,7 @@ export const registrationsRouter = router({
       registrationId: z.string().uuid(),
       reason: z.string().min(10, 'Le motif doit contenir au moins 10 caractères'),
       refundChoice: z.enum(['IMMEDIATE_REFUND', 'FUTURE_CREDIT']).optional(),
+      paymentMethodCode: z.enum(['CASH', 'CHECK', 'BANK_TRANSFER']).optional(),
     }))
     .output(z.object({
       success: z.boolean(),
@@ -668,317 +711,19 @@ export const registrationsRouter = router({
         method: z.string(),
       }).nullable(),
     }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.user.id;
-
-      return ctx.prisma.$transaction(async (tx) => {
-        // 1. Get the registration with camp -> campType for accountingCode
-        const reg = await tx.registration.findFirst({
-          where: { id: input.registrationId, deletedAt: null },
-          include: {
-            camp: {
-              select: {
-                campType: {
-                  select: { accountingCode: true },
-                },
-              },
-            },
-          },
-        });
-        if (!reg) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
-        }
-        if (reg.status !== 'CONFIRMED') {
-          throw new TRPCError({
-            code: 'PRECONDITION_FAILED',
-            message: 'Seules les inscriptions confirmées peuvent être annulées avec gestion comptable',
-          });
-        }
-
-        const accountingCode = reg.camp.campType.accountingCode || '706000';
-
-        // 2. Find associated invoice
-        const invoice = await tx.invoice.findFirst({
-          where: {
-            invoiceType: 'INVOICE',
-            deletedAt: null,
-            lines: { some: { registrationId: input.registrationId } },
-          },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        let caseType: string;
-        let invoiceData: { id: string; invoiceNumber: string; status: string; totalAmount: number; paidAmount: number } | null = null;
-        let creditNoteData: { id: string; invoiceNumber: string; amount: number } | null = null;
-        let refundData: { id: string; amount: number; method: string } | null = null;
-
-        // Helper: cancel the registration and promote waitlisted
-        async function cancelRegistration() {
-          const cancelled = await tx.registration.update({
-            where: { id: input.registrationId },
-            data: {
-              status: 'CANCELLED',
-              cancellationDate: new Date(),
-              cancellationReason: input.reason,
-              cancelledBy: userId,
-            },
-            select: { campId: true },
-          });
-
-          // Promote the oldest WAITLIST registration to PENDING
-          const nextInLine = await tx.registration.findFirst({
-            where: {
-              campId: cancelled.campId,
-              status: 'WAITLIST',
-              deletedAt: null,
-            },
-            orderBy: { createdAt: 'asc' },
-          });
-          if (nextInLine) {
-            await tx.registration.update({
-              where: { id: nextInLine.id },
-              data: { status: 'PENDING' },
-            });
-          }
-        }
-
-        // Helper: create credit note from invoice
-        async function createCreditNote(inv: typeof invoice, amount?: number) {
-          if (!inv) return null;
-          const creditAmount = amount ?? toNum(inv.totalAmount);
-          const taxRate = toNum(inv.taxRate);
-          const subtotalHt = taxRate > 0 ? creditAmount / (1 + taxRate) : creditAmount;
-          const taxAmount = creditAmount - subtotalHt;
-
-          const invoiceNumber = await generateDocumentNumber(tx, 'CREDIT_NOTE');
-          const cn = await tx.invoice.create({
-            data: {
-              invoiceNumber,
-              parentId: inv.parentId,
-              invoiceType: 'CREDIT_NOTE',
-              creditedInvoiceId: inv.id,
-              issueDate: new Date(),
-              dueDate: new Date(),
-              totalAmount: -creditAmount,
-              subtotalHt: -subtotalHt,
-              taxAmount: -taxAmount,
-              taxRate: inv.taxRate,
-              status: 'SENT',
-              isFutureCredit: false,
-            },
-          });
-
-          // Generate VE accounting entries for the credit note
-          await createCreditNoteAccountingEntries(tx, {
-            creditNoteId: cn.id,
-            parentId: inv.parentId,
-            creditNoteNumber: cn.invoiceNumber,
-            issueDate: cn.issueDate,
-            subtotalHt,
-            taxAmount,
-            totalAmount: creditAmount,
-            taxRate,
-            accountingCode,
-            isFutureCredit: false,
-            userId,
-          });
-
-          return {
-            id: cn.id,
-            invoiceNumber: cn.invoiceNumber,
-            amount: creditAmount,
-          };
-        }
-
-        // Helper: create future credit note
-        async function createFutureCreditNote(inv: typeof invoice, amount: number) {
-          if (!inv) return null;
-          const taxRate = toNum(inv.taxRate);
-          const subtotalHt = taxRate > 0 ? amount / (1 + taxRate) : amount;
-          const taxAmount = amount - subtotalHt;
-
-          const expiresAt = await getCreditExpiryDate(tx);
-
-          const invoiceNumber = await generateDocumentNumber(tx, 'CREDIT_NOTE');
-          const cn = await tx.invoice.create({
-            data: {
-              invoiceNumber,
-              parentId: inv.parentId,
-              invoiceType: 'CREDIT_NOTE',
-              creditedInvoiceId: inv.id,
-              issueDate: new Date(),
-              dueDate: expiresAt,
-              totalAmount: -amount,
-              subtotalHt: -subtotalHt,
-              taxAmount: -taxAmount,
-              taxRate: inv.taxRate,
-              status: 'SENT',
-              isFutureCredit: true,
-            },
-          });
-
-          // Generate VE accounting entries for the future credit note
-          await createCreditNoteAccountingEntries(tx, {
-            creditNoteId: cn.id,
-            parentId: inv.parentId,
-            creditNoteNumber: cn.invoiceNumber,
-            issueDate: cn.issueDate,
-            subtotalHt,
-            taxAmount,
-            totalAmount: amount,
-            taxRate,
-            accountingCode,
-            isFutureCredit: true,
-            userId,
-          });
-
-          // Create parent credit (trigger no longer does this)
-          await tx.parentCredit.create({
-            data: {
-              parentId: inv.parentId,
-              creditNoteId: cn.id,
-              amountOriginal: amount,
-              amountRemaining: amount,
-              expiresAt,
-              notes: 'Crédit automatique suite à annulation',
-            },
-          });
-
-          return {
-            id: cn.id,
-            invoiceNumber: cn.invoiceNumber,
-            amount,
-          };
-        }
-
-        // Helper: create refunds distributed across payments (most recent first)
-        async function createRefund(invoiceId: string, amount: number) {
-          const payments = await tx.payment.findMany({
-            where: { invoiceId },
-            orderBy: { paymentDate: 'desc' },
-            include: {
-              refunds: { select: { amount: true } },
-            },
-          });
-          if (payments.length === 0) return null;
-
-          let remaining = amount;
-          let firstRefund: { id: string; amount: number; method: string } | null = null;
-
-          for (const payment of payments) {
-            if (remaining <= 0) break;
-
-            const alreadyRefunded = payment.refunds.reduce(
-              (sum, r) => sum + toNum(r.amount), 0,
-            );
-            const refundable = toNum(payment.amount) - alreadyRefunded;
-            if (refundable <= 0) continue;
-
-            const refundAmount = Math.min(remaining, refundable);
-            const refundNumber = await generateDocumentNumber(tx, 'REFUND');
-            const refund = await tx.refund.create({
-              data: {
-                refundNumber,
-                paymentId: payment.id,
-                amount: refundAmount,
-                refundDate: new Date(),
-                refundMethod: 'IMMEDIATE_REFUND',
-                reason: input.reason,
-                recordedBy: userId,
-              },
-            });
-
-            if (!firstRefund) {
-              firstRefund = {
-                id: refund.id,
-                amount: toNum(refund.amount),
-                method: refund.refundMethod,
-              };
-            }
-
-            remaining -= refundAmount;
-          }
-
-          return firstRefund;
-        }
-
-        // Case 1: No invoice
-        if (!invoice) {
-          caseType = 'NO_INVOICE';
-          await cancelRegistration();
-        } else {
-          const totalAmount = toNum(invoice.totalAmount);
-          const paidAmount = toNum(invoice.paidAmount);
-
-          invoiceData = {
-            id: invoice.id,
-            invoiceNumber: invoice.invoiceNumber,
-            status: invoice.status,
-            totalAmount,
-            paidAmount,
-          };
-
-          // Case 2: Draft invoice
-          if (invoice.status === 'DRAFT') {
-            caseType = 'DRAFT_INVOICE';
-            await tx.invoice.update({
-              where: { id: invoice.id },
-              data: { deletedAt: new Date() },
-            });
-            await cancelRegistration();
-          }
-          // Case 3: Sent unpaid
-          else if (invoice.status === 'SENT' && paidAmount === 0) {
-            caseType = 'SENT_UNPAID';
-            await tx.invoice.update({
-              where: { id: invoice.id },
-              data: { status: 'CANCELLED' },
-            });
-            await cancelRegistration();
-          }
-          // Case 4: Partially paid
-          else if (paidAmount > 0 && paidAmount < totalAmount) {
-            caseType = 'PARTIALLY_PAID';
-            creditNoteData = await createCreditNote(invoice);
-            refundData = await createRefund(invoice.id, paidAmount);
-            await cancelRegistration();
-          }
-          // Case 5: Fully paid
-          else if (paidAmount >= totalAmount) {
-            const choice = input.refundChoice || 'IMMEDIATE_REFUND';
-
-            if (choice === 'IMMEDIATE_REFUND') {
-              caseType = 'FULLY_PAID_REFUND';
-              creditNoteData = await createCreditNote(invoice);
-              refundData = await createRefund(invoice.id, paidAmount);
-            } else {
-              caseType = 'FULLY_PAID_CREDIT';
-              creditNoteData = await createFutureCreditNote(invoice, paidAmount);
-            }
-            await cancelRegistration();
-          } else {
-            throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: 'État de paiement de la facture incohérent',
-            });
-          }
-        }
-
-        return {
-          success: true,
-          case: caseType as any,
-          invoice: invoiceData,
-          creditNote: creditNoteData,
-          refund: refundData,
-        };
-      });
-    }),
+    .mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
+      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+      return cancelRegistrationWithAccounting(tx, input, ctx.user.id);
+    }, { timeout: 20000 })),
 
   delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.registration.findFirst({
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
+      const existing = await tx.registration.findFirst({
         where: { id: input.id, deletedAt: null },
       });
       if (!existing) {
@@ -993,7 +738,7 @@ export const registrationsRouter = router({
       }
 
       // Check for associated invoices
-      const hasInvoice = await ctx.prisma.invoiceLine.findFirst({
+      const hasInvoice = await tx.invoiceLine.findFirst({
         where: {
           registrationId: input.id,
           deletedAt: null,
@@ -1007,13 +752,25 @@ export const registrationsRouter = router({
         });
       }
 
-      await ctx.prisma.registration.update({
+      await tx.registration.update({
         where: { id: input.id },
         data: { deletedAt: new Date() },
       });
 
       return { success: true };
+      });
     }),
+
+  requestCancellation: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
+    await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+    const registration = await tx.registration.findFirst({ where: { id: input.id, parentId: ctx.user.id, deletedAt: null }, include: { camp: true } });
+    if (!registration) throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
+    if (registration.camp.startDate <= new Date() || registration.status === 'CANCELLED') throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Contactez le secrétariat pour cette inscription' });
+    const invoice = await tx.invoiceLine.count({ where: { registrationId: registration.id, deletedAt: null, invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } } } });
+    const cancelled = !invoice && ['PENDING', 'WAITLIST'].includes(registration.status);
+    await tx.registration.update({ where: { id: registration.id }, data: cancelled ? { status: 'CANCELLED', cancellationDate: new Date(), cancelledBy: ctx.user.id, cancellationReason: 'Désistement du client' } : { cancellationRequestedAt: registration.cancellationRequestedAt ?? new Date() } });
+    return { cancelled };
+  })),
 
   getAvailableCredits: protectedProcedure
     .input(z.object({ parentId: z.string().uuid() }))
@@ -1031,6 +788,9 @@ export const registrationsRouter = router({
       totalAvailable: z.number(),
     }))
     .query(async ({ ctx, input }) => {
+      if (ctx.user.role === 'PARENT' && input.parentId !== ctx.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Accès réservé à votre famille' });
+      }
       const now = new Date();
 
       const credits = await ctx.prisma.parentCredit.findMany({
@@ -1041,7 +801,7 @@ export const registrationsRouter = router({
             { expiresAt: null },
             { expiresAt: { gt: now } },
           ],
-          creditNote: { deletedAt: null },
+          creditNote: { deletedAt: null, status: 'SENT' },
         },
         include: {
           creditNote: { select: { invoiceNumber: true } },

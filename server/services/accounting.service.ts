@@ -31,15 +31,12 @@ function deriveClientAux(parentId: string): string {
  * Generates the next accounting entry number for a given journal code.
  * Format: {journalCode} + YYYYMMDD + 4-digit sequence
  */
-let accountingSeqEnsured = false;
+
 
 async function nextEntryNum(tx: TxClient, journalCode: string): Promise<string> {
-  if (!accountingSeqEnsured) {
-    await tx.$executeRawUnsafe('CREATE SEQUENCE IF NOT EXISTS accounting_entry_seq');
-    accountingSeqEnsured = true;
-  }
+  await tx.$executeRawUnsafe('CREATE SEQUENCE IF NOT EXISTS accounting_entry_seq');
   const result: [{ entry_num: string }] = await tx.$queryRawUnsafe(
-    `SELECT $1 || TO_CHAR(NOW(), 'YYYYMMDD') || LPAD(nextval('accounting_entry_seq')::TEXT, 4, '0') as entry_num`,
+    `SELECT $1 || TO_CHAR(NOW(), 'YYYYMMDD') || LPAD(n::TEXT, GREATEST(4, LENGTH(n::TEXT)), '0') as entry_num FROM (SELECT nextval('accounting_entry_seq') AS n) seq`,
     journalCode,
   );
   return result[0].entry_num;
@@ -124,6 +121,25 @@ export async function createInvoiceAccountingEntries(
   });
 
   // Credit: revenue account
+  const revenueLines = await tx.invoiceLine.findMany({
+    where: { invoiceId: invoiceId, deletedAt: null },
+    include: { registration: { include: { camp: { include: { campType: true } } } } },
+  });
+  const groups = new Map<string, number>();
+  for (const line of revenueLines) {
+    const code = line.registration?.camp?.campType?.accountingCode || accountingCode;
+    groups.set(code, (groups.get(code) ?? 0) + Math.abs(Number(line.totalPrice)));
+  }
+  if (groups.size === 0) groups.set(accountingCode, subtotalHt);
+  const sum = [...groups.values()].reduce((a, b) => a + b, 0);
+  let allocated = 0;
+  const grouped = [...groups.entries()].map(([code, value], index) => {
+    const amount = index === groups.size - 1 ? Math.round((subtotalHt - allocated) * 100) / 100 : Math.round((sum ? value / sum * subtotalHt : 0) * 100) / 100;
+    allocated += amount;
+    return { code, amount };
+  });
+  for (const group of grouped) {
+    if (group.amount === 0) continue;
   await tx.accountingEntry.create({
     data: {
       invoiceId,
@@ -131,17 +147,18 @@ export async function createInvoiceAccountingEntries(
       journalLib: 'Journal de ventes',
       entryNum,
       entryDate: issueDate,
-      accountNumber: accountingCode,
+      accountNumber: group.code,
       accountLabel: 'Ventes',
       pieceRef: invoiceNumber,
       pieceDate: issueDate,
       description,
       debit: 0,
-      credit: subtotalHt,
+      credit: group.amount,
       validDate: issueDate,
       createdBy: userId,
     },
   });
+  }
 
   // Credit: TGC (tax) if applicable
   if (taxAmount > 0) {
@@ -229,6 +246,25 @@ export async function createCreditNoteAccountingEntries(
   const description = `Avoir ${creditNoteNumber}`;
 
   // Debit: reverse revenue
+  const revenueLines = await tx.invoiceLine.findMany({
+    where: { invoiceId: creditNoteId, deletedAt: null },
+    include: { registration: { include: { camp: { include: { campType: true } } } } },
+  });
+  const groups = new Map<string, number>();
+  for (const line of revenueLines) {
+    const code = line.registration?.camp?.campType?.accountingCode || accountingCode;
+    groups.set(code, (groups.get(code) ?? 0) + Math.abs(Number(line.totalPrice)));
+  }
+  if (groups.size === 0) groups.set(accountingCode, subtotalHt);
+  const sum = [...groups.values()].reduce((a, b) => a + b, 0);
+  let allocated = 0;
+  const grouped = [...groups.entries()].map(([code, value], index) => {
+    const amount = index === groups.size - 1 ? Math.round((subtotalHt - allocated) * 100) / 100 : Math.round((sum ? value / sum * subtotalHt : 0) * 100) / 100;
+    allocated += amount;
+    return { code, amount };
+  });
+  for (const group of grouped) {
+    if (group.amount === 0) continue;
   await tx.accountingEntry.create({
     data: {
       creditNoteId,
@@ -236,17 +272,18 @@ export async function createCreditNoteAccountingEntries(
       journalLib: 'Journal de ventes',
       entryNum,
       entryDate: issueDate,
-      accountNumber: accountingCode,
+      accountNumber: group.code,
       accountLabel: 'Ventes',
       pieceRef: creditNoteNumber,
       pieceDate: issueDate,
       description,
-      debit: subtotalHt,
+      debit: group.amount,
       credit: 0,
       validDate: issueDate,
       createdBy: userId,
     },
   });
+  }
 
   // Debit: reverse TGC if applicable
   if (taxAmount > 0) {
@@ -502,6 +539,8 @@ export async function createRefundEntries(
 interface CancelEntriesFilter {
   paymentId?: string;
   refundId?: string;
+  invoiceId?: string;
+  creditNoteId?: string;
 }
 
 export async function cancelAccountingEntries(
@@ -509,16 +548,18 @@ export async function cancelAccountingEntries(
   filter: CancelEntriesFilter,
   userId: string,
 ): Promise<void> {
-  await tx.accountingEntry.updateMany({
-    where: {
-      ...filter,
-      isCancelled: false,
-    },
-    data: {
-      isCancelled: true,
-      cancelledAt: new Date(),
-      cancelledBy: userId,
-      cancellationReason: 'Suppression associée',
-    },
-  });
+  await reverseAccountingEntries(tx, filter, userId);
+}
+
+/** Preserve original entries; corrections are dated, balanced reversals. */
+export async function reverseAccountingEntries(tx: TxClient, filter: CancelEntriesFilter, userId: string): Promise<void> {
+  const entries = await tx.accountingEntry.findMany({ where: { ...filter, isCancelled: false, cancelledAt: null } });
+  const numbers = new Map<string, string>();
+  for (const entry of entries) {
+    if (!numbers.has(entry.entryNum)) numbers.set(entry.entryNum, await nextEntryNum(tx, entry.journalCode));
+    const { id, createdAt, updatedAt, ...data } = entry;
+    void createdAt; void updatedAt;
+    await tx.accountingEntry.create({ data: { ...data, entryNum: numbers.get(entry.entryNum), entryDate: new Date(), validDate: new Date(), debit: entry.credit, credit: entry.debit, description: `Contrepassation ${entry.entryNum}`, createdBy: userId, cancelledAt: new Date(), cancelledBy: userId, cancellationReason: 'Contrepassation' } });
+    await tx.accountingEntry.update({ where: { id }, data: { cancelledAt: new Date(), cancelledBy: userId, cancellationReason: 'Contrepassée' } });
+  }
 }

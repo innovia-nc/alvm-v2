@@ -12,7 +12,6 @@ const SEQUENCES: Record<DocumentKind, { name: string; prefix: string }> = {
   REFUND: { name: 'refund_number_seq', prefix: 'REM' },
 };
 
-const ensuredSequences = new Set<string>();
 
 /**
  * Numero sequentiel d'un document : `PREFIXE-ANNEE-0001`.
@@ -29,10 +28,7 @@ export async function generateDocumentNumber(
 ): Promise<string> {
   const { name, prefix } = SEQUENCES[kind];
 
-  if (!ensuredSequences.has(name)) {
-    await prisma.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS ${name}`);
-    ensuredSequences.add(name);
-  }
+  await prisma.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS ${name}`);
 
   const rows = await prisma.$queryRawUnsafe<Array<{ nextval: bigint | number }>>(
     `SELECT nextval('${name}') AS nextval`,

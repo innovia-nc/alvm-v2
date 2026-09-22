@@ -24,7 +24,7 @@ interface InvoicePdfResult {
   invoice: PrismaLike;
   /** PDF rendu, utilisable directement en pièce jointe. */
   pdfBuffer: Buffer;
-  /** URL publique de l'objet archivé, également mémorisée sur la facture. */
+  /** Route authentifiée de téléchargement. */
   pdfUrl: string;
 }
 
@@ -36,6 +36,7 @@ interface InvoicePdfResult {
 export async function generateAndStoreInvoicePdf(
   prisma: PrismaLike,
   invoiceId: string,
+  persist = true,
 ): Promise<InvoicePdfResult> {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, deletedAt: null },
@@ -127,16 +128,20 @@ export async function generateAndStoreInvoicePdf(
     taxRate: toNum(invoice.taxRate) * 100,
     totalAmount: toNum(invoice.totalAmount),
     paidAmount: toNum(invoice.paidAmount),
+    creditedAmount: toNum(invoice.creditedAmount),
     org: pdfSettings.org,
     footerMention: pdfSettings.mentions.invoice || undefined,
     logoUrl,
   });
+
+  if (!persist) return { invoice, pdfBuffer, pdfUrl: `/api/documents/invoice/${invoice.id}` };
 
   const pathname = `invoices/${invoice.invoiceNumber}-${invoice.id}.pdf`;
 
   const { url } = await uploadToStorage(pdfBuffer, {
     pathname,
     contentType: 'application/pdf',
+    access: 'private',
   });
 
   await prisma.invoice.update({
@@ -144,5 +149,5 @@ export async function generateAndStoreInvoicePdf(
     data: { pdfUrl: url },
   });
 
-  return { invoice, pdfBuffer, pdfUrl: url };
+  return { invoice, pdfBuffer, pdfUrl: `/api/documents/invoice/${invoice.id}` };
 }
