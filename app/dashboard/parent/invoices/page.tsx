@@ -80,7 +80,7 @@ export default async function ParentInvoicesPage({ searchParams }: { searchParam
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/dashboard/parent/invoices/${invoice.id}`}>
                       <Eye className="mr-2 h-4 w-4" />
