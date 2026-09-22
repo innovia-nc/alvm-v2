@@ -19,9 +19,9 @@ export default auth((req) => {
   if (isApiRoute) return NextResponse.next();
   if (isPublicPage) return NextResponse.next();
 
-  if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL('/dashboard', nextUrl.origin));
-  }
+  // Edge cannot validate sessionVersion against the database. Keep login and
+  // recovery reachable when the Node runtime has revoked an old JWT.
+  if (isAuthPage) return NextResponse.next();
 
   if (isDashboard && !isLoggedIn) {
     const callbackUrl = encodeURIComponent(nextUrl.pathname + nextUrl.search);

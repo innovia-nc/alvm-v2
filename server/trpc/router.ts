@@ -5,6 +5,8 @@
  * progressively from the original NestJS backend.
  */
 
+import { dashboardRouter } from '@/server/routers/dashboard';
+import { accountRouter } from '@/server/routers/account';
 import { router, publicProcedure, createCallerFactory } from './init';
 import { settingsRouter } from '@/server/routers/settings';
 import { campTypesRouter } from '@/server/routers/camp-types';
@@ -25,6 +27,8 @@ import { refundsRouter } from '@/server/routers/refunds';
 import { fecRouter } from '@/server/routers/fec';
 
 export const appRouter = router({
+  account: accountRouter,
+  dashboard: dashboardRouter,
   health: publicProcedure.query(() => ({
     status: 'ok' as const,
     timestamp: new Date().toISOString(),

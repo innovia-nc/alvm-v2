@@ -278,6 +278,7 @@ describe('staff router', () => {
   describe('delete', () => {
     it('should soft-delete a staff member with no camps', async () => {
       admin.mockPrisma.camp.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: "STAFF" });
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 1 });
       const result = await admin.caller.staff.delete({ id: STAFF_ID });
       expect(result.success).toBe(true);
@@ -292,17 +293,18 @@ describe('staff router', () => {
 
     it('should reject deletion of non-existent staff', async () => {
       admin.mockPrisma.camp.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: "STAFF" });
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 0 });
       await expect(
         admin.caller.staff.delete({ id: 'b0000000-0000-4000-a000-000000000099' }),
       ).rejects.toThrow('Membre du personnel non trouvé');
     });
 
-    it('should allow STAFF to delete', async () => {
+    it('should deny STAFF from disabling another STAFF', async () => {
       staff.mockPrisma.camp.count.mockResolvedValue(0);
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: "STAFF" });
       staff.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 1 });
-      const result = await staff.caller.staff.delete({ id: STAFF_ID });
-      expect(result.success).toBe(true);
+      await expect(staff.caller.staff.delete({ id: STAFF_ID })).rejects.toThrow('Seul un administrateur');
     });
 
     it('should deny PARENT from deleting', async () => {

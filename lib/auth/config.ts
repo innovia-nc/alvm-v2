@@ -1,8 +1,9 @@
-import NextAuth, { DefaultSession } from 'next-auth';
+import NextAuth, { DefaultSession, type NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '@/server/db';
+import { consumeLoginAttempt } from '@/server/services/login-limit.service';
 import { authEdgeConfig } from './auth.config';
 
 declare module 'next-auth' {
@@ -15,12 +16,13 @@ declare module 'next-auth' {
 
   interface User {
     role?: 'PARENT' | 'STAFF' | 'ADMIN';
+    sessionVersion?: number;
   }
 }
 
 const signInSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(1).max(128),
 });
 
 /**
@@ -38,7 +40,7 @@ const signInSchema = z.object({
  * — sa garde `animatorProcedure` est partie avec la deuxième passe de code
  * mort, la revendication qu'elle lisait avec la sixième.
  */
-const authConfig = {
+const authConfig: NextAuthConfig = {
   ...authEdgeConfig,
 
   providers: [
@@ -48,7 +50,7 @@ const authConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -57,6 +59,7 @@ const authConfig = {
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+        if (!(await consumeLoginAttempt(email, request.headers))) return null;
 
         const user = await prisma.user.findUnique({
           where: { email },
@@ -68,13 +71,14 @@ const authConfig = {
           },
         });
 
-        if (!user || user.accounts.length === 0) return null;
+        if (!user || user.disabledAt || user.accounts.length === 0) return null;
 
         const isValid = await compare(password, user.accounts[0].providerAccountId);
         if (!isValid) return null;
 
         return {
           id: user.id,
+          sessionVersion: user.sessionVersion,
           email: user.email,
           name: user.name,
           image: user.image,
@@ -83,6 +87,21 @@ const authConfig = {
       },
     }),
   ],
+
+  callbacks: {
+    ...authEdgeConfig.callbacks,
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.sessionVersion = user.sessionVersion;
+      }
+      if (!token.id || typeof token.sessionVersion !== 'number') return null;
+      const current = await prisma.user.findUnique({ where: { id: String(token.id) } });
+      if (!current || current.disabledAt || current.sessionVersion !== token.sessionVersion || current.role !== token.role) return null;
+      return token;
+    },
+  },
 
   debug: process.env.NODE_ENV === 'development',
 };

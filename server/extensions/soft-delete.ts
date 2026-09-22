@@ -1,19 +1,21 @@
 import { Prisma } from '@prisma/client';
 
 const SOFT_DELETE_MODELS = new Set([
-  'parent',
-  'child',
-  'staffMember',
-  'camp',
-  'registration',
-  'invoice',
-  'invoiceLine',
-  'refund',
-  'childDocument',
+  'Parent',
+  'Child',
+  'StaffMember',
+  'Camp',
+  'Registration',
+  'Invoice',
+  'InvoiceLine',
+  'Refund',
+  'ChildDocument',
+  'StaffDocument',
 ]);
 
 const FILTERED_OPERATIONS = new Set([
   'findFirst',
+  'findFirstOrThrow',
   'findMany',
   'count',
   'aggregate',

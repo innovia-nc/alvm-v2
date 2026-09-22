@@ -32,6 +32,7 @@ const basePrisma =
   new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     datasourceUrl: buildDatasourceUrl(),
+    transactionOptions: { maxWait: 15000, timeout: 30000 },
   });
 
 if (process.env.NODE_ENV !== 'production') {

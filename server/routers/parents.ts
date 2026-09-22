@@ -1,3 +1,4 @@
+import { deactivateAccount } from '@/server/services/account-access.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
@@ -114,7 +115,7 @@ export const parentsRouter = router({
             user: { select: { email: true, name: true, emailVerified: true } },
             childrenLinks: { select: { id: true } },
           },
-          orderBy: { [sortBy]: sortOrder },
+          orderBy: [{ [sortBy]: sortOrder }, { userId: 'asc' }],
           take: limit,
           skip: offset,
         }),
@@ -338,10 +339,13 @@ export const parentsRouter = router({
 
       const result = await ctx.prisma.$transaction(async (tx) => {
         if (updates.email) {
+          await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(20260922, 1)::text');
+          const target = await tx.user.findUnique({ where: { id } });
+          if (target?.role !== 'PARENT' && ctx.user.role !== 'ADMIN') throw new TRPCError({ code: 'FORBIDDEN', message: 'Seul un administrateur peut modifier cette adresse de connexion' });
           data.email = updates.email;
           await tx.user.update({
             where: { id },
-            data: { email: updates.email },
+            data: { email: updates.email, sessionVersion: { increment: 1 } },
           });
         }
 
@@ -424,6 +428,7 @@ export const parentsRouter = router({
 
       try {
         await ctx.prisma.$transaction(async (tx) => {
+          await deactivateAccount(tx, input.id, ctx.user.role);
           const result = await tx.parent.updateMany({
             where: { userId: input.id, deletedAt: null },
             data: { deletedAt: new Date() },
