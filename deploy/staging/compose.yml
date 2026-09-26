@@ -1,18 +1,18 @@
-# Staging alvm-v2 — srv-innovia (convention /srv/staging/README.md du serveur).
+# Staging asso-saas (ALVM) — srv-innovia (convention /srv/staging/README.md du serveur).
 #
-# Bloc de ports : `staging-ports alloc alvm-v2` ; BASE_PORT = port de base du
+# Bloc de ports : `staging-ports alloc asso-saas` ; BASE_PORT = port de base du
 # bloc (application en 127.0.0.1 ET port HTTPS du tailnet).
 #
 #   - l'application se lie à 127.0.0.1 uniquement ; l'accès passe par
-#     `tailscale serve` (staging-ports expose alvm-v2) ;
+#     `tailscale serve` (staging-ports expose asso-saas) ;
 #   - la base n'est JAMAIS liée à l'hôte : réseau Docker seul ;
 #   - l'image est construite sur le serveur et taguée au SHA court du commit
-#     (IMAGE_TAG) — jamais `latest`. Les runners CI du serveur servent
-#     l'organisation innovia-noumea, pas innovia-nc.
+#     (IMAGE_TAG) — jamais `latest`. Cible : image publiée par la CI sur
+#     ghcr.io/innovia-noumea/asso-saas, comme ppm-saas.
 #
 # Base neuve : `dc run --rm app db-init`, puis seed-payment-methods et
 # create-super-admin. Procédure complète : docs/deploiement-ovh.md § 3.
-name: alvm-v2-staging
+name: asso-saas-staging
 
 x-logging: &logging
   driver: json-file
@@ -38,7 +38,7 @@ services:
       retries: 10
 
   app:
-    image: alvm-v2:${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    image: asso-saas:${IMAGE_TAG:?IMAGE_TAG absent du .env}
     build:
       context: ../..
       dockerfile: Dockerfile
@@ -51,7 +51,7 @@ services:
       POSTGRES_PRISMA_URL: postgresql://alvm:${POSTGRES_PASSWORD}@db:5432/alvm_staging
       POSTGRES_URL_NON_POOLING: postgresql://alvm:${POSTGRES_PASSWORD}@db:5432/alvm_staging
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent du .env}
-      # Doit valoir exactement `staging-ports url alvm-v2`, sinon les cookies
+      # Doit valoir exactement `staging-ports url asso-saas`, sinon les cookies
       # de session et les redirections d'auth cassent.
       AUTH_URL: ${APP_URL:?APP_URL absent du .env}
       PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY absent du .env}

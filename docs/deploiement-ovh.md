@@ -54,10 +54,10 @@ enfant sans parent.
 
 Suit la convention du serveur (`/srv/staging/README.md` : bloc de 10 ports
 par projet, app liée à `127.0.0.1`, base jamais liée à l'hôte, accès HTTPS
-par le tailnet via `tailscale serve`). Écart assumé : l'image est **construite
-sur le serveur**, taguée au SHA court, au lieu d'être publiée par la CI — les
-runners de srv-innovia servent l'organisation `innovia-noumea`, pas
-`innovia-nc`. `dc` abrège
+par le tailnet via `tailscale serve`). Dépôt : `innovia-noumea/asso-saas` (créé le 2026-09-27 depuis
+`innovia-nc/alvm-v2`, pour bénéficier des runners de srv-innovia). Écart
+provisoire : l'image est **construite sur le serveur**, taguée au SHA court,
+en attendant un workflow qui la publie sur GHCR comme ppm-saas. `dc` abrège
 `docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env`.
 
 Premier déploiement :
@@ -65,11 +65,11 @@ Premier déploiement :
 ```bash
 ssh innovia-admin@192.168.0.252
 free -h                                   # mémoire partagée avec l'inférence GPU
-staging-ports alloc alvm-v2 && staging-ports list   # noter le port de base
-git clone git@github.com:innovia-nc/alvm-v2.git /srv/dev/alvm-v2 && cd /srv/dev/alvm-v2
+staging-ports alloc asso-saas && staging-ports list   # noter le port de base
+git clone git@github.com:innovia-noumea/asso-saas.git /srv/dev/asso-saas && cd /srv/dev/asso-saas
 cp deploy/staging/.env.example deploy/staging/.env && chmod 600 deploy/staging/.env
 # remplir : BASE_PORT, IMAGE_TAG=$(git rev-parse --short HEAD),
-#           APP_URL=$(staging-ports url alvm-v2), secrets (openssl rand -base64 32)
+#           APP_URL=$(staging-ports url asso-saas), secrets (openssl rand -base64 32)
 alias dc='docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env'
 
 dc build app
@@ -79,7 +79,7 @@ dc run --rm app seed-payment-methods
 dc run --rm -e SUPER_ADMIN_EMAIL=… -e SUPER_ADMIN_PASSWORD=… app create-super-admin
 dc up -d app
 curl -s "http://127.0.0.1:$BASE_PORT/api/health?db=1"
-staging-ports expose alvm-v2 && staging-ports url alvm-v2
+staging-ports expose asso-saas && staging-ports url asso-saas
 ```
 
 Mise à jour : `git pull`, `IMAGE_TAG` = nouveau SHA court dans le `.env`,
@@ -97,7 +97,7 @@ inscription → facture → paiement → PDF.
 | Réglage Coolify     | Valeur                                                                                                               |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Base                | PostgreSQL 17 (`postgres:17-alpine`), port public : **non**                                                          |
-| Application         | GitHub `innovia-nc/alvm-v2`, branche `master`, build pack **Dockerfile**, port `3000`                                |
+| Application         | GitHub `innovia-noumea/asso-saas`, branche `master`, build pack **Dockerfile**, port `3000`                          |
 | Health check        | `/api/health`                                                                                                        |
 | Stockage persistant | aucun (fichiers dans Vercel Blob)                                                                                    |
 | Hôte de la base     | **nom du conteneur** Docker, pas le nom Coolify : `sudo docker ps --format '{{.Names}} {{.Image}}' \| grep postgres` |
