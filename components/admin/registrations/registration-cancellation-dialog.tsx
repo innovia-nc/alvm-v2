@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@/server/trpc/router';
 import { trpc } from '@/lib/trpc/client';
-import type { AdminRegistrationType } from './columns';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -32,7 +31,7 @@ import {
 } from 'lucide-react';
 
 interface RegistrationCancellationDialogProps {
-  registration: AdminRegistrationType | null;
+  registration: { id: string; child: { firstName: string; lastName: string }; camp: { name: string } } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -128,7 +127,6 @@ export function RegistrationCancellationDialog({
       case 'SENT_UNPAID':
         return 2; // Motif + Confirmation
       case 'PARTIALLY_PAID':
-        return 3; // Motif + Choix remboursement/crédit + Confirmation
       case 'FULLY_PAID':
         return refundChoice === 'IMMEDIATE_REFUND' ? 4 : 3; // +1 pour méthode si remboursement
       default:
@@ -225,6 +223,7 @@ export function RegistrationCancellationDialog({
     cancelMutation.mutate({
       registrationId: registration.id,
       reason: reason.trim(),
+      paymentMethodCode: refundMethod,
       // Paramètre présent uniquement quand un choix de remboursement est requis
       ...(analysisData?.requiresRefundChoice ? { refundChoice } : {}),
     });

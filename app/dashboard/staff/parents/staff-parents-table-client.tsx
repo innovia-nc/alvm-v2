@@ -1,12 +1,7 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { staffParentColumns, type StaffParentType, StaffParentActions } from './columns';
+import { FilterBar } from '@/components/shared/filter-bar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,9 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -27,6 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
+import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { StaffParentActions, staffParentColumns, type StaffParentType } from './columns';
 
 export function StaffParentsTableClient() {
   const router = useRouter();
@@ -39,14 +41,21 @@ export function StaffParentsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, recherche et filtre de statut
-  const { data, isLoading } = trpc.parents.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.parents.list.useQuery({
+    sortBy: pagination.sortBy as 'lastName' | 'firstName' | 'createdAt' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search,
     status,
   });
 
-    const deleteMutation = trpc.parents.delete.useMutation({
+  const deleteMutation = trpc.parents.delete.useMutation({
     onSuccess: () => {
       toast.success('Parent supprimé avec succès');
       setDeletingParent(null);
@@ -58,7 +67,7 @@ export function StaffParentsTableClient() {
     },
   });
 
-    async function handleDelete() {
+  async function handleDelete() {
     if (!deletingParent) return;
 
     try {
@@ -69,21 +78,18 @@ export function StaffParentsTableClient() {
     }
   }
 
-    // Enrichir les colonnes avec le callback de suppression
-    const columnsWithActions = staffParentColumns.map((col) => {
-      if (col.id === 'actions') {
-        return {
-          ...col,
-          cell: ({ row }: { row: Row<StaffParentType> }) => (
-            <StaffParentActions
-              item={row.original}
-              onDelete={setDeletingParent}
-            />
-          ),
-        };
-      }
-      return col;
-    });
+  // Enrichir les colonnes avec le callback de suppression
+  const columnsWithActions = staffParentColumns.map((col) => {
+    if (col.id === 'actions') {
+      return {
+        ...col,
+        cell: ({ row }: { row: Row<StaffParentType> }) => (
+          <StaffParentActions item={row.original} onDelete={setDeletingParent} />
+        ),
+      };
+    }
+    return col;
+  });
   return (
     <div className="space-y-4">
       {error && (
@@ -93,27 +99,32 @@ export function StaffParentsTableClient() {
       )}
 
       {/* Filtre de statut */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Statut :</span>
-        <Select
-          value={status}
-          onValueChange={(value: 'all' | 'active' | 'inactive') => {
-            setStatus(value);
-            pagination.resetToFirstPage();
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Actifs</SelectItem>
-            <SelectItem value="inactive">Inactifs</SelectItem>
-            <SelectItem value="all">Tous</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar>
+        <div className="grid w-full gap-2 sm:w-56">
+          <Label htmlFor="list-status-filter">Statut</Label>
+          <Select
+            value={status}
+            onValueChange={(value: 'all' | 'active' | 'inactive') => {
+              setStatus(value);
+              pagination.resetToFirstPage();
+            }}
+          >
+            <SelectTrigger className="w-full" id="list-status-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Actifs</SelectItem>
+              <SelectItem value="inactive">Inactifs</SelectItem>
+              <SelectItem value="all">Tous</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </FilterBar>
 
       <DataTableServer
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['lastName', 'firstName', 'createdAt']}
         columns={columnsWithActions}
         data={data?.parents || []}
         totalCount={data?.total || 0}
@@ -121,6 +132,7 @@ export function StaffParentsTableClient() {
         pagination={pagination}
         searchKey="email"
         searchPlaceholder="Rechercher par nom, email ou téléphone..."
+        search={search}
         onSearchChange={(value) => setSearch(value)}
       />
 
@@ -140,28 +152,23 @@ export function StaffParentsTableClient() {
               ?
               <br />
               <br />
-              Cette action est irréversible. Tous les enfants, inscriptions et
-              factures associés seront également supprimés.
+              Cette action est irréversible. Tous les enfants, inscriptions et factures associés
+              seront également supprimés.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }

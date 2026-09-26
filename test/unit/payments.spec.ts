@@ -25,7 +25,7 @@ describe('payments router', () => {
 
   const fakePaymentMethod = {
     name: 'Especes',
-    code: 'CASH',
+    code: 'CASH', active: true,
     accountingCode: '530000',
   };
 
@@ -253,7 +253,7 @@ describe('payments router', () => {
 
       expect(admin.mockPrisma.payment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: { amount: 'asc' },
+          orderBy: [{ amount: 'asc' }, { id: 'asc' }],
         }),
       );
     });
@@ -358,7 +358,7 @@ describe('payments router', () => {
       // paidAmount was 10000, adding 15000 = 25000, totalAmount = 50000 => still SENT
       expect(staff.mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: INVOICE_ID },
-        data: { paidAmount: 25000, status: 'SENT' },
+        data: { paidAmount: 25000, status: 'SENT', pdfUrl: null, version: { increment: 1 } },
       });
     });
 
@@ -379,7 +379,7 @@ describe('payments router', () => {
       // paidAmount was 10000, adding 40000 = 50000 = totalAmount => PAID
       expect(staff.mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: INVOICE_ID },
-        data: { paidAmount: 50000, status: 'PAID' },
+        data: { paidAmount: 50000, status: 'PAID', pdfUrl: null, version: { increment: 1 } },
       });
     });
 
@@ -542,11 +542,11 @@ describe('payments router', () => {
         });
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
         name: 'Avoir',
-        code: 'CREDIT_NOTE',
+        code: 'CREDIT_NOTE', active: true,
         accountingCode: '411000',
       });
       staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
-      staff.mockPrisma.creditNoteAllocation.create.mockResolvedValue({});
+      staff.mockPrisma.creditNoteAllocation.upsert.mockResolvedValue({});
       staff.mockPrisma.payment.create.mockResolvedValue({
         ...fakeCreatedPayment,
         paymentMethod: { name: 'Avoir', code: 'CREDIT_NOTE' },
@@ -594,11 +594,11 @@ describe('payments router', () => {
           });
         staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
           name: 'Avoir',
-          code: 'CREDIT_NOTE',
+          code: 'CREDIT_NOTE', active: true,
           accountingCode: '411000',
         });
         staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
-        staff.mockPrisma.creditNoteAllocation.create.mockResolvedValue({});
+        staff.mockPrisma.creditNoteAllocation.upsert.mockResolvedValue({});
         staff.mockPrisma.payment.create.mockResolvedValue({
           ...fakeCreatedPayment,
           paymentMethod: { name: 'Avoir', code: 'CREDIT_NOTE' },
@@ -682,11 +682,11 @@ describe('payments router', () => {
         });
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
         name: 'Avoir',
-        code: 'CREDIT_NOTE',
+        code: 'CREDIT_NOTE', active: true,
         accountingCode: '411000',
       });
       staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
-      staff.mockPrisma.creditNoteAllocation.create.mockResolvedValue({});
+      staff.mockPrisma.creditNoteAllocation.upsert.mockResolvedValue({});
       staff.mockPrisma.payment.create.mockResolvedValue({
         ...fakeCreatedPayment,
         paymentMethod: { name: 'Avoir', code: 'CREDIT_NOTE' },
@@ -711,7 +711,7 @@ describe('payments router', () => {
   // ==========================================================================
 
   describe('create with credit note', () => {
-    const creditNotePaymentMethod = { name: 'Avoir', code: 'CREDIT_NOTE', accountingCode: '411000' };
+    const creditNotePaymentMethod = { name: 'Avoir', code: 'CREDIT_NOTE', active: true, accountingCode: '411000' };
 
     const fakeCreditNote = {
       id: CREDIT_NOTE_ID,
@@ -739,7 +739,7 @@ describe('payments router', () => {
       mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({
         _sum: { amount: 0 },
       });
-      mockPrisma.creditNoteAllocation.create.mockResolvedValue({});
+      mockPrisma.creditNoteAllocation.upsert.mockResolvedValue({});
       mockPrisma.payment.create.mockResolvedValue({
         ...fakeCreatedPayment,
         paymentMethodId: CREDIT_NOTE_METHOD_ID,
@@ -757,14 +757,14 @@ describe('payments router', () => {
       const result = await staff.caller.payments.create(creditNoteInput);
 
       expect(result).toBeDefined();
-      expect(staff.mockPrisma.creditNoteAllocation.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+      expect(staff.mockPrisma.creditNoteAllocation.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
           creditNoteId: CREDIT_NOTE_ID,
           appliedToInvoiceId: INVOICE_ID,
           amount: 15000,
           recordedBy: STAFF_USER.id,
         }),
-      });
+      }));
     });
 
     it('should throw NOT_FOUND when credit note does not exist', async () => {
@@ -827,7 +827,7 @@ describe('payments router', () => {
       staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({
         _sum: { amount: 5000 },
       });
-      staff.mockPrisma.creditNoteAllocation.create.mockResolvedValue({});
+      staff.mockPrisma.creditNoteAllocation.upsert.mockResolvedValue({});
       staff.mockPrisma.payment.create.mockResolvedValue({
         ...fakeCreatedPayment,
         amount: 15000,
@@ -975,7 +975,7 @@ describe('payments router', () => {
 
       expect(admin.mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: INVOICE_ID },
-        data: { paidAmount: 10000, status: 'SENT' },
+        data: { paidAmount: 10000, status: 'SENT', pdfUrl: null, version: { increment: 1 } },
       });
     });
 
@@ -1056,17 +1056,7 @@ describe('payments router', () => {
 
       await admin.caller.payments.delete({ id: PAYMENT_ID });
 
-      expect(admin.mockPrisma.accountingEntry.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            paymentId: PAYMENT_ID,
-            isCancelled: false,
-          }),
-          data: expect.objectContaining({
-            isCancelled: true,
-          }),
-        }),
-      );
+      expect(admin.mockPrisma.accountingEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ paymentId: PAYMENT_ID, isCancelled: false, cancelledAt: null }) }));
     });
 
     it('should throw NOT_FOUND when payment does not exist', async () => {

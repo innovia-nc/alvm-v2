@@ -1,3 +1,6 @@
+'use client';
+
+import { EmptyState } from '@/components/shared/empty-state';
 /**
  * Child Documents Table Component
  *
@@ -5,24 +8,6 @@
  * Supporte le téléchargement et la suppression (selon permissions).
  */
 
-'use client';
-
-import { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +18,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { FileText, Download, Trash2, MoreHorizontal, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { trpc } from '@/lib/trpc/client';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Download, FileText, Loader2, MoreHorizontal, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 // ============================================================================
 // TYPES
@@ -146,6 +147,7 @@ export function ChildDocumentsTable({
 
   const formatDate = (date: Date): string => {
     return new Date(date).toLocaleDateString('fr-FR', {
+      timeZone: 'Pacific/Noumea',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -158,17 +160,12 @@ export function ChildDocumentsTable({
 
   if (documents.length === 0) {
     return (
-      <div className={cn('rounded-lg border border-dashed border-gray-300 p-8', className)}>
-        <div className="flex flex-col items-center justify-center text-center">
-          <FileText className="h-12 w-12 text-gray-400 mb-3" />
-          <h3 className="text-sm font-medium text-gray-900 mb-1">
-            Aucun document
-          </h3>
-          <p className="text-sm text-gray-500">
-            Les documents PDF uploadés apparaîtront ici.
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        title="Aucun document"
+        description="Les documents PDF téléversés apparaîtront ici."
+        icon={FileText}
+        className={className}
+      />
     );
   }
 
@@ -196,24 +193,20 @@ export function ChildDocumentsTable({
                 {/* Filename + Description */}
                 <TableCell>
                   <div className="flex flex-col">
-                    <span className="font-medium text-sm">
-                      {doc.originalFilename}
-                    </span>
+                    <span className="font-medium text-sm">{doc.originalFilename}</span>
                     {doc.description && (
-                      <span className="text-xs text-gray-500">
-                        {doc.description}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{doc.description}</span>
                     )}
                   </div>
                 </TableCell>
 
                 {/* File Size */}
-                <TableCell className="text-sm text-gray-600">
+                <TableCell className="text-sm text-muted-foreground">
                   {formatFileSize(doc.fileSize)}
                 </TableCell>
 
                 {/* Date */}
-                <TableCell className="text-sm text-gray-600">
+                <TableCell className="text-sm text-muted-foreground">
                   {formatDate(doc.createdAt)}
                 </TableCell>
 
@@ -258,14 +251,11 @@ export function ChildDocumentsTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce document ? Cette action est
-              irréversible.
+              Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={deleteMutation.isPending}

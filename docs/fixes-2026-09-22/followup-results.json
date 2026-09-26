@@ -1,0 +1,12 @@
+{
+  "date": "2026-09-21T23:50:32.491Z",
+  "results": [
+    "#67 future refund creates usable credit and can be reversed",
+    "#65 #66 #75 expiry, repeated partial allocation, used credit cancellation refused",
+    "#75 unused credit cancellation reverses entries",
+    "#50 recovery token expiry and one-time use",
+    "#41 throttle recovers after fixed window",
+    "#42 concurrent last-admin protection",
+    "#81 invoice list omits line/payment detail"
+  ]
+}

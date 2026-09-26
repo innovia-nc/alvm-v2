@@ -271,14 +271,14 @@ describe('camps.list', () => {
       await caller.camps.list({ ...defaultInput, sortBy: 'name', sortOrder: 'asc' });
 
       const call = mockPrisma.camp.findMany.mock.calls[0][0];
-      expect(call.orderBy).toEqual({ name: 'asc' });
+      expect(call.orderBy).toEqual([{ name: 'asc' }, { id: 'asc' }]);
     });
 
     it('should default to createdAt desc', async () => {
       await caller.camps.list({ limit: 20, offset: 0 });
 
       const call = mockPrisma.camp.findMany.mock.calls[0][0];
-      expect(call.orderBy).toEqual({ createdAt: 'desc' });
+      expect(call.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'asc' }]);
     });
   });
 

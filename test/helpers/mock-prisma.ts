@@ -24,6 +24,8 @@ export type MockPrisma = ReturnType<typeof createMockPrisma>;
 export function createMockPrisma() {
   const prisma = {
     appSetting: createModelMock(),
+    fecExport: createModelMock(),
+    verificationToken: createModelMock(),
     campType: createModelMock(),
     paymentMethod: createModelMock(),
     user: createModelMock(),

@@ -6,16 +6,14 @@ import type { Prisma } from '@prisma/client';
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
 
-// La BDD porte une contrainte CHECK (birth_date entre aujourd'hui − 18 ans et
-// aujourd'hui) : sans cette garde Zod, une date hors tranche provoquait un
-// 500 Postgres au lieu d'un message clair (campagne smoke 2026-07-06).
+// Participants mineurs et adultes ; le payeur autonome utilise un lien « self ».
 const birthDateString = z.string().datetime().refine((v) => {
   const d = new Date(v);
   const now = new Date();
   const min = new Date(now);
-  min.setFullYear(min.getFullYear() - 18);
+  min.setFullYear(min.getFullYear() - 120);
   return d <= now && d >= min;
-}, "La date de naissance doit correspondre à un enfant de moins de 18 ans");
+}, "La date de naissance doit être passée et dater de moins de 120 ans");
 
 const relationshipEnum = z.enum([
   'mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other',
@@ -69,6 +67,7 @@ const childSchema = z.object({
 
 const parentInclude = {
   parentLinks: {
+    where: { parent: { deletedAt: null } },
     include: {
       parent: {
         select: { firstName: true, lastName: true, email: true, phone: true, homePhone: true, workPhone: true },
@@ -140,7 +139,7 @@ export const childrenRouter = router({
       sortBy: z.enum(['lastName', 'firstName', 'birthDate', 'createdAt']).default('lastName'),
       sortOrder: z.enum(['asc', 'desc']).default('asc'),
     }))
-    .output(z.object({ children: z.array(childSchema), total: z.number() }))
+    .output(z.object({ children: z.array(childSchema.omit({ medicalInfo: true }).extend({ allergyCount: z.number(), conditionCount: z.number() })), total: z.number() }))
     .query(async ({ ctx, input }) => {
       const { limit, offset, parentId, search, ageMin, ageMax, sortBy, sortOrder } = input;
 
@@ -194,14 +193,14 @@ export const childrenRouter = router({
         ctx.prisma.child.findMany({
           where,
           include: parentInclude,
-          orderBy: { [sortBy]: sortOrder },
+          orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
         }),
         ctx.prisma.child.count({ where }),
       ]);
 
-      return { children: children.map(mapChild), total };
+      return { children: children.map(child => { const mapped = mapChild(child); return { ...mapped, allergyCount: Array.isArray(mapped.medicalInfo.allergies) ? mapped.medicalInfo.allergies.length : 0, conditionCount: Array.isArray(mapped.medicalInfo.conditions) ? mapped.medicalInfo.conditions.length : 0 }; }), total };
     }),
 
   getById: protectedProcedure
@@ -214,6 +213,28 @@ export const childrenRouter = router({
       });
       return child ? mapChild(child) : null;
     }),
+
+  createAdult: protectedProcedure.input(z.object({
+    firstName: z.string().min(2).max(50), lastName: z.string().min(2).max(50),
+    email: z.string().email(), phone: z.string().min(6), birthDate: birthDateString,
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
+  })).mutation(async ({ ctx, input }) => {
+    const majority = new Date(); majority.setFullYear(majority.getFullYear() - 18);
+    if (new Date(input.birthDate) > majority) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ce parcours est réservé aux participants majeurs' });
+    return ctx.prisma.$transaction(async tx => {
+      const ownAccount = ctx.user.role === 'PARENT' ? await tx.user.findUnique({ where: { id: ctx.user.id } }) : null;
+      if (ownAccount && ownAccount.email !== input.email) throw new TRPCError({ code: 'FORBIDDEN', message: 'Utilisez votre adresse de compte pour votre inscription personnelle' });
+      let client = await tx.parent.findFirst({ where: { email: input.email, deletedAt: null } });
+      if (!client) {
+        if (ctx.user.role === 'PARENT') throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Profil client indisponible' });
+        if (await tx.user.findUnique({ where: { email: input.email } })) throw new TRPCError({ code: 'CONFLICT', message: 'Un compte existe déjà avec cette adresse : vérifiez son profil client' });
+        const user = await tx.user.create({ data: { email: input.email, name: `${input.firstName} ${input.lastName}`, role: 'PARENT' } });
+        client = await tx.parent.create({ data: { userId: user.id, email: input.email, firstName: input.firstName, lastName: input.lastName, phone: input.phone, address: '', city: '', postalCode: '' } });
+      }
+      const participant = await tx.child.create({ data: { firstName: input.firstName, lastName: input.lastName, birthDate: new Date(input.birthDate), gender: input.gender, emergencyContactName: `${input.firstName} ${input.lastName}`, emergencyContactPhone: input.phone, emergencyContactRelation: 'Participant autonome', parentLinks: { create: { parentId: client.userId, isPrimary: true, relationship: 'self' } } } });
+      return { id: participant.id };
+    });
+  }),
 
   create: staffProcedure
     .input(z.object({
@@ -347,7 +368,7 @@ export const childrenRouter = router({
       return mapChild(child);
     }),
 
-  update: staffProcedure
+  update: protectedProcedure
     .input(z.object({
       id: z.string().uuid(),
       firstName: z.string().min(2).max(50).optional(),

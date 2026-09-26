@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Document Upload Component
  *
@@ -5,11 +7,11 @@
  * Supporte la validation de format (PDF uniquement) et de taille (max 5MB).
  */
 
-'use client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-import { useCallback, useState } from 'react';
-import { Loader2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Loader2, Upload } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 // ============================================================================
 // TYPES
@@ -20,6 +22,7 @@ interface DocumentUploadProps {
    * ID de l'enfant pour upload
    */
   childId: string;
+  kind?: 'child' | 'staff';
 
   /**
    * Callback appelé lors de l'upload réussi
@@ -43,6 +46,7 @@ interface DocumentUploadProps {
 
 export function DocumentUpload({
   childId,
+  kind = 'child',
   onUploadComplete,
   description,
   className,
@@ -58,23 +62,20 @@ export function DocumentUpload({
   // VALIDATION
   // --------------------------------------------------------------------------
 
-  const validateFile = useCallback(
-    (file: File): string | null => {
-      // Vérifier que c'est un PDF
-      if (file.type !== 'application/pdf') {
-        return 'Format non autorisé. Seuls les fichiers PDF sont acceptés.';
-      }
+  const validateFile = useCallback((file: File): string | null => {
+    // Vérifier que c'est un PDF
+    if (file.type !== 'application/pdf') {
+      return 'Format non autorisé. Seuls les fichiers PDF sont acceptés.';
+    }
 
-      // Vérifier la taille (max 5MB)
-      if (file.size > MAX_SIZE) {
-        const maxSizeMB = (MAX_SIZE / (1024 * 1024)).toFixed(0);
-        return `Fichier trop volumineux. Taille maximale : ${maxSizeMB}MB`;
-      }
+    // Vérifier la taille (max 5MB)
+    if (file.size > MAX_SIZE) {
+      const maxSizeMB = (MAX_SIZE / (1024 * 1024)).toFixed(0);
+      return `Fichier trop volumineux. Taille maximale : ${maxSizeMB}MB`;
+    }
 
-      return null;
-    },
-    []
-  );
+    return null;
+  }, []);
 
   // --------------------------------------------------------------------------
   // UPLOAD
@@ -97,20 +98,20 @@ export function DocumentUpload({
         // Créer FormData
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('childId', childId);
+        formData.append(kind === 'staff' ? 'staffId' : 'childId', childId);
         if (description) {
           formData.append('description', description);
         }
 
         // Appeler l'API route
-        const response = await fetch('/api/upload/child-documents', {
+        const response = await fetch(`/api/upload/${kind}-documents`, {
           method: 'POST',
           body: formData,
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Erreur lors de l\'upload');
+          throw new Error(errorData.error || "Erreur lors de l'upload");
         }
 
         // Callback de succès
@@ -121,7 +122,7 @@ export function DocumentUpload({
         setIsUploading(false);
       }
     },
-    [validateFile, childId, description, onUploadComplete]
+    [validateFile, childId, description, onUploadComplete],
   );
 
   // --------------------------------------------------------------------------
@@ -137,7 +138,7 @@ export function DocumentUpload({
       // Reset input pour permettre re-sélection du même fichier
       e.target.value = '';
     },
-    [handleUpload]
+    [handleUpload],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -160,7 +161,7 @@ export function DocumentUpload({
         handleUpload(file);
       }
     },
-    [handleUpload]
+    [handleUpload],
   );
 
   // --------------------------------------------------------------------------
@@ -172,11 +173,9 @@ export function DocumentUpload({
       {/* Drop zone */}
       <label
         className={cn(
-          'flex h-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors',
-          isDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-gray-300 hover:border-primary/50',
-          isUploading && 'cursor-not-allowed opacity-50'
+          'flex h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-card transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+          isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+          isUploading && 'cursor-not-allowed opacity-50',
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -184,7 +183,8 @@ export function DocumentUpload({
       >
         <input
           type="file"
-          className="hidden"
+          className="sr-only"
+          aria-label="Choisir un document PDF"
           accept="application/pdf"
           onChange={handleFileChange}
           disabled={isUploading}
@@ -193,25 +193,21 @@ export function DocumentUpload({
         <div className="flex flex-col items-center justify-center space-y-2 p-4 text-center">
           {isUploading ? (
             <>
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              <p className="text-sm text-gray-600">Upload en cours...</p>
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p role="status" className="text-sm text-muted-foreground">
+                Téléversement en cours…
+              </p>
             </>
           ) : (
             <>
-              <div className="rounded-full bg-gray-100 p-2">
-                <Upload className="h-5 w-5 text-gray-600" />
+              <div className="rounded-full bg-muted p-2">
+                <Upload className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-700">
-                  Glissez un PDF ici
-                </p>
-                <p className="text-xs text-gray-500">
-                  ou cliquez pour parcourir
-                </p>
+                <p className="text-sm font-medium text-foreground">Glissez un PDF ici</p>
+                <p className="text-xs text-muted-foreground">ou cliquez pour parcourir</p>
               </div>
-              <p className="text-xs text-gray-400">
-                PDF uniquement - Max 5MB
-              </p>
+              <p className="text-xs text-muted-foreground">PDF uniquement - Max 5MB</p>
             </>
           )}
         </div>
@@ -219,9 +215,9 @@ export function DocumentUpload({
 
       {/* Message d'erreur */}
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3">
-          <p className="text-sm text-red-800">{error}</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
     </div>
   );

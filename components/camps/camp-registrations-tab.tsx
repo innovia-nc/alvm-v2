@@ -1,18 +1,9 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import {
-  createCampRegistrationColumns,
-  CampRegistrationActions,
-  type CampRegistrationType,
-} from './camp-registrations-columns';
-import { RegistrationCancellationDialog } from '@/components/admin/registrations/registration-cancellation-dialog';
 import type { AdminRegistrationType } from '@/components/admin/registrations/columns';
+import { RegistrationCancellationDialog } from '@/components/admin/registrations/registration-cancellation-dialog';
+import { FilterBar } from '@/components/shared/filter-bar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -30,11 +24,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { X } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import {
+  CampRegistrationActions,
+  createCampRegistrationColumns,
+  type CampRegistrationType,
+} from './camp-registrations-columns';
 
 type StatusFilter = 'all' | 'PENDING' | 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
@@ -108,10 +109,7 @@ export function CampRegistrationsTab({ campId, basePath }: CampRegistrationsTabP
   // Derive registrations path from basePath
   const registrationsPath = basePath.replace('/camps', '/registrations');
 
-  const baseColumns = useMemo(
-    () => createCampRegistrationColumns(basePath),
-    [basePath]
-  );
+  const baseColumns = useMemo(() => createCampRegistrationColumns(basePath), [basePath]);
 
   // Override actions column with callbacks
   const columns = baseColumns.map((col) => {
@@ -192,7 +190,7 @@ export function CampRegistrationsTab({ campId, basePath }: CampRegistrationsTabP
         </Alert>
       )}
 
-      <div className="flex flex-wrap gap-4 items-end">
+      <FilterBar>
         <div className="min-w-[180px]">
           <Label htmlFor="reg-status-filter" className="mb-2 block">
             Filtrer par statut
@@ -223,7 +221,7 @@ export function CampRegistrationsTab({ campId, basePath }: CampRegistrationsTabP
             Réinitialiser
           </Button>
         )}
-      </div>
+      </FilterBar>
 
       <DataTableServer
         columns={columns}
@@ -233,6 +231,7 @@ export function CampRegistrationsTab({ campId, basePath }: CampRegistrationsTabP
         pagination={pagination}
         searchKey="child.firstName"
         searchPlaceholder="Rechercher par nom..."
+        search={searchTerm}
         onSearchChange={handleSearchChange}
       />
 
@@ -245,20 +244,21 @@ export function CampRegistrationsTab({ campId, basePath }: CampRegistrationsTabP
               Êtes-vous sûr de vouloir supprimer cette inscription ?
               <br />
               <br />
-              Enfant : <strong>{deletingItem?.child.firstName} {deletingItem?.child.lastName}</strong>
+              Enfant :{' '}
+              <strong>
+                {deletingItem?.child.firstName} {deletingItem?.child.lastName}
+              </strong>
               <br />
               <br />
               Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
             </AlertDialogAction>
@@ -275,16 +275,17 @@ export function CampRegistrationsTab({ campId, basePath }: CampRegistrationsTabP
               Êtes-vous sûr de vouloir valider cette inscription ?
               <br />
               <br />
-              Enfant : <strong>{confirmingItem?.child.firstName} {confirmingItem?.child.lastName}</strong>
+              Enfant :{' '}
+              <strong>
+                {confirmingItem?.child.firstName} {confirmingItem?.child.lastName}
+              </strong>
               <br />
               <br />
               Le statut passera de &quot;En attente&quot; à &quot;Confirmée&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={confirmMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={confirmMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirm}
               disabled={confirmMutation.isPending}

@@ -180,10 +180,11 @@ export async function applyAvailableCreditsToInvoice(
   const credits = await tx.parentCredit.findMany({
     where: {
       parentId,
+      creditNote: { status: 'SENT', deletedAt: null },
       amountRemaining: { gt: 0 },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     include: {
       // Whitelist stricte : `status` filtre les avoirs annules, `invoiceNumber`
       // libelle le paiement et la trace. Rien d'autre n'est lu ici — surtout
@@ -197,7 +198,7 @@ export async function applyAvailableCreditsToInvoice(
     (credit: { creditNote: { status: string } | null }) =>
       // Un avoir annulé ne doit plus rien financer, même si le crédit associé
       // n'a pas été purgé.
-      credit.creditNote != null && credit.creditNote.status !== 'CANCELLED'
+      credit.creditNote != null && credit.creditNote.status === 'SENT'
   );
 
   if (usable.length === 0) {
@@ -209,7 +210,7 @@ export async function applyAvailableCreditsToInvoice(
   // on échoue explicitement plutôt que d'émettre une facture en ignorant
   // silencieusement des crédits dus au parent.
   const creditNoteMethod = await tx.paymentMethod.findFirst({
-    where: { code: 'CREDIT_NOTE' },
+    where: { code: 'CREDIT_NOTE', active: true },
     select: { id: true, code: true, accountingCode: true },
   });
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { FormActions } from '@/components/shared/form-actions';
 /**
  * Camp Form Component (Simplifié)
  *
@@ -7,10 +8,9 @@
  * Version simplifiée avec dates début/fin au lieu de journées individuelles.
  */
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { LoadingButton } from '@/components/ui/loading-button';
 import {
   Select,
   SelectContent,
@@ -29,12 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LoadingButton } from '@/components/ui/loading-button';
-import { ButtonGroup } from '@/components/ui/button-group';
+import { Textarea } from '@/components/ui/textarea';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Calendar } from 'lucide-react';
 import { useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 // ============================================================================
 // SCHEMAS
@@ -43,29 +43,31 @@ import { useMemo } from 'react';
 /**
  * Schema du formulaire de camp (simplifié avec dates début/fin)
  */
-const campFormSchema = z.object({
-  name: z.string().min(3, 'Nom requis (min 3 caractères)').max(200),
-  description: z.string().min(10, 'Description requise (min 10 caractères)'),
-  campTypeId: z.string().uuid('Type de camp requis'),
-  location: z.string().min(3, 'Lieu requis'),
-  maxCapacity: z.number().min(1, 'Capacité minimale: 1').max(200, 'Capacité maximale: 200'),
-  startDate: z.string().min(1, 'Date de début requise'),
-  endDate: z.string().min(1, 'Date de fin requise'),
-  registrationDeadline: z.string().min(1, 'Date limite requise'),
-  totalPrice: z.number().min(0, 'Le prix doit être positif'),
-  status: z.enum(['DRAFT', 'PUBLISHED']),
-}).refine(
-  (data) => {
-    if (data.startDate && data.endDate) {
-      return new Date(data.endDate) >= new Date(data.startDate);
-    }
-    return true;
-  },
-  {
-    message: 'La date de fin doit être après ou égale à la date de début',
-    path: ['endDate'],
-  }
-);
+const campFormSchema = z
+  .object({
+    name: z.string().min(3, 'Nom requis (min 3 caractères)').max(200),
+    description: z.string().min(10, 'Description requise (min 10 caractères)'),
+    campTypeId: z.string().uuid('Type de camp requis'),
+    location: z.string().min(3, 'Lieu requis'),
+    maxCapacity: z.number().min(1, 'Capacité minimale: 1').max(200, 'Capacité maximale: 200'),
+    startDate: z.string().min(1, 'Date de début requise'),
+    endDate: z.string().min(1, 'Date de fin requise'),
+    registrationDeadline: z.string().min(1, 'Date limite requise'),
+    totalPrice: z.number().min(0, 'Le prix doit être positif'),
+    status: z.enum(['DRAFT', 'PUBLISHED']),
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: 'La date de fin doit être après ou égale à la date de début',
+      path: ['endDate'],
+    },
+  );
 
 export type CampFormValues = z.infer<typeof campFormSchema>;
 
@@ -146,9 +148,7 @@ export function CampForm({
         <Card>
           <CardHeader>
             <CardTitle>Informations générales</CardTitle>
-            <CardDescription>
-              Informations de base sur le camp de vacances
-            </CardDescription>
+            <CardDescription>Informations de base sur le camp de vacances</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Nom */}
@@ -165,9 +165,7 @@ export function CampForm({
                       autoFocus={mode === 'create'}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Nom affiché publiquement pour les parents
-                  </FormDescription>
+                  <FormDescription>Nom affiché publiquement pour les parents</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -222,7 +220,7 @@ export function CampForm({
                   </Select>
                   <FormDescription>
                     {mode === 'create'
-                      ? 'Catégorie du camp selon la tranche d\'âge'
+                      ? "Catégorie du camp selon la tranche d'âge"
                       : 'Type de camp (non modifiable après création)'}
                   </FormDescription>
                   <FormMessage />
@@ -262,9 +260,7 @@ export function CampForm({
         <Card>
           <CardHeader>
             <CardTitle>Période du camp</CardTitle>
-            <CardDescription>
-              Définissez les dates de début et de fin du camp
-            </CardDescription>
+            <CardDescription>Définissez les dates de début et de fin du camp</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -306,7 +302,10 @@ export function CampForm({
               <Alert>
                 <Calendar className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>{daysCount} jour{daysCount > 1 ? 's' : ''}</strong> de camp
+                  <strong>
+                    {daysCount} jour{daysCount > 1 ? 's' : ''}
+                  </strong>{' '}
+                  de camp
                 </AlertDescription>
               </Alert>
             )}
@@ -317,9 +316,7 @@ export function CampForm({
         <Card>
           <CardHeader>
             <CardTitle>Logistique et capacité</CardTitle>
-            <CardDescription>
-              Informations pratiques sur le camp
-            </CardDescription>
+            <CardDescription>Informations pratiques sur le camp</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Lieu */}
@@ -332,9 +329,7 @@ export function CampForm({
                   <FormControl>
                     <Input placeholder="Ex: Centre de loisirs de Nouméa" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Lieu où se déroule le camp
-                  </FormDescription>
+                  <FormDescription>Lieu où se déroule le camp</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -401,9 +396,8 @@ export function CampForm({
           </CardContent>
         </Card>
 
-
         {/* Actions */}
-        <ButtonGroup align="right">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -415,7 +409,7 @@ export function CampForm({
           <LoadingButton type="submit" loading={isSubmitting}>
             {mode === 'create' ? 'Créer le camp' : 'Enregistrer les modifications'}
           </LoadingButton>
-        </ButtonGroup>
+        </FormActions>
       </form>
     </Form>
   );

@@ -103,6 +103,15 @@ describe('children router', () => {
       await expect(caller.children.list({})).rejects.toThrow(TRPCError);
     });
 
+    it('lists legacy empty medical JSON without leaking it or throwing', async () => {
+      admin.mockPrisma.child.findMany.mockResolvedValue([makeChild({ medicalInfo: {}, parentLinks: [] })]);
+      admin.mockPrisma.child.count.mockResolvedValue(1);
+      const result = await admin.caller.children.list({});
+      expect(result.children[0].allergyCount).toBe(0);
+      expect(result.children[0].conditionCount).toBe(0);
+      expect(result.children[0]).not.toHaveProperty('medicalInfo');
+    });
+
     it('should return children for ADMIN (sees all)', async () => {
       const childWithLinks = makeChild({
         parentLinks: [makeParentLink()],
@@ -197,7 +206,7 @@ describe('children router', () => {
       await admin.caller.children.list({ sortBy: 'birthDate', sortOrder: 'desc' });
 
       const findManyCall = admin.mockPrisma.child.findMany.mock.calls[0][0];
-      expect(findManyCall.orderBy).toEqual({ birthDate: 'desc' });
+      expect(findManyCall.orderBy).toEqual([{ birthDate: 'desc' }, { id: 'asc' }]);
     });
 
     it('should use default sort (lastName asc)', async () => {
@@ -207,7 +216,7 @@ describe('children router', () => {
       await admin.caller.children.list({});
 
       const findManyCall = admin.mockPrisma.child.findMany.mock.calls[0][0];
-      expect(findManyCall.orderBy).toEqual({ lastName: 'asc' });
+      expect(findManyCall.orderBy).toEqual([{ lastName: 'asc' }, { id: 'asc' }]);
     });
 
     it('should default medicalInfo when null', async () => {
@@ -218,13 +227,8 @@ describe('children router', () => {
 
       const result = await admin.caller.children.list({});
 
-      expect(result.children[0].medicalInfo).toEqual({
-        allergies: [],
-        medications: [],
-        conditions: [],
-        diet_restrictions: [],
-        notes: '',
-      });
+      expect(result.children[0].allergyCount).toBe(0);
+      expect(result.children[0]).not.toHaveProperty('medicalInfo');
     });
 
     it('should return empty list when no children match', async () => {

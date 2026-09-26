@@ -1,11 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { trpc } from '@/lib/trpc/client';
+import { FormActions } from '@/components/shared/form-actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -23,11 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Save, X } from 'lucide-react';
-import { toast } from 'sonner';
-import Link from 'next/link';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Save, X } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ============================================================================
 // TYPES
@@ -76,9 +77,7 @@ type RegistrationEditFormData = z.infer<typeof registrationEditSchema>;
 // COMPOSANT
 // ============================================================================
 
-export function RegistrationEditForm({
-  registration,
-}: RegistrationEditFormProps) {
+export function RegistrationEditForm({ registration }: RegistrationEditFormProps) {
   const router = useRouter();
   const basePath = useDashboardBasePath();
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +104,8 @@ export function RegistrationEditForm({
       router.push(`${basePath}/registrations/${registration.id}`);
       router.refresh();
     } catch (err) {
-      const errorMessage = err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
+      const errorMessage =
+        err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -146,8 +146,15 @@ export function RegistrationEditForm({
               <p className="text-xs text-muted-foreground">
                 {registration.camp.startDate && registration.camp.endDate ? (
                   <>
-                    Du {new Date(registration.camp.startDate).toLocaleDateString('fr-FR')} au{' '}
-                    {new Date(registration.camp.endDate).toLocaleDateString('fr-FR')} ({registration.camp.daysCount} jours)
+                    Du{' '}
+                    {new Date(registration.camp.startDate).toLocaleDateString('fr-FR', {
+                      timeZone: 'Pacific/Noumea',
+                    })}{' '}
+                    au{' '}
+                    {new Date(registration.camp.endDate).toLocaleDateString('fr-FR', {
+                      timeZone: 'Pacific/Noumea',
+                    })}{' '}
+                    ({registration.camp.daysCount} jours)
                   </>
                 ) : (
                   <>Dates non définies ({registration.camp.daysCount} jours)</>
@@ -157,8 +164,8 @@ export function RegistrationEditForm({
           </div>
 
           <p className="text-xs text-muted-foreground mt-2">
-            Ces informations ne peuvent pas être modifiées. Pour changer le camp ou l'enfant,
-            créez une nouvelle inscription.
+            Ces informations ne peuvent pas être modifiées. Pour changer le camp ou l'enfant, créez
+            une nouvelle inscription.
           </p>
         </div>
 
@@ -182,34 +189,26 @@ export function RegistrationEditForm({
                   <SelectItem value="CANCELLED">Annulée</SelectItem>
                 </SelectContent>
               </Select>
-              <FormDescription>
-                Changer le statut de l'inscription
-              </FormDescription>
+              <FormDescription>Changer le statut de l'inscription</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
         {/* Actions */}
-        <div className="flex gap-4">
-          <Button
-            type="submit"
-            disabled={updateMutation.isPending || !form.formState.isDirty}
-          >
-            {updateMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            <Save className="mr-2 h-4 w-4" />
-            Enregistrer
-          </Button>
-
+        <FormActions>
           <Button type="button" variant="outline" asChild>
             <Link href={`${basePath}/registrations/${registration.id}`}>
               <X className="mr-2 h-4 w-4" />
               Annuler
             </Link>
           </Button>
-        </div>
+          <Button type="submit" disabled={updateMutation.isPending || !form.formState.isDirty}>
+            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Save className="mr-2 h-4 w-4" />
+            Enregistrer
+          </Button>
+        </FormActions>
       </form>
     </Form>
   );

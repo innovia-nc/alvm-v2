@@ -6,6 +6,7 @@ const config = [
   {
     ignores: [
       'node_modules/**',
+      'docs/audit-2026-09-22/**',
       '.next/**',
       'out/**',
       'build/**',

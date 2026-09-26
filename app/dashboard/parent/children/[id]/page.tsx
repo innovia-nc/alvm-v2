@@ -1,23 +1,15 @@
-import { requireRole } from '@/lib/auth';
-import { createServerTRPC } from '@/lib/trpc';
-import { PageHeader } from '@/components/shared/page-header';
-import { ChildDocumentsSection } from '@/components/shared/child-documents-section';
 import { ChildRegistrationsHistory } from '@/components/admin/children/child-registrations-history';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BackButton } from '@/components/shared/back-button';
+import { ChildDocumentsSection } from '@/components/shared/child-documents-section';
+import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { notFound } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { requireRole } from '@/lib/auth';
+import { createServerTRPC } from '@/lib/trpc';
+import { Activity, AlertTriangle, Calendar, Heart, Pencil, Phone, User } from 'lucide-react';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  Pencil,
-  User,
-  Phone,
-  Calendar,
-  Heart,
-  AlertTriangle,
-  Activity,
-} from 'lucide-react';
+import { notFound } from 'next/navigation';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -74,8 +66,7 @@ export default async function ParentChildDetailPage({
   const age = calculateAge(child.birthDate);
   const hasAllergies = child.medicalInfo?.allergies && child.medicalInfo.allergies.length > 0;
   const hasConditions = child.medicalInfo?.conditions && child.medicalInfo.conditions.length > 0;
-  const hasMedications =
-    child.medicalInfo?.medications && child.medicalInfo.medications.length > 0;
+  const hasMedications = child.medicalInfo?.medications && child.medicalInfo.medications.length > 0;
   const hasDietRestrictions =
     child.medicalInfo?.diet_restrictions && child.medicalInfo.diet_restrictions.length > 0;
 
@@ -87,12 +78,7 @@ export default async function ParentChildDetailPage({
         description={`${age} ans`}
         actions={
           <div className="flex gap-2">
-            <Link href="/dashboard/parent/children">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour
-              </Button>
-            </Link>
+            <BackButton href="/dashboard/parent/children" label="Retour" />
             <Link href={`/dashboard/parent/children/${child.id}/edit`}>
               <Button size="sm">
                 <Pencil className="mr-2 h-4 w-4" />
@@ -129,6 +115,7 @@ export default async function ParentChildDetailPage({
                 <p className="text-sm font-medium text-muted-foreground">Date de naissance</p>
                 <p className="text-base">
                   {new Date(child.birthDate).toLocaleDateString('fr-FR', {
+                    timeZone: 'Pacific/Noumea',
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -295,16 +282,10 @@ export default async function ParentChildDetailPage({
       </Card>
 
       {/* Historique des inscriptions — données SSR, aucun refetch réseau */}
-      <ChildRegistrationsHistory
-        childId={child.id}
-        initialData={registrationsData}
-      />
+      <ChildRegistrationsHistory childId={child.id} initialData={registrationsData} />
 
       {/* Documents */}
-      <ChildDocumentsSection
-        childId={child.id}
-        userRole="PARENT"
-      />
+      <ChildDocumentsSection childId={child.id} userRole="PARENT" />
     </div>
   );
 }

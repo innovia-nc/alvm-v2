@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Image Upload Component
  *
@@ -5,12 +7,12 @@
  * Supporte la prévisualisation, la validation de format et de taille.
  */
 
-'use client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-import { useCallback, useState } from 'react';
-import { X, Loader2, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ImageIcon, Loader2, X } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 // ============================================================================
 // POLITIQUE DE FICHIER
@@ -80,7 +82,7 @@ export function ImageUpload({
     // Vérifier le type MIME
     if (!ACCEPTED_TYPES.includes(file.type)) {
       return `Format non autorisé. Formats acceptés : ${ACCEPTED_TYPES.map(
-        (t) => t.split('/')[1]?.toUpperCase() || 'inconnu'
+        (t) => t.split('/')[1]?.toUpperCase() || 'inconnu',
       ).join(', ')}`;
     }
 
@@ -123,7 +125,7 @@ export function ImageUpload({
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Erreur lors de l\'upload');
+          throw new Error(errorData.error || "Erreur lors de l'upload");
         }
 
         const data = await response.json();
@@ -136,7 +138,7 @@ export function ImageUpload({
         setIsUploading(false);
       }
     },
-    [validateFile, onUpload]
+    [validateFile, onUpload],
   );
 
   // --------------------------------------------------------------------------
@@ -150,7 +152,7 @@ export function ImageUpload({
         handleUpload(file);
       }
     },
-    [handleUpload]
+    [handleUpload],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -173,7 +175,7 @@ export function ImageUpload({
         handleUpload(file);
       }
     },
-    [handleUpload]
+    [handleUpload],
   );
 
   // --------------------------------------------------------------------------
@@ -189,11 +191,7 @@ export function ImageUpload({
         <div className="relative inline-block">
           {/* Preview */}
           <div className="relative h-40 w-40 overflow-hidden rounded-lg border-2 border-gray-200">
-            <img
-              src={value}
-              alt="Logo organisation"
-              className="h-full w-full object-contain"
-            />
+            <img src={value} alt="Logo organisation" className="h-full w-full object-contain" />
           </div>
 
           {/* Bouton de suppression */}
@@ -205,16 +203,12 @@ export function ImageUpload({
             onClick={onRemove}
             disabled={loading}
           >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <X className="h-4 w-4" />
-            )}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
           </Button>
         </div>
 
         {/* Message d'information */}
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Cliquez sur la croix pour supprimer le logo actuel.
         </p>
       </div>
@@ -227,11 +221,9 @@ export function ImageUpload({
       {/* Drop zone */}
       <label
         className={cn(
-          'flex h-40 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors',
-          isDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-gray-300 hover:border-primary/50',
-          loading && 'cursor-not-allowed opacity-50'
+          'flex h-40 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-card transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+          isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+          loading && 'cursor-not-allowed opacity-50',
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -239,7 +231,8 @@ export function ImageUpload({
       >
         <input
           type="file"
-          className="hidden"
+          className="sr-only"
+          aria-label="Choisir une image"
           accept={ACCEPTED_TYPES.join(',')}
           onChange={handleFileChange}
           disabled={loading}
@@ -248,23 +241,21 @@ export function ImageUpload({
         <div className="flex flex-col items-center justify-center space-y-2 p-6 text-center">
           {loading ? (
             <>
-              <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
-              <p className="text-sm text-gray-600">Upload en cours...</p>
+              <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+              <p role="status" className="text-sm text-muted-foreground">
+                Téléversement en cours…
+              </p>
             </>
           ) : (
             <>
-              <div className="rounded-full bg-gray-100 p-3">
-                <ImageIcon className="h-6 w-6 text-gray-600" />
+              <div className="rounded-full bg-muted p-3">
+                <ImageIcon className="h-6 w-6 text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-700">
-                  Glissez une image ici
-                </p>
-                <p className="text-xs text-gray-500">
-                  ou cliquez pour parcourir
-                </p>
+                <p className="text-sm font-medium text-foreground">Glissez une image ici</p>
+                <p className="text-xs text-muted-foreground">ou cliquez pour parcourir</p>
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 PNG, JPG, SVG • Max {(MAX_SIZE / (1024 * 1024)).toFixed(0)}MB
               </p>
             </>
@@ -274,9 +265,9 @@ export function ImageUpload({
 
       {/* Message d'erreur */}
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3">
-          <p className="text-sm text-red-800">{error}</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
     </div>
   );

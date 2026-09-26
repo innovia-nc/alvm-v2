@@ -47,7 +47,7 @@ export const adminRefundColumns: ColumnDef<AdminRefundType>[] = [
     cell: ({ row }) => {
       return (
         <div className="text-sm">
-          {new Date(row.original.refundDate).toLocaleDateString('fr-FR')}
+          {new Date(row.original.refundDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </div>
       );
     },

@@ -1,3 +1,4 @@
+import { reverseAccountingEntries } from '@/server/services/accounting.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import {
@@ -134,7 +135,7 @@ function mapCreditNoteWithDetails(cn: any) {
     status: cn.status as CreditNoteStatus,
     isFutureCredit: cn.isFutureCredit ?? false,
     notes: cn.notes,
-    pdfUrl: cn.pdfUrl ?? null,
+    pdfUrl: `/api/documents/credit/${cn.id}`,
     createdAt: cn.createdAt,
     updatedAt: cn.updatedAt,
     originalInvoice: cn.creditedInvoice
@@ -186,7 +187,7 @@ function mapCreditNote(cn: any) {
     status: cn.status as CreditNoteStatus,
     isFutureCredit: cn.isFutureCredit ?? false,
     notes: cn.notes,
-    pdfUrl: cn.pdfUrl ?? null,
+    pdfUrl: `/api/documents/credit/${cn.id}`,
     createdAt: cn.createdAt,
     updatedAt: cn.updatedAt,
   };
@@ -252,7 +253,7 @@ export const creditNotesRouter = router({
         ctx.prisma.invoice.findMany({
           where,
           include: creditNoteInclude,
-          orderBy: { [sortMap[sortBy]]: sortOrder },
+          orderBy: [{ [sortMap[sortBy]]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
         }),
@@ -303,6 +304,7 @@ export const creditNotesRouter = router({
     .output(creditNoteSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
         // Verify original invoice if provided
         if (input.creditedInvoiceId) {
           const origInvoice = await tx.invoice.findFirst({
@@ -378,6 +380,7 @@ export const creditNotesRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
         const cn = await tx.invoice.findFirst({
           where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
         });
@@ -398,9 +401,19 @@ export const creditNotesRouter = router({
           });
         }
 
+        if (input.status === 'CANCELLED') {
+          const cancelledService = await tx.invoiceLine.count({ where: { invoiceId: cn.id, deletedAt: null, registration: { status: 'CANCELLED' } } });
+          if (cancelledService) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Cet avoir clôt une annulation de prestation et ne peut pas être annulé isolément' });
+          const allocations = await tx.creditNoteAllocation.count({ where: { creditNoteId: cn.id } });
+          const applications = await tx.creditApplication.count({ where: { parentCredit: { creditNoteId: cn.id } } });
+          const refunds = await tx.refund.count({ where: { creditNoteId: cn.id, deletedAt: null } });
+          if (allocations || applications || refunds) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Impossible d’annuler un avoir utilisé ou lié à un remboursement' });
+          if (cn.status === 'SENT') await reverseAccountingEntries(tx, { creditNoteId: cn.id }, ctx.user.id);
+          await tx.parentCredit.updateMany({ where: { creditNoteId: cn.id }, data: { amountRemaining: 0 } });
+        }
         await tx.invoice.update({
           where: { id: input.id },
-          data: { status: input.status },
+          data: { status: input.status, pdfUrl: null },
         });
 
         // If transitioning to SENT, create accounting entries (VE)
@@ -567,6 +580,7 @@ export const creditNotesRouter = router({
       const { url } = await uploadToStorage(pdfBuffer, {
         pathname,
         contentType: 'application/pdf',
+        access: 'private',
       });
 
       await ctx.prisma.invoice.update({
@@ -574,6 +588,6 @@ export const creditNotesRouter = router({
         data: { pdfUrl: url },
       });
 
-      return { success: true, pdfUrl: url };
+      return { success: true, pdfUrl: `/api/documents/credit/${creditNote.id}` };
     }),
 });

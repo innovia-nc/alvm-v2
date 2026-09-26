@@ -277,6 +277,7 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
     if (!relationship) return null;
 
     const relations: Record<string, string> = {
+      self: 'Lui-même (client / payeur)',
       mother: 'Mère',
       father: 'Père',
       guardian: 'Tuteur/Tutrice',
@@ -288,6 +289,8 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
 
     return relations[relationship] || relationship;
   };
+
+  const isAdult = calculateAge(child.birthDate) >= 18;
 
   // Tri des parents : parent principal en premier
   const sortedParents = [...parents].sort((a, b) => {
@@ -302,7 +305,7 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
         {/* Header avec logo */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.title}>FICHE ENFANT</Text>
+            <Text style={styles.title}>{isAdult ? 'FICHE STAGIAIRE ADULTE' : 'FICHE ENFANT'}</Text>
             <Text style={styles.subtitle}>{org.name}</Text>
           </View>
           {logoUrl && (
@@ -347,7 +350,7 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
         {/* Parents associés */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            PARENTS ASSOCIÉS ({sortedParents.length})
+            {isAdult ? 'CLIENTS / PAYEURS' : 'PARENTS ASSOCIÉS'} ({sortedParents.length})
           </Text>
 
           {sortedParents.map((parent, index) => (
@@ -358,7 +361,7 @@ export const ChildProfilePDF: React.FC<{ data: ChildProfileData }> = ({ data }) 
                 </Text>
                 <View style={{ flexDirection: 'row' }}>
                   {parent.isPrimary && (
-                    <Text style={styles.primaryBadge}>★ Parent principal</Text>
+                    <Text style={styles.primaryBadge}>{isAdult ? 'Payeur principal' : '★ Parent principal'}</Text>
                   )}
                   {parent.relationship && (
                     <Text style={styles.relationshipBadge}>

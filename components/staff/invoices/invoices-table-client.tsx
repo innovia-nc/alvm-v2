@@ -1,16 +1,7 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import {
-  staffInvoiceColumns,
-  StaffInvoiceActions,
-  type StaffInvoiceType,
-} from './columns';
+import { PaymentDialog } from '@/components/admin/payment-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,13 +12,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { PaymentDialog } from '@/components/admin/payment-dialog';
+import { StaffInvoiceActions, staffInvoiceColumns, type StaffInvoiceType } from './columns';
 
 export function InvoicesTableClient() {
   const router = useRouter();
+  const status = useSearchParams().get('status') === 'OVERDUE' ? ('OVERDUE' as const) : undefined;
   const [validatingItem, setValidatingItem] = useState<StaffInvoiceType | null>(null);
   const [deletingItem, setDeletingItem] = useState<StaffInvoiceType | null>(null);
   const [paymentDialogItem, setPaymentDialogItem] = useState<StaffInvoiceType | null>(null);
@@ -38,10 +35,24 @@ export function InvoicesTableClient() {
 
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  const { data, isLoading } = trpc.invoices.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.invoices.list.useQuery({
+    sortBy: pagination.sortBy as
+      | 'invoiceNumber'
+      | 'issueDate'
+      | 'dueDate'
+      | 'totalAmount'
+      | 'parent'
+      | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search,
+    status,
   });
 
   const utils = trpc.useUtils();
@@ -146,6 +157,9 @@ export function InvoicesTableClient() {
       )}
 
       <DataTableServer
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent']}
         columns={columnsWithActions}
         data={data?.invoices || []}
         totalCount={data?.total || 0}
@@ -153,6 +167,7 @@ export function InvoicesTableClient() {
         pagination={pagination}
         searchKey="invoiceNumber"
         searchPlaceholder="Rechercher par numéro ou statut..."
+        search={search}
         onSearchChange={setSearch}
       />
 
@@ -181,26 +196,16 @@ export function InvoicesTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={validateMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleValidate}
-              disabled={validateMutation.isPending}
-            >
-              {validateMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+            <AlertDialogCancel disabled={validateMutation.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleValidate} disabled={validateMutation.isPending}>
+              {validateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Valider
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={!!deletingItem}
-        onOpenChange={(open) => !open && setDeletingItem(null)}
-      >
+      <AlertDialog open={!!deletingItem} onOpenChange={(open) => !open && setDeletingItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
@@ -222,17 +227,13 @@ export function InvoicesTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>

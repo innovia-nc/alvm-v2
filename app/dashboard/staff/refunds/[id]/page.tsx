@@ -28,7 +28,7 @@ export default async function RefundDetailPage({
     <div className="space-y-6">
       <PageHeader
         title="Détails du Remboursement"
-        description={`Effectué le ${new Date(refund.refundDate).toLocaleDateString('fr-FR')}`}
+        description={`Effectué le ${new Date(refund.refundDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}`}
       />
 
       <RefundDetails refund={refund} />

@@ -1,27 +1,34 @@
 'use client';
 
-import * as React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Home,
-  Users,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useMediaQuery } from '@/lib/hooks/use-media-query';
+import { cn } from '@/lib/utils';
+import {
   CalendarDays,
-  FileText,
-  Receipt,
-  Settings,
-  Menu,
-  X,
   ChevronLeft,
   CreditCard,
   FileCheck,
-  Tag,
+  FileText,
+  Home,
+  Menu,
+  Receipt,
   RefreshCcw,
+  Settings,
+  Tag,
+  Users,
+  X,
 } from 'lucide-react';
-import { useMediaQuery } from '@/lib/hooks/use-media-query';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import * as React from 'react';
 
 interface NavItem {
   title: string;
@@ -170,6 +177,11 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Users,
         },
         {
+          title: 'Comptes et habilitations',
+          href: '/dashboard/admin/users',
+          icon: Users,
+        },
+        {
           title: 'Personnel ALVM',
           href: '/dashboard/admin/users/staff',
           icon: Users,
@@ -248,15 +260,21 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isMobile = useMediaQuery('(max-width: 767px)');
 
   const navSections = navigationConfig[role] || [];
+  const compact = collapsed && !isMobile;
+  // Only the most specific matching destination represents the current page.
+  const activeHref = navSections
+    .flatMap((section) => section.items)
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   const NavContent = () => (
     <div className="flex h-full flex-col">
       {/* Logo et toggle collapse */}
       <div className="flex h-16 items-center justify-between border-b px-4">
-        {!collapsed && (
+        {!compact && (
           <Link href="/dashboard" className="flex items-center gap-2">
             <span className="text-xl font-bold text-primary">ALVM</span>
           </Link>
@@ -266,15 +284,11 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
           <Button
             variant="ghost"
             size="icon"
+            aria-label={collapsed ? 'Développer le menu' : 'Réduire le menu'}
             onClick={() => setCollapsed(!collapsed)}
             className="h-8 w-8"
           >
-            <ChevronLeft
-              className={cn(
-                'h-4 w-4 transition-transform',
-                collapsed && 'rotate-180'
-              )}
-            />
+            <ChevronLeft className={cn('h-4 w-4 transition-transform', compact && 'rotate-180')} />
           </Button>
         )}
 
@@ -282,6 +296,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Fermer le menu"
             onClick={() => setMobileOpen(false)}
             className="h-8 w-8"
           >
@@ -292,11 +307,11 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-6">
+        <nav aria-label="Navigation principale" className="space-y-5">
           {navSections.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {/* Section header */}
-              {!collapsed && section.title && (
+              {!compact && section.title && (
                 <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {section.title}
                 </h3>
@@ -306,25 +321,28 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                  const isActive = item.href === activeHref;
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={false}
                       onClick={() => isMobile && setMobileOpen(false)}
                       className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                         isActive
-                          ? 'bg-primary text-primary-foreground'
+                          ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                        collapsed && 'justify-center'
+                        compact && 'justify-center',
                       )}
-                      title={collapsed ? item.title : undefined}
+                      title={compact ? item.title : undefined}
+                      aria-label={item.title}
+                      aria-current={isActive ? 'page' : undefined}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                      {!collapsed && item.badge && (
+                      {!compact && <span>{item.title}</span>}
+                      {!compact && item.badge && (
                         <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                           {item.badge}
                         </span>
@@ -339,13 +357,14 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
       </ScrollArea>
 
       {/* Footer info utilisateur */}
-      {!collapsed && (
+      {!compact && (
         <div className="border-t p-4">
           <div className="text-xs text-muted-foreground">
             <p className="font-medium">
-              Espace {role === 'parent' ? 'Parent' : role === 'staff' ? 'Personnel' : 'Administrateur'}
+              Espace{' '}
+              {role === 'parent' ? 'Parent' : role === 'staff' ? 'Personnel' : 'Administrateur'}
             </p>
-            <p className="mt-1">Version 2.0.0</p>
+            <p className="mt-1">Gestion des camps et activités</p>
           </div>
         </div>
       )}
@@ -355,35 +374,26 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
   // Mobile: overlay sidebar
   if (isMobile) {
     return (
-      <>
-        {/* Toggle button mobile */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setMobileOpen(true)}
-          className="fixed left-4 top-4 z-50 md:hidden"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
-
-        {/* Overlay */}
-        {mobileOpen && (
-          <div
-            className="fixed inset-0 z-50 bg-black/50 md:hidden"
-            onClick={() => setMobileOpen(false)}
-          />
-        )}
-
-        {/* Sidebar mobile */}
-        <aside
-          className={cn(
-            'fixed left-0 top-0 z-50 h-full w-72 bg-card border-r transition-transform md:hidden',
-            mobileOpen ? 'translate-x-0' : '-translate-x-full'
-          )}
-        >
+      <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Ouvrir le menu"
+            aria-expanded={mobileOpen}
+            className="fixed left-4 top-4 z-40 md:hidden"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="left-0 top-0 h-dvh max-h-dvh w-72 translate-x-0 translate-y-0 rounded-none p-0 gap-0 [&>button]:hidden">
+          <DialogTitle className="sr-only">Navigation principale</DialogTitle>
+          <DialogDescription className="sr-only">
+            Accéder aux rubriques de votre espace
+          </DialogDescription>
           <NavContent />
-        </aside>
-      </>
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -391,8 +401,8 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col h-screen border-r bg-card transition-all',
-        collapsed ? 'w-16' : 'w-64'
+        'sticky top-0 hidden h-dvh shrink-0 md:flex flex-col border-r bg-card transition-[width]',
+        collapsed ? 'w-16' : 'w-64',
       )}
     >
       <NavContent />

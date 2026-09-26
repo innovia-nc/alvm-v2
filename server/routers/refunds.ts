@@ -1,3 +1,4 @@
+import { createCompensationCredit } from '@/server/services/registration-cancellation.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, staffProcedure } from '@/server/trpc/init';
@@ -153,7 +154,7 @@ export const refundsRouter = router({
         ctx.prisma.refund.findMany({
           where,
           include: refundInclude,
-          orderBy: { [sortBy]: sortOrder },
+          orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
         }),
@@ -191,6 +192,7 @@ export const refundsRouter = router({
     .output(refundSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
         // Verify payment exists with its method and invoice
         const payment = await tx.payment.findUnique({
           where: { id: input.paymentId },
@@ -203,6 +205,8 @@ export const refundsRouter = router({
                 parentId: true,
                 totalAmount: true,
                 paidAmount: true,
+                creditedAmount: true,
+                taxRate: true,
                 status: true,
               },
             },
@@ -228,11 +232,20 @@ export const refundsRouter = router({
           });
         }
 
+        if (payment.creditNoteId) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Un règlement par avoir doit être restitué par suppression de son imputation' });
+        let creditNoteId: string | null = null;
+        if (input.refundMethod === 'FUTURE_CREDIT') {
+          const remainingCharge = toNum(payment.invoice.totalAmount) - toNum(payment.invoice.creditedAmount);
+          if (input.amount > remainingCharge) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Montant supérieur à la prestation non compensée' });
+          const credit = await createCompensationCredit(tx, { invoiceId: payment.invoice.id, parentId: payment.invoice.parentId, amount: input.amount, taxRate: toNum(payment.invoice.taxRate), future: true, userId: ctx.user.id, reason: input.reason });
+          creditNoteId = credit.id;
+        }
         const refundNumber = await generateDocumentNumber(tx, 'REFUND');
         const refund = await tx.refund.create({
           data: {
             refundNumber,
             paymentId: input.paymentId,
+            creditNoteId,
             amount: input.amount,
             refundDate: new Date(input.refundDate),
             refundMethod: input.refundMethod as RefundMethod,
@@ -259,14 +272,14 @@ export const refundsRouter = router({
         // Un remboursement immédiat rend de l'argent : la facture est moins
         // payée (même recalcul que payments.create/delete). Un FUTURE_CREDIT
         // devient un avoir — le paiement reste acquis sur cette facture.
-        if (input.refundMethod === 'IMMEDIATE_REFUND') {
+        {
           const newPaidAmount = Math.max(0, toNum(payment.invoice.paidAmount) - input.amount);
-          const newStatus = newPaidAmount >= toNum(payment.invoice.totalAmount)
+          const newStatus = newPaidAmount >= toNum(payment.invoice.totalAmount) - toNum(payment.invoice.creditedAmount) - (creditNoteId ? input.amount : 0)
             ? 'PAID'
             : (payment.invoice.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
           await tx.invoice.update({
             where: { id: payment.invoice.id },
-            data: { paidAmount: newPaidAmount, status: newStatus },
+            data: { paidAmount: newPaidAmount, status: newStatus, pdfUrl: null, version: { increment: 1 }, ...(creditNoteId ? { creditedAmount: { increment: input.amount } } : {}) },
           });
         }
 
@@ -279,12 +292,13 @@ export const refundsRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
         const refund = await tx.refund.findUnique({
           where: { id: input.id },
           include: {
             payment: {
               select: {
-                invoice: { select: { id: true, totalAmount: true, paidAmount: true, status: true } },
+                invoice: { select: { id: true, totalAmount: true, creditedAmount: true, paidAmount: true, status: true } },
               },
             },
           },
@@ -293,6 +307,15 @@ export const refundsRouter = router({
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Remboursement non trouvé' });
         }
 
+        if (refund.notes?.startsWith('Avoir ')) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Ce remboursement clôt une annulation d’inscription et ne peut pas être supprimé isolément' });
+        if (refund.creditNoteId) {
+          const credit = await tx.parentCredit.findFirst({ where: { creditNoteId: refund.creditNoteId } });
+          const used = await tx.creditNoteAllocation.count({ where: { creditNoteId: refund.creditNoteId } });
+          if (!credit || used > 0 || toNum(credit.amountRemaining) !== toNum(credit.amountOriginal)) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Cet avoir a déjà été utilisé : annulez ses imputations avant le remboursement' });
+          await cancelAccountingEntries(tx, { creditNoteId: refund.creditNoteId }, ctx.user.id);
+          await tx.parentCredit.update({ where: { id: credit.id }, data: { amountRemaining: 0 } });
+          await tx.invoice.update({ where: { id: refund.creditNoteId }, data: { status: 'CANCELLED', pdfUrl: null, version: { increment: 1 } } });
+        }
         // Cancel associated accounting entries
         await cancelAccountingEntries(tx, { refundId: input.id }, ctx.user.id);
 
@@ -300,15 +323,16 @@ export const refundsRouter = router({
 
         // Symétrique de refunds.create : annuler un remboursement immédiat
         // restitue le montant au payé de la facture.
-        if (refund.refundMethod === 'IMMEDIATE_REFUND' && refund.payment?.invoice) {
+        if (refund.payment?.invoice) {
           const inv = refund.payment.invoice;
           const newPaidAmount = toNum(inv.paidAmount) + toNum(refund.amount);
-          const newStatus = newPaidAmount >= toNum(inv.totalAmount)
+          const credited = toNum(inv.creditedAmount) - (refund.creditNoteId ? toNum(refund.amount) : 0);
+          const newStatus = newPaidAmount >= toNum(inv.totalAmount) - credited
             ? 'PAID'
             : (inv.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
           await tx.invoice.update({
             where: { id: inv.id },
-            data: { paidAmount: newPaidAmount, status: newStatus },
+            data: { paidAmount: newPaidAmount, creditedAmount: credited, status: newStatus, pdfUrl: null, version: { increment: 1 } },
           });
         }
 

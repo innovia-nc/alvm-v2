@@ -1,14 +1,7 @@
 'use client';
 
-import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
-import { DataTable } from '@/components/ui/data-table';
 import { getUsersColumns } from '@/components/admin/users/users-table-columns';
-import { trpc } from '@/lib/trpc/client';
-import { useRouter } from 'next/navigation';
-import { useState, useMemo, useCallback } from 'react';
+import { PageHeader } from '@/components/shared/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +12,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { FilterBar } from '@/components/shared/filter-bar';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import { toast } from 'sonner';
+import { UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -30,9 +40,14 @@ export default function AdminUsersPage() {
   const [tempPassword, setTempPassword] = useState<string>('');
 
   // Fetch users with tRPC
-  const { data, isLoading } = trpc.users.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const pagination = useServerPagination();
+  const [search, setSearch] = useState('');
+  const [role, setRole] = useState<'all' | 'PARENT' | 'STAFF' | 'ADMIN'>('all');
+  const { data, isLoading, error, refetch } = trpc.users.list.useQuery({
+    limit: pagination.limit,
+    offset: pagination.offset,
+    search: search || undefined,
+    role: role === 'all' ? undefined : role,
   });
 
   // Mutations
@@ -40,10 +55,10 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       utils.users.list.invalidate();
       setDeleteUserId(null);
-      alert('Utilisateur supprimé avec succès');
+      toast.success('Utilisateur désactivé avec succès');
     },
     onError: (error) => {
-      alert(`Erreur: ${error.message}`);
+      toast.error(error.message);
     },
   });
 
@@ -52,16 +67,19 @@ export default function AdminUsersPage() {
       setTempPassword(data.tempPassword);
     },
     onError: (error) => {
-      alert(`Erreur: ${error.message}`);
+      toast.error(error.message);
       setResetPasswordUserId(null);
     },
   });
 
   // Handlers
-  const handleResetPassword = useCallback((userId: string) => {
-    setResetPasswordUserId(userId);
-    resetPasswordMutation.mutate({ userId });
-  }, [resetPasswordMutation]);
+  const handleResetPassword = useCallback(
+    (userId: string) => {
+      setResetPasswordUserId(userId);
+      resetPasswordMutation.mutate({ userId });
+    },
+    [resetPasswordMutation],
+  );
 
   const handleDelete = useCallback((userId: string) => {
     setDeleteUserId(userId);
@@ -75,18 +93,19 @@ export default function AdminUsersPage() {
 
   // Columns with callbacks
   const columns = useMemo(
-    () => getUsersColumns({
-      onResetPassword: handleResetPassword,
-      onDelete: handleDelete,
-    }),
-    [handleResetPassword, handleDelete]
+    () =>
+      getUsersColumns({
+        onResetPassword: handleResetPassword,
+        onDelete: handleDelete,
+      }),
+    [handleResetPassword, handleDelete],
   );
 
   return (
     <>
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Gestion des Utilisateurs"
+          title="Comptes et habilitations"
           description="Gérez les comptes utilisateurs et leurs permissions"
           actions={
             <Button onClick={() => router.push('/dashboard/admin/users/new')}>
@@ -97,18 +116,58 @@ export default function AdminUsersPage() {
         />
 
         {/* Liste des utilisateurs avec DataTable */}
-        <Card>
-          <CardContent className="pt-6">
-            <DataTable
-              columns={columns}
-              data={data?.users ?? []}
-              isLoading={isLoading}
-              searchKey="name"
-              searchPlaceholder="Rechercher par nom ou email..."
-              pageSize={20}
-            />
-          </CardContent>
-        </Card>
+        <FilterBar>
+          <div className="w-full sm:w-56">
+            <Label htmlFor="user-role" className="mb-2 block">
+              Rôle
+            </Label>
+            <Select
+              value={role}
+              onValueChange={(value: typeof role) => {
+                setRole(value);
+                pagination.resetToFirstPage();
+              }}
+            >
+              <SelectTrigger id="user-role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les rôles</SelectItem>
+                <SelectItem value="PARENT">Parents</SelectItem>
+                <SelectItem value="STAFF">Personnel</SelectItem>
+                <SelectItem value="ADMIN">Administrateurs</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {(role !== 'all' || search) && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRole('all');
+                setSearch('');
+                pagination.resetToFirstPage();
+              }}
+            >
+              Réinitialiser
+            </Button>
+          )}
+        </FilterBar>
+        <DataTableServer
+          columns={columns}
+          data={data?.users ?? []}
+          isLoading={isLoading}
+          searchKey="name"
+          searchPlaceholder="Nom ou email…"
+          totalCount={data?.total ?? 0}
+          pagination={pagination}
+          error={error}
+          onRetry={refetch}
+          search={search}
+          onSearchChange={(value) => {
+            setSearch(value);
+            pagination.resetToFirstPage();
+          }}
+        />
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -117,8 +176,8 @@ export default function AdminUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
-              Toutes les données associées (profil, inscriptions) seront également supprimées.
+              Le compte sera désactivé et ses sessions seront révoquées. Les pièces comptables et
+              les liens familiaux seront conservés.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -145,7 +204,8 @@ export default function AdminUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Mot de passe temporaire</AlertDialogTitle>
             <AlertDialogDescription>
-              Le mot de passe de l'utilisateur a été réinitialisé. Voici le mot de passe temporaire :
+              Le mot de passe de l'utilisateur a été réinitialisé. Voici le mot de passe temporaire
+              :
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="rounded-lg bg-muted p-4">

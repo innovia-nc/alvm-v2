@@ -127,7 +127,8 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
     await applyAvailableCreditsToInvoice(tx, baseParams());
 
     const call = tx.parentCredit.findMany.mock.calls[0][0];
-    expect(call.orderBy).toEqual({ createdAt: 'asc' });
+    expect(call.orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
+    expect(call.where.creditNote).toEqual({ status: 'SENT', deletedAt: null });
     expect(call.where.parentId).toBe(PARENT_ID);
     expect(call.where.amountRemaining).toEqual({ gt: 0 });
     expect(call.where.OR).toEqual([{ expiresAt: null }, { expiresAt: { gt: NOW } }]);

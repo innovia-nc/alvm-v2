@@ -204,7 +204,7 @@ describe('users router', () => {
     });
 
     it('should allow STAFF access to resetPassword', async () => {
-      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: USER_ID });
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: "PARENT" });
       staff.mockPrisma.account.updateMany.mockResolvedValue({ count: 1 });
       const result = await staff.caller.users.resetPassword({ userId: USER_ID });
       expect(result.success).toBe(true);
@@ -521,7 +521,7 @@ describe('users router', () => {
       const dbUser = makeDbUser();
       const updatedDbUser = makeDbUser({ name: 'John Updated' });
       // First findUnique for existence check
-      admin.mockPrisma.user.findUnique.mockResolvedValueOnce(dbUser);
+      admin.mockPrisma.user.findUnique.mockResolvedValue(dbUser);
       // Inside transaction: user.update
       admin.mockPrisma.user.update.mockResolvedValue({});
       // After transaction: findUniqueOrThrow
@@ -548,7 +548,7 @@ describe('users router', () => {
     it('should reject update with duplicate email', async () => {
       const existingUser = makeDbUser();
       // First findUnique: user exists
-      admin.mockPrisma.user.findUnique.mockResolvedValueOnce(existingUser);
+      admin.mockPrisma.user.findUnique.mockResolvedValue(existingUser);
       // Second findFirst: another user has the same email
       admin.mockPrisma.user.findFirst.mockResolvedValue(
         makeDbUser({ id: USER_ID_2, email: 'taken@test.com' }),
@@ -563,7 +563,7 @@ describe('users router', () => {
 
     it('should skip email uniqueness check when email unchanged', async () => {
       const dbUser = makeDbUser();
-      admin.mockPrisma.user.findUnique.mockResolvedValueOnce(dbUser);
+      admin.mockPrisma.user.findUnique.mockResolvedValue(dbUser);
       admin.mockPrisma.user.update.mockResolvedValue({});
       admin.mockPrisma.user.findUniqueOrThrow.mockResolvedValue(dbUser);
 
@@ -574,7 +574,7 @@ describe('users router', () => {
 
     it('should update parentProfile when provided', async () => {
       const dbUser = makeDbUser();
-      admin.mockPrisma.user.findUnique.mockResolvedValueOnce(dbUser);
+      admin.mockPrisma.user.findUnique.mockResolvedValue(dbUser);
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.user.findUniqueOrThrow.mockResolvedValue(
         makeDbUser({
@@ -606,7 +606,7 @@ describe('users router', () => {
 
     it('should update staffProfile when provided', async () => {
       const dbUser = makeDbStaffUser();
-      admin.mockPrisma.user.findUnique.mockResolvedValueOnce(dbUser);
+      admin.mockPrisma.user.findUnique.mockResolvedValue(dbUser);
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.user.findUniqueOrThrow.mockResolvedValue(
         makeDbStaffUser({
@@ -775,10 +775,9 @@ describe('users router', () => {
 
       expect(result.success).toBe(true);
       expect(result.tempPassword).toBe('NewPass123');
-      expect(admin.mockPrisma.account.updateMany).toHaveBeenCalledWith(
+      expect(admin.mockPrisma.account.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: USER_ID, provider: 'credentials' },
-          data: { providerAccountId: expect.any(String) },
+          data: expect.objectContaining({ userId: USER_ID, provider: 'credentials', providerAccountId: expect.any(String) }),
         }),
       );
     });
@@ -810,15 +809,11 @@ describe('users router', () => {
       );
     });
 
-    it('should reject reset when no credentials account exists', async () => {
+    it('creates a recoverable credential for a contact without access', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
-      admin.mockPrisma.account.updateMany.mockResolvedValue({ count: 0 });
-
-      await expect(
-        admin.caller.users.resetPassword({ userId: USER_ID }),
-      ).rejects.toThrow(
-        expect.objectContaining({ code: 'NOT_FOUND' }),
-      );
+      const result = await admin.caller.users.resetPassword({ userId: USER_ID });
+      expect(result.success).toBe(true);
+      expect(admin.mockPrisma.account.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: USER_ID, provider: 'credentials' }) }));
     });
 
     it('should reject newPassword that does not meet complexity requirements', async () => {

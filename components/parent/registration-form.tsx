@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
+import { FormActions } from '@/components/shared/form-actions';
+import { usePagedOptions } from '@/hooks/use-paged-options';
+
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -12,12 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { AlertCircle, Calendar, Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { trpc } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils';
+import { AlertCircle, Calendar, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 // ============================================================================
 // TYPES
@@ -34,6 +37,7 @@ interface RegistrationFormProps {
   campId: string;
   campName: string;
   pricePerDay: number;
+  totalPrice?: number;
   availableSpots: number;
   startDate: string;
   endDate: string;
@@ -48,32 +52,40 @@ export function RegistrationForm({
   campId,
   campName,
   pricePerDay,
+  totalPrice: acceptedTotal,
   availableSpots,
   startDate,
   endDate,
   daysCount,
 }: RegistrationFormProps) {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [selectedChildId, setSelectedChildId] = useState<string>('');
   const [specialRequirements, setSpecialRequirements] = useState('');
 
   // Fetch children
-  const { data: childrenData, isLoading: loadingChildren } = trpc.children.list.useQuery({
-    limit: 100,
-    offset: 0,
+  const optionsPage0 = usePagedOptions('un participant');
+  const {
+    data: childrenData,
+    isLoading: loadingChildren,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.children.list.useQuery({
+    ...optionsPage0.params,
   });
 
   // Create registration mutation
   const createRegistration = trpc.registrations.create.useMutation({
-    onSuccess: () => {
-      toast.success('Inscription r\u00e9ussie', {
-        description: `${selectedChild?.firstName} a \u00e9t\u00e9 inscrit(e) au camp ${campName}`,
+    onSuccess: async () => {
+      await utils.dashboard.summary.invalidate(undefined, { refetchType: 'all' });
+      toast.success('Inscription réussie', {
+        description: `${selectedChild?.firstName} a été inscrit(e) au camp ${campName}`,
       });
       router.push('/dashboard/parent/registrations');
       router.refresh();
     },
     onError: (error) => {
-      toast.error('Erreur lors de l\'inscription', {
+      toast.error("Erreur lors de l'inscription", {
         description: error.message,
       });
     },
@@ -94,13 +106,10 @@ export function RegistrationForm({
   };
 
   // Calculate total price for the entire camp
-  const totalPrice = daysCount * pricePerDay;
+  const totalPrice = acceptedTotal ?? daysCount * pricePerDay;
 
   // Validate form
-  const canSubmit =
-    selectedChildId &&
-    !createRegistration.isPending &&
-    availableSpots > 0;
+  const canSubmit = selectedChildId && !createRegistration.isPending && availableSpots > 0;
 
   // Handle submit
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,15 +140,26 @@ export function RegistrationForm({
     <Card>
       <CardHeader>
         <CardTitle>Inscription au camp</CardTitle>
-        <CardDescription>
-          Remplissez le formulaire pour inscrire votre enfant
-        </CardDescription>
+        <CardDescription>Remplissez le formulaire pour inscrire votre enfant</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-3 empty:hidden">
+            {(Boolean(optionsPage0.params.search) ||
+              optionsPage0.params.offset > 0 ||
+              (childrenData?.total ?? 0) > 20 ||
+              !!optionsError0) &&
+              optionsPage0.controls(
+                childrenData?.total ?? 0,
+                loadingChildren,
+                optionsError0,
+                optionsRetry0,
+              )}
+          </div>
+
           {/* Child selection */}
           <div className="space-y-2">
-            <Label htmlFor="child-select">S\u00e9lectionner un enfant *</Label>
+            <Label htmlFor="child-select">Sélectionner un enfant *</Label>
             {loadingChildren ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -148,11 +168,14 @@ export function RegistrationForm({
             ) : children.length === 0 ? (
               <Alert>
                 <AlertDescription>
-                  Vous devez d'abord ajouter un enfant avant de pouvoir vous inscrire.
+                  {optionsPage0.params.search
+                    ? 'Aucun enfant ne correspond à cette recherche.'
+                    : 'Ajoutez la fiche de votre enfant pour poursuivre cette inscription.'}
                   <Button
+                    type="button"
                     variant="link"
                     className="p-0 h-auto ml-1"
-                    onClick={() => router.push('/dashboard/parent/children/new')}
+                    onClick={() => router.push(`/dashboard/parent/children/new?campId=${campId}`)}
                   >
                     Ajouter un enfant
                   </Button>
@@ -179,12 +202,12 @@ export function RegistrationForm({
 
           {/* Camp period and price */}
           <div className="space-y-3">
-            <Label>P\u00e9riode du camp</Label>
+            <Label>Période du camp</Label>
             <Alert>
               <Calendar className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm">
                       Du {formatDate(new Date(startDate))} au {formatDate(new Date(endDate))}
                     </span>
@@ -192,9 +215,10 @@ export function RegistrationForm({
                       {daysCount} jour{daysCount > 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between border-t pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2">
                     <span className="text-sm">
-                      {daysCount} jour{daysCount > 1 ? 's' : ''} \u00d7 {pricePerDay.toLocaleString('fr-FR')} XPF
+                      {daysCount} jour{daysCount > 1 ? 's' : ''} ×{' '}
+                      {pricePerDay.toLocaleString('fr-FR')} XPF
                     </span>
                     <span className="font-bold text-lg">
                       {totalPrice.toLocaleString('fr-FR')} XPF
@@ -204,18 +228,16 @@ export function RegistrationForm({
               </AlertDescription>
             </Alert>
             <p className="text-xs text-muted-foreground">
-              L'inscription se fait pour toute la dur\u00e9e du camp
+              L'inscription se fait pour toute la durée du camp
             </p>
           </div>
 
           {/* Special requirements */}
           <div className="space-y-2">
-            <Label htmlFor="special-requirements">
-              Besoins sp\u00e9cifiques (optionnel)
-            </Label>
+            <Label htmlFor="special-requirements">Besoins spécifiques (optionnel)</Label>
             <Textarea
               id="special-requirements"
-              placeholder="Allergies, r\u00e9gime alimentaire, besoins m\u00e9dicaux, etc."
+              placeholder="Allergies, régime alimentaire, besoins médicaux, etc."
               value={specialRequirements}
               onChange={(e) => setSpecialRequirements(e.target.value)}
               rows={4}
@@ -223,37 +245,33 @@ export function RegistrationForm({
           </div>
 
           {/* Submit button */}
-          <div className="flex gap-4">
+          <FormActions>
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.back()}
-              className="flex-1"
+              onClick={() => router.push('/dashboard/parent/camps')}
             >
               Annuler
             </Button>
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="flex-1"
-            >
+            <Button type="submit" disabled={!canSubmit}>
               {createRegistration.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Inscription en cours...
                 </>
               ) : (
-                'Confirmer l\'inscription'
+                "Confirmer l'inscription"
               )}
             </Button>
-          </div>
+          </FormActions>
 
           {/* Capacity warning */}
           {availableSpots > 0 && availableSpots <= 5 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Attention : Il ne reste que {availableSpots} place{availableSpots > 1 ? 's' : ''} disponible{availableSpots > 1 ? 's' : ''} !
+                Attention : Il ne reste que {availableSpots} place{availableSpots > 1 ? 's' : ''}{' '}
+                disponible{availableSpots > 1 ? 's' : ''} !
               </AlertDescription>
             </Alert>
           )}

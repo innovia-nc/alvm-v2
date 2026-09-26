@@ -751,6 +751,7 @@ describe('attendances.markBulkAttendance', () => {
 
     it('should allow STAFF users', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -764,6 +765,7 @@ describe('attendances.markBulkAttendance', () => {
 
     it('should allow ADMIN users', async () => {
       const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -791,6 +793,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should throw BAD_REQUEST when date is outside camp range', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -803,6 +806,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should throw BAD_REQUEST when date is before camp start', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -815,6 +819,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should create attendances when none exist', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -830,6 +835,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should update existing attendances', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -847,6 +853,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should set recordedBy to current user for all entries', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -862,6 +869,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should return count matching number of attendances processed', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,
@@ -882,6 +890,7 @@ describe('attendances.markBulkAttendance', () => {
     });
 
     it('should use compound unique key to check for existing attendance', async () => {
+      mockPrisma.registration.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({ id })));
       mockPrisma.camp.findFirst.mockResolvedValue({
         startDate: campStartDate,
         endDate: campEndDate,

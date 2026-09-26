@@ -1,3 +1,4 @@
+import { DashboardSummary } from '@/components/shared/dashboard-summary';
 import { requireRole } from '@/lib/auth';
 import { PageHeader } from '@/components/shared/page-header';
 import {
@@ -19,6 +20,7 @@ export default async function StaffDashboardPage() {
         title="Tableau de Bord"
         description="Gérez vos camps et les inscriptions"
       />
+      <DashboardSummary role="staff" />
 
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">

@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-22T00:44:26.996373+00:00",
+  "base": "296b1cdcbad2071f76ba8f81bd9dc052931c215f",
+  "node": "v26.7.0",
+  "unitTestsPassed": 994,
+  "unitTestsFailed": 0,
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "eslint": {
+    "errors": 0,
+    "warnings": 40
+  },
+  "postgresScenariosPassed": 33,
+  "browserChecksPassed": 58,
+  "mobileListsPassed": 9,
+  "migrationChecks": [
+    "initial schema to final migrations",
+    "fresh schema with business triggers",
+    "business migration rerun"
+  ],
+  "externalServicesNotExercised": [
+    "real Vercel Blob migration",
+    "Resend email delivery"
+  ]
+}

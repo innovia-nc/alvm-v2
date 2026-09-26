@@ -1,5 +1,6 @@
 'use client';
 
+import { EmptyState } from '@/components/shared/empty-state';
 /**
  * ChildRegistrationsHistory — Historique des inscriptions d'un enfant.
  *
@@ -11,12 +12,12 @@
  *   sortOrder:'desc', limit: 50, offset: 0 })
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trpc } from '@/lib/trpc/client';
-import { ClipboardList, FileText } from 'lucide-react';
 import type { AppRouter } from '@/server/trpc/router';
 import type { inferRouterOutputs } from '@trpc/server';
+import { ClipboardList, FileText } from 'lucide-react';
 
 // ============================================================================
 // TYPES
@@ -24,8 +25,7 @@ import type { inferRouterOutputs } from '@trpc/server';
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
-type RegistrationListItem =
-  RouterOutput['registrations']['list']['registrations'][number];
+type RegistrationListItem = RouterOutput['registrations']['list']['registrations'][number];
 
 interface ChildRegistrationsHistoryProps {
   childId: string;
@@ -40,6 +40,7 @@ interface ChildRegistrationsHistoryProps {
 function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Pacific/Noumea',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -162,13 +163,7 @@ export function ChildRegistrationsHistory({
 
         {/* État vide — Scénario 2 */}
         {!isLoading && !isError && registrations.length === 0 && (
-          <div className="text-center py-8">
-            <ClipboardList
-              className="mx-auto h-10 w-10 text-muted-foreground/50"
-              aria-hidden="true"
-            />
-            <p className="mt-2 text-sm text-muted-foreground">Aucune inscription</p>
-          </div>
+          <EmptyState title="Aucune inscription" icon={ClipboardList} />
         )}
 
         {/* Liste triée desc (garantie par le router) */}

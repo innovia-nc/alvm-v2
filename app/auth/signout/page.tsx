@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { LoadingState } from '@/components/shared/loading-state';
 import { signOut } from 'next-auth/react';
-import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 /**
  * Sign Out Page
@@ -14,10 +14,5 @@ export default function SignOutPage() {
     signOut({ callbackUrl: '/' });
   }, []);
 
-  return (
-    <div className="flex flex-col items-center justify-center space-y-4">
-      <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-      <p className="text-gray-600">Déconnexion en cours...</p>
-    </div>
-  );
+  return <LoadingState label="Déconnexion en cours…" />;
 }

@@ -89,7 +89,7 @@ export const staffCreditNoteColumns: ColumnDef<StaffCreditNoteType>[] = [
     cell: ({ row }) => {
       return (
         <div className="text-sm">
-          {new Date(row.original.issueDate).toLocaleDateString('fr-FR')}
+          {new Date(row.original.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </div>
       );
     },

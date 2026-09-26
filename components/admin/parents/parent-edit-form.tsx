@@ -1,14 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { trpc } from '@/lib/trpc/client';
+import { FormActions } from '@/components/shared/form-actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { LoadingButton } from '@/components/ui/loading-button';
-import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Form,
   FormControl,
@@ -19,11 +13,17 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Save, X } from 'lucide-react';
-import { toast } from 'sonner';
-import Link from 'next/link';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Save, X } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ============================================================================
 // TYPES
@@ -122,7 +122,8 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
       router.push(`${parentsPath}/${parent.id}`);
       router.refresh();
     } catch (err) {
-      const errorMessage = err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
+      const errorMessage =
+        err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -175,9 +176,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
                 <FormControl>
                   <Input type="email" placeholder="jean.dupont@example.com" {...field} />
                 </FormControl>
-                <FormDescription>
-                  L'email est utilisé pour se connecter
-                </FormDescription>
+                <FormDescription>L'email est utilisé pour se connecter</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -302,14 +301,13 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
           </div>
         </div>
 
-        <ButtonGroup align="right">
+        <FormActions>
           <Button type="button" variant="outline" asChild>
             <Link href={`${parentsPath}/${parent.id}`}>
               <X className="mr-2 h-4 w-4" />
               Annuler
             </Link>
           </Button>
-
           <LoadingButton
             type="submit"
             loading={updateMutation.isPending}
@@ -318,7 +316,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
             <Save className="mr-2 h-4 w-4" />
             Enregistrer
           </LoadingButton>
-        </ButtonGroup>
+        </FormActions>
       </form>
     </Form>
   );

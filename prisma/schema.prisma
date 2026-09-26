@@ -104,6 +104,9 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
+  disabledAt    DateTime? @map("disabled_at") @db.Timestamptz()
+  sessionVersion Int @default(0) @map("session_version")
+
   accounts      Account[]
   sessions      Session[]
   parent        Parent?
@@ -277,6 +280,7 @@ model ChildParent {
   parent Parent @relation(fields: [parentId], references: [userId], onDelete: Cascade)
 
   @@unique([childId, parentId])
+  @@index([parentId])
   @@map("children_parents")
 }
 
@@ -348,6 +352,7 @@ model Camp {
   startDate            DateTime   @map("start_date") @db.Date
   endDate              DateTime   @map("end_date") @db.Date
   registrationDeadline DateTime   @map("registration_deadline") @db.Timestamptz()
+  totalPrice           Decimal?   @map("total_price") @db.Decimal(10, 2)
   pricePerDay          Decimal    @map("price_per_day") @db.Decimal(10, 2)
   status               CampStatus @default(DRAFT)
   createdBy            String     @map("created_by") @db.Uuid
@@ -360,6 +365,7 @@ model Camp {
   days          CampDay[]
   registrations Registration[]
 
+  @@index([deletedAt, status, startDate])
   @@map("camps")
 }
 
@@ -393,6 +399,7 @@ model Registration {
   registrationDate    DateTime           @default(now()) @map("registration_date") @db.Timestamptz()
   specialRequirements String?            @map("special_requirements")
   selectedDays        String[]           @map("selected_days") @db.Uuid
+  cancellationRequestedAt DateTime? @map("cancellation_requested_at") @db.Timestamptz()
   cancellationDate    DateTime?          @map("cancellation_date") @db.Timestamptz()
   cancellationReason  String?            @map("cancellation_reason")
   cancelledBy         String?            @map("cancelled_by") @db.Uuid
@@ -409,7 +416,10 @@ model Registration {
   invoiceLines       InvoiceLine[]
   creditApplications CreditApplication[]
 
-  @@unique([campId, childId])
+  @@index([campId, childId])
+  @@index([parentId, deletedAt, registrationDate])
+  @@index([campId, status, deletedAt])
+  @@index([childId])
   @@map("registrations")
 }
 
@@ -450,6 +460,7 @@ model Invoice {
   subtotalHt          Decimal?      @map("subtotal_ht") @db.Decimal(10, 2)
   taxAmount           Decimal?      @map("tax_amount") @db.Decimal(10, 2)
   taxRate             Decimal?      @map("tax_rate") @db.Decimal(5, 4)
+  creditedAmount      Decimal @default(0) @map("credited_amount") @db.Decimal(10, 2)
   paidAmount          Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
   status              InvoiceStatus @default(DRAFT)
   version             Int           @default(0)
@@ -478,6 +489,9 @@ model Invoice {
   allocationsAsCreditNote CreditNoteAllocation[] @relation("AllocationCreditNote")
   allocationsAsInvoice    CreditNoteAllocation[] @relation("AllocationInvoice")
 
+  @@index([parentId, invoiceType, deletedAt, issueDate])
+  @@index([status, dueDate, deletedAt])
+  @@index([creditedInvoiceId])
   @@map("invoices")
 }
 
@@ -497,6 +511,8 @@ model InvoiceLine {
   invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   registration Registration? @relation(fields: [registrationId], references: [id])
 
+  @@index([registrationId, deletedAt])
+  @@index([invoiceId, deletedAt])
   @@map("invoice_lines")
 }
 
@@ -543,10 +559,13 @@ model Payment {
   refunds           Refund[]
   accountingEntries AccountingEntry[]
 
+  @@index([invoiceId, paymentDate])
+  @@index([creditNoteId])
   @@map("payments")
 }
 
 model Refund {
+  creditNoteId String? @map("credit_note_id") @db.Uuid
   id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   refundNumber String       @unique @map("refund_number")
   paymentId    String       @map("payment_id") @db.Uuid
@@ -566,6 +585,7 @@ model Refund {
 
   accountingEntries AccountingEntry[]
 
+  @@index([paymentId, deletedAt])
   @@map("refunds")
 }
 
@@ -615,6 +635,11 @@ model AccountingEntry {
   creator           User?             @relation("EntryCreator", fields: [createdBy], references: [id])
   canceller         User?             @relation("EntryCanceller", fields: [cancelledBy], references: [id], onDelete: SetNull)
 
+  @@index([isCancelled, entryDate, journalCode])
+  @@index([invoiceId])
+  @@index([paymentId])
+  @@index([creditNoteId])
+  @@index([refundId])
   @@map("accounting_entries")
 }
 
@@ -637,6 +662,7 @@ model ParentCredit {
   creditNote   Invoice             @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
   applications CreditApplication[]
 
+  @@index([parentId, expiresAt, createdAt])
   @@map("parent_credits")
 }
 
@@ -675,4 +701,24 @@ model CreditNoteAllocation {
 
   @@unique([creditNoteId, appliedToInvoiceId], map: "unique_allocation")
   @@map("credit_note_allocations")
+}
+
+model FecExport {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  startDate DateTime @map("start_date") @db.Date
+  endDate DateTime @map("end_date") @db.Date
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  createdBy String @map("created_by") @db.Uuid
+  filename String
+  sha256 String
+  content String
+  entryCount Int @map("entry_count")
+  @@map("fec_exports")
+}
+
+model LoginAttempt {
+  key String @id
+  windowStart DateTime @map("window_start") @db.Timestamptz()
+  attempts Int
+  @@map("login_attempts")
 }

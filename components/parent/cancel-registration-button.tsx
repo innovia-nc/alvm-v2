@@ -38,18 +38,22 @@ export function CancelRegistrationButton({
   campName,
 }: CancelRegistrationButtonProps) {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
 
-  const cancelMutation = trpc.registrations.updateStatus.useMutation({
-    onSuccess: () => {
-      toast.success('Inscription annul\u00e9e', {
-        description: `L'inscription de ${childName} au camp "${campName}" a \u00e9t\u00e9 annul\u00e9e avec succ\u00e8s.`,
+  const cancelMutation = trpc.registrations.requestCancellation.useMutation({
+    onSuccess: async (result) => {
+      await utils.dashboard.summary.invalidate(undefined, { refetchType: 'all' });
+      toast.success(result.cancelled ? 'Inscription annulée' : 'Demande d’annulation transmise', {
+        description: result.cancelled
+          ? 'Votre désistement est enregistré.'
+          : 'Le secrétariat traitera votre demande et sa compensation éventuelle.',
       });
       setOpen(false);
       router.refresh();
     },
     onError: (error) => {
-      toast.error('Erreur lors de l\'annulation', {
+      toast.error("Erreur lors de l'annulation", {
         description: error.message,
       });
     },
@@ -58,14 +62,13 @@ export function CancelRegistrationButton({
   const handleCancel = () => {
     cancelMutation.mutate({
       id: registrationId,
-      status: 'CANCELLED',
     });
   };
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" className="w-full">
+        <Button variant="outline" className="text-destructive">
           <X className="mr-2 h-4 w-4" />
           Annuler l'inscription
         </Button>
@@ -73,15 +76,16 @@ export function CancelRegistrationButton({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmer l'annulation</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
-            <p>
-              \u00cates-vous s\u00fbr de vouloir annuler l'inscription de{' '}
-              <strong>{childName}</strong> au camp{' '}
-              <strong>"{campName}"</strong> ?
-            </p>
-            <p className="text-destructive font-medium">
-              Cette action est irr\u00e9versible.
-            </p>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">
+              <p>
+                Êtes-vous sûr de vouloir annuler l'inscription de <strong>{childName}</strong> au
+                camp <strong>"{campName}"</strong> ?
+              </p>
+              <p className="text-destructive font-medium">
+                Une inscription confirmée ou facturée fera l’objet d’une demande au secrétariat.
+              </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -89,7 +93,10 @@ export function CancelRegistrationButton({
             Non, garder l'inscription
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleCancel}
+            onClick={(event) => {
+              event.preventDefault();
+              handleCancel();
+            }}
             disabled={cancelMutation.isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
@@ -99,9 +106,7 @@ export function CancelRegistrationButton({
                 Annulation...
               </>
             ) : (
-              <>
-                Oui, annuler l'inscription
-              </>
+              <>Oui, annuler l'inscription</>
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

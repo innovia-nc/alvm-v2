@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { trpc } from '@/lib/trpc/client';
+import { LoadingState } from '@/components/shared/loading-state';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -9,10 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -20,8 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, User, Plus, Loader2 } from 'lucide-react';
 import { useDebounce } from '@/lib/hooks/use-debounce';
+import { trpc } from '@/lib/trpc/client';
+import { Plus, Search, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { SelectedParent } from './selected-parents-list';
 
@@ -75,13 +76,12 @@ export function ParentSearchDialog({
     },
     {
       enabled: open, // Ne lance la query que si le dialog est ouvert
-    }
+    },
   );
 
   // Filtrer les parents déjà sélectionnés
-  const availableParents = data?.parents.filter(
-    (parent) => !excludedParentIds.includes(parent.userId)
-  ) ?? [];
+  const availableParents =
+    data?.parents.filter((parent) => !excludedParentIds.includes(parent.userId)) ?? [];
 
   const handleSelect = (parent: NonNullable<typeof data>['parents'][0]) => {
     // Vérifier qu'on ne dépasse pas la limite
@@ -127,7 +127,10 @@ export function ParentSearchDialog({
             Recherchez et sélectionnez un parent à associer à cet enfant
             {maxParents - currentParentsCount > 0 && (
               <span className="text-primary font-medium">
-                {' '}({maxParents - currentParentsCount} place{maxParents - currentParentsCount > 1 ? 's' : ''} restante{maxParents - currentParentsCount > 1 ? 's' : ''})
+                {' '}
+                ({maxParents - currentParentsCount} place
+                {maxParents - currentParentsCount > 1 ? 's' : ''} restante
+                {maxParents - currentParentsCount > 1 ? 's' : ''})
               </span>
             )}
           </DialogDescription>
@@ -161,11 +164,7 @@ export function ParentSearchDialog({
 
           {/* Résultats de recherche */}
           <div className="space-y-2">
-            {isLoading && (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            )}
+            {isLoading && <LoadingState />}
 
             {isError && (
               <Card className="border-destructive">
@@ -180,7 +179,9 @@ export function ParentSearchDialog({
                 <CardContent className="py-8 text-center">
                   <User className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-3" />
                   <p className="text-sm text-muted-foreground">
-                    {search ? 'Aucun parent trouvé pour cette recherche' : 'Recherchez un parent par nom ou email'}
+                    {search
+                      ? 'Aucun parent trouvé pour cette recherche'
+                      : 'Recherchez un parent par nom ou email'}
                   </p>
                 </CardContent>
               </Card>
@@ -189,7 +190,8 @@ export function ParentSearchDialog({
             {!isLoading && !isError && availableParents.length > 0 && (
               <>
                 <div className="text-sm text-muted-foreground mb-2">
-                  {availableParents.length} parent{availableParents.length > 1 ? 's' : ''} trouvé{availableParents.length > 1 ? 's' : ''}
+                  {availableParents.length} parent{availableParents.length > 1 ? 's' : ''} trouvé
+                  {availableParents.length > 1 ? 's' : ''}
                 </div>
                 {availableParents.map((parent) => (
                   <Card key={parent.userId} className="hover:border-primary transition-colors">

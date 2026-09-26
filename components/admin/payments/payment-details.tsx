@@ -1,13 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { formatNumber } from '@/lib/format';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,8 +13,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { FileText, Loader2, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 type Payment = {
   id: string;
@@ -53,7 +55,6 @@ type Payment = {
   } | null;
 };
 
-
 export function PaymentDetails({ payment }: { payment: Payment }) {
   const router = useRouter();
   const basePath = useDashboardBasePath();
@@ -84,15 +85,17 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
           <CardTitle>Informations du paiement</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Montant</p>
-              <p className="text-2xl font-bold">{payment.amount.toLocaleString()} XPF</p>
+              <p className="text-2xl font-bold">{formatNumber(payment.amount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date de paiement</p>
               <p className="font-medium">
-                {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
+                {new Date(payment.paymentDate).toLocaleDateString('fr-FR', {
+                  timeZone: 'Pacific/Noumea',
+                })}
               </p>
             </div>
             <div>
@@ -115,7 +118,7 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
           )}
 
           <div className="pt-4 border-t">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
               <div>
                 <p className="text-muted-foreground">Créé le</p>
                 <p>{new Date(payment.createdAt).toLocaleString('fr-FR')}</p>
@@ -157,19 +160,19 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
             </Link>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-4 border-t">
             <div>
               <p className="text-sm text-muted-foreground">Total facture</p>
-              <p className="font-semibold">{payment.invoice.totalAmount.toLocaleString()} XPF</p>
+              <p className="font-semibold">{formatNumber(payment.invoice.totalAmount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total payé</p>
-              <p className="font-semibold">{payment.invoice.paidAmount.toLocaleString()} XPF</p>
+              <p className="font-semibold">{formatNumber(payment.invoice.paidAmount)} XPF</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Reste à payer</p>
               <p className="font-semibold text-primary">
-                {payment.invoice.remainingAmount.toLocaleString()} XPF
+                {formatNumber(payment.invoice.remainingAmount)} XPF
               </p>
             </div>
           </div>
@@ -200,7 +203,7 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={() => router.back()}>
           Retour
         </Button>
@@ -225,7 +228,10 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 Supprimer
               </AlertDialogAction>
             </AlertDialogFooter>

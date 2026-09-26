@@ -28,7 +28,7 @@ export default async function InvoiceDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={`Facture ${invoice.invoiceNumber}`}
-        description={`Émise le ${new Date(invoice.issueDate).toLocaleDateString('fr-FR')}`}
+        description={`Émise le ${new Date(invoice.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}`}
       />
 
       <InvoiceDetails invoice={invoice} />

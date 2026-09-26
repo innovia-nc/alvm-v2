@@ -75,7 +75,7 @@ export const staffColumns: ColumnDef<StaffMember>[] = [
     cell: ({ row }) => {
       return (
         <span className="text-sm text-muted-foreground">
-          {new Date(row.original.createdAt).toLocaleDateString('fr-FR')}
+          {new Date(row.original.createdAt).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
         </span>
       );
     },

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash } from 'bcryptjs';
 import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
+import { lockAdministrators, deactivateAccount } from '@/server/services/account-access.service';
 import { generatePassword, BCRYPT_ROUNDS } from '@/server/helpers/password';
 import type { Prisma, UserRole } from '@prisma/client';
 
@@ -109,6 +110,7 @@ export const usersRouter = router({
       const { limit, offset, role, search } = input;
 
       const where: Prisma.UserWhereInput = {
+        disabledAt: null,
         ...(role && { role }),
         ...(search && {
           OR: [
@@ -278,7 +280,23 @@ export const usersRouter = router({
       }
 
       await ctx.prisma.$transaction(async (tx) => {
+        await lockAdministrators(tx);
+        const current = await tx.user.findUnique({ where: { id: input.id }, include: { parent: true, staffMember: true } });
+        if (!current || current.disabledAt) throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte inactif' });
+        if (input.role && input.role !== current.role) {
+          if (current.role === 'ADMIN' && await tx.user.count({ where: { role: 'ADMIN', disabledAt: null } }) <= 1) {
+            throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Impossible de rétrograder le dernier administrateur' });
+          }
+          if ((input.role === 'PARENT' && (!current.parent || current.parent.deletedAt)) || (input.role === 'STAFF' && (!current.staffMember || current.staffMember.deletedAt))) {
+            throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Créez un profil actif adapté avant de changer le rôle' });
+          }
+        }
         const userData: Prisma.UserUpdateInput = {};
+        if (input.role && input.role !== current.role) userData.sessionVersion = { increment: 1 };
+        if (input.email !== undefined) {
+          await tx.parent.updateMany({ where: { userId: input.id }, data: { email: input.email } });
+          await tx.staffMember.updateMany({ where: { userId: input.id }, data: { email: input.email } });
+        }
         if (input.name !== undefined) userData.name = input.name;
         if (input.email !== undefined) userData.email = input.email;
         if (input.role !== undefined) userData.role = input.role;
@@ -362,6 +380,7 @@ export const usersRouter = router({
       }
 
       await ctx.prisma.$transaction(async (tx) => {
+        await deactivateAccount(tx, input.id, ctx.user.role);
         await tx.parent.updateMany({
           where: { userId: input.id, deletedAt: null },
           data: { deletedAt: new Date() },
@@ -389,7 +408,7 @@ export const usersRouter = router({
           }
         }
 
-        await tx.childParent.deleteMany({ where: { parentId: input.id } });
+        // Preserve historical family links, including the legacy last-parent invariant.
       });
 
       return { success: true };
@@ -409,20 +428,23 @@ export const usersRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
+      if (ctx.user.role !== 'ADMIN' && existing.role !== 'PARENT') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Seul un administrateur peut réinitialiser ce compte' });
+      }
+      if (existing.disabledAt) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Compte désactivé' });
       const tempPassword = input.newPassword || generatePassword();
       const hashedPassword = await hash(tempPassword, BCRYPT_ROUNDS);
-
-      const updated = await ctx.prisma.account.updateMany({
-        where: { userId: input.userId, provider: 'credentials' },
-        data: { providerAccountId: hashedPassword },
+      await ctx.prisma.$transaction(async (tx) => {
+        await lockAdministrators(tx);
+        const current = await tx.user.findUnique({ where: { id: input.userId } });
+        if (!current || current.disabledAt || (ctx.user.role !== 'ADMIN' && current.role !== 'PARENT')) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Réinitialisation non autorisée' });
+        }
+        const account = await tx.account.findFirst({ where: { userId: input.userId, provider: 'credentials' } });
+        if (account) await tx.account.update({ where: { id: account.id }, data: { providerAccountId: hashedPassword } });
+        else await tx.account.create({ data: { userId: input.userId, type: 'credentials', provider: 'credentials', providerAccountId: hashedPassword } });
+        await tx.user.update({ where: { id: input.userId }, data: { sessionVersion: { increment: 1 } } });
       });
-
-      if (updated.count === 0) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Compte credentials non trouvé pour cet utilisateur',
-        });
-      }
 
       return { success: true, tempPassword };
     }),

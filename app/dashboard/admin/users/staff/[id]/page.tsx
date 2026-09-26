@@ -24,7 +24,7 @@ export default async function AdminStaffUserDetailPage({
   return (
     <div className="space-y-8">
       <PageHeader title="Détails du personnel ALVM" />
-      <UsersDetails user={user} />
+      <UsersDetails user={user} staffDirectory />
     </div>
   );
 }

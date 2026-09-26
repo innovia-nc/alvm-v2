@@ -1,12 +1,6 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { staffColumns, type StaffMember, StaffActions } from './columns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,9 +11,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import { StaffActions, staffColumns, type StaffMember } from './columns';
 
 export function StaffTableClient() {
   const router = useRouter();
@@ -35,7 +35,14 @@ export function StaffTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination
-  const { data, isLoading } = trpc.staff.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.staff.list.useQuery({
+    sortBy: pagination.sortBy as 'lastName' | 'firstName' | 'createdAt' | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search,
@@ -105,6 +112,9 @@ export function StaffTableClient() {
       )}
 
       <DataTableServer
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['lastName', 'firstName', 'createdAt']}
         columns={columnsWithActions}
         data={data?.staff || []}
         totalCount={data?.total || 0}
@@ -112,14 +122,12 @@ export function StaffTableClient() {
         pagination={pagination}
         searchKey="email"
         searchPlaceholder="Rechercher par nom, email ou téléphone..."
+        search={search}
         onSearchChange={setSearch}
       />
 
       {/* Dialog de confirmation de suppression */}
-      <AlertDialog
-        open={!!deletingStaff}
-        onOpenChange={(open) => !open && setDeletingStaff(null)}
-      >
+      <AlertDialog open={!!deletingStaff} onOpenChange={(open) => !open && setDeletingStaff(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
@@ -135,17 +143,13 @@ export function StaffTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>

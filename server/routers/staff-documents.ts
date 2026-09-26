@@ -8,7 +8,7 @@ const staffDocumentSchema = z.object({
     staffId: z.string().uuid(),
     filename: z.string(),
     originalFilename: z.string(),
-    fileUrl: z.string().url(),
+    fileUrl: z.string(),
     mimeType: z.literal('application/pdf'),
     fileSize: z.number().int().positive(),
     description: z.string().nullable(),
@@ -58,6 +58,7 @@ export const staffDocumentsRouter = router({
 
             return docs.map((d: any) => ({
                 ...d,
+                fileUrl: `/api/documents/staff/${d.id}`,
                 mimeType: d.mimeType as 'application/pdf',
             }));
         }),
@@ -76,6 +77,7 @@ export const staffDocumentsRouter = router({
 
             return {
                 ...doc,
+                fileUrl: `/api/documents/staff/${doc.id}`,
                 mimeType: doc.mimeType as 'application/pdf',
             };
         }),

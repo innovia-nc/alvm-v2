@@ -28,7 +28,7 @@ export default async function RegistrationDetailPage({
     <div className="space-y-6">
       <PageHeader
         title="Détails de l'inscription"
-        description={`Inscription du ${new Date(registration.registrationDate).toLocaleDateString('fr-FR')}`}
+        description={`Inscription du ${new Date(registration.registrationDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}`}
       />
 
       <RegistrationDetails registration={registration} />

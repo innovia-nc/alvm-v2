@@ -1,9 +1,10 @@
 'use client';
 
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star, User, Mail, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Mail, Phone, Star, User } from 'lucide-react';
 
 // ============================================================================
 // TYPES
@@ -37,6 +38,7 @@ interface ChildParentsListProps {
 // ============================================================================
 
 const relationshipLabels: Record<string, string> = {
+  self: 'Lui-même (client / payeur)',
   mother: 'Mère',
   father: 'Père',
   guardian: 'Tuteur',
@@ -55,10 +57,7 @@ export function ChildParentsList({ parents, className }: ChildParentsListProps) 
     return (
       <Card className={cn('border-dashed', className)}>
         <CardContent className="flex items-center justify-center py-8">
-          <div className="text-center text-muted-foreground">
-            <User className="mx-auto h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">Aucun parent associé</p>
-          </div>
+          <EmptyState title="Aucun parent associé" icon={User} />
         </CardContent>
       </Card>
     );
@@ -85,7 +84,7 @@ export function ChildParentsList({ parents, className }: ChildParentsListProps) 
               key={parent.parentId}
               className={cn(
                 'rounded-lg border p-4 transition-colors',
-                parent.isPrimary && 'border-primary bg-primary/5'
+                parent.isPrimary && 'border-primary bg-primary/5',
               )}
             >
               {/* Header avec nom et badge principal */}
@@ -144,7 +143,11 @@ export function ChildParentsList({ parents, className }: ChildParentsListProps) 
           <p className="text-xs text-muted-foreground mt-4">
             Cet enfant a {parents.length} parents associés.
             {sortedParents[0]?.isPrimary && (
-              <> {sortedParents[0].firstName} {sortedParents[0].lastName} est le parent principal (facturation et communication).</>
+              <>
+                {' '}
+                {sortedParents[0].firstName} {sortedParents[0].lastName} est le parent principal
+                (facturation et communication).
+              </>
             )}
           </p>
         )}

@@ -1,5 +1,6 @@
 'use client';
 
+import { LoadingState } from '@/components/shared/loading-state';
 import {
   Select,
   SelectContent,
@@ -8,7 +9,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { trpc } from '@/lib/trpc/client';
-import { Loader2 } from 'lucide-react';
 
 interface PaymentMethodSelectProps {
   value: string;
@@ -41,9 +41,10 @@ export function PaymentMethodSelect({
 
   if (isLoading) {
     return (
-      <div className="flex h-10 w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-      </div>
+      <LoadingState
+        label="Chargement des moyens de paiement…"
+        className="min-h-10 justify-start p-2"
+      />
     );
   }
 

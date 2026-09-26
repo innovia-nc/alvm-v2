@@ -1,5 +1,6 @@
 'use client';
 
+import { FormActions } from '@/components/shared/form-actions';
 /**
  * User Form Component
  *
@@ -7,10 +8,8 @@
  * Utilisé dans /dashboard/admin/users/new et /dashboard/admin/users/[id]/edit
  */
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -28,8 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 // ============================================================================
 // SCHEMAS
@@ -56,10 +57,7 @@ const staffProfileSchema = z.object({
   lastName: z.string().min(2, 'Minimum 2 caractères').optional(),
   phone: z
     .string()
-    .refine(
-      (val) => !val || val.length >= 6,
-      'Numéro de téléphone invalide'
-    )
+    .refine((val) => !val || val.length >= 6, 'Numéro de téléphone invalide')
     .optional(),
   email: z.string().email('Email invalide').optional(),
 });
@@ -92,7 +90,7 @@ const userFormSchema = z
     {
       message: 'Prénom et nom du parent sont requis',
       path: ['parentProfile'],
-    }
+    },
   )
   .refine(
     (data) => {
@@ -104,7 +102,7 @@ const userFormSchema = z
     {
       message: 'Prénom et nom du staff sont requis',
       path: ['staffProfile'],
-    }
+    },
   );
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
@@ -143,9 +141,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
         <Card>
           <CardHeader>
             <CardTitle>Informations du compte</CardTitle>
-            <CardDescription>
-              Informations de connexion et rôle de l'utilisateur
-            </CardDescription>
+            <CardDescription>Informations de connexion et rôle de l'utilisateur</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Email */}
@@ -165,8 +161,8 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                   </FormControl>
                   <FormDescription>
                     {mode === 'create'
-                      ? "Email utilisé pour la connexion (ne peut pas être modifié après création)"
-                      : "Email de connexion (non modifiable)"}
+                      ? 'Email utilisé pour la connexion (ne peut pas être modifié après création)'
+                      : 'Email de connexion (non modifiable)'}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -436,15 +432,15 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
+        <FormActions>
           <Button type="button" variant="outline" onClick={() => window.history.back()}>
             Annuler
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === 'create' ? 'Créer l\'utilisateur' : 'Enregistrer les modifications'}
+            {mode === 'create' ? "Créer l'utilisateur" : 'Enregistrer les modifications'}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

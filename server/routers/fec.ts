@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '@/server/trpc/init';
@@ -139,6 +140,12 @@ function mapEntry(e: any) {
 // ============================================================================
 
 export const fecRouter = router({
+  history: adminProcedure.input(z.object({ offset: z.number().int().min(0).default(0) })).query(({ ctx, input }) => ctx.prisma.fecExport.findMany({ skip: input.offset, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, startDate: true, endDate: true, createdAt: true, createdBy: true, filename: true, sha256: true, entryCount: true } })),
+  downloadExport: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+    const row = await ctx.prisma.fecExport.findUnique({ where: { id: input.id }, select: { filename: true, content: true, sha256: true } });
+    if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'Export non trouvé' });
+    return row;
+  }),
   getEntries: adminProcedure
     .input(z.object({
       startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
@@ -165,6 +172,7 @@ export const fecRouter = router({
           { entryDate: 'asc' },
           { journalCode: 'asc' },
           { accountNumber: 'asc' },
+          { id: 'asc' },
         ],
       });
 
@@ -190,6 +198,9 @@ export const fecRouter = router({
       balance: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.$transaction(async tx => {
+        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+
       // Un SIREN saisi mais illisible est une erreur de l'utilisateur : le
       // laisser passer silencieusement produirait un fichier mal nommé, ce que
       // le trésorier ne verrait qu'au dépôt.
@@ -201,9 +212,9 @@ export const fecRouter = router({
         });
       }
 
-      const siren = typedSiren ?? (await getFecSiren(ctx.prisma));
+      const siren = typedSiren ?? (await getFecSiren(tx));
 
-      const entries = await ctx.prisma.accountingEntry.findMany({
+      const entries = await tx.accountingEntry.findMany({
         where: {
           entryDate: {
             gte: new Date(input.startDate),
@@ -215,6 +226,7 @@ export const fecRouter = router({
           { entryDate: 'asc' },
           { journalCode: 'asc' },
           { accountNumber: 'asc' },
+          { id: 'asc' },
         ],
       });
 
@@ -247,6 +259,9 @@ export const fecRouter = router({
 
       const filename = buildFECFilename(siren, input.startDate, input.endDate);
 
+      await tx.fecExport.create({ data: { startDate: new Date(input.startDate), endDate: new Date(input.endDate), createdBy: ctx.user.id, filename, content, sha256: createHash('sha256').update(content).digest('hex'), entryCount: entries.length } });
+      const invoiceIds = [...new Set(entries.flatMap(e => [e.invoiceId, e.creditNoteId]).filter((id): id is string => id !== null))];
+      await tx.invoice.updateMany({ where: { id: { in: invoiceIds }, accountingExportedAt: null }, data: { accountingExportedAt: new Date() } });
       return {
         content,
         filename,
@@ -256,6 +271,7 @@ export const fecRouter = router({
         totalCredit,
         balance,
       };
+      });
     }),
 
   getStats: adminProcedure

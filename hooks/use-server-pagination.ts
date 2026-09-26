@@ -1,3 +1,4 @@
+import type { SortingState, OnChangeFn } from '@tanstack/react-table';
 import { useState, useCallback, useMemo } from 'react';
 import { PAGINATION_DEFAULTS } from '@/lib/constants/pagination';
 
@@ -16,6 +17,10 @@ interface UseServerPaginationOptions {
 }
 
 export interface UseServerPaginationReturn {
+  sorting: SortingState;
+  onSortingChange: OnChangeFn<SortingState>;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
   /** Page actuelle (1-indexed) */
   page: number;
 
@@ -83,6 +88,8 @@ export function useServerPagination({
   defaultPageSize = PAGINATION_DEFAULTS.DEFAULT_PAGE_SIZE,
   defaultPage = 1,
 }: UseServerPaginationOptions = {}): UseServerPaginationReturn {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const onSortingChange: OnChangeFn<SortingState> = useCallback(updater => { setSorting(updater); setPageState(1); }, []);
   const [page, setPageState] = useState(defaultPage);
   const [pageSize, setPageSizeState] = useState(defaultPageSize);
 
@@ -135,6 +142,7 @@ export function useServerPagination({
   // soit créée à chaque render quand page et pageSize n'ont pas changé.
   return useMemo(
     () => ({
+      sorting, onSortingChange, sortBy: sorting[0]?.id, sortOrder: sorting[0] ? (sorting[0].desc ? "desc" as const : "asc" as const) : undefined,
       page,
       setPage,
       pageSize,
@@ -151,6 +159,7 @@ export function useServerPagination({
       resetToFirstPage,
     }),
     [
+      sorting, onSortingChange,
       page,
       setPage,
       pageSize,

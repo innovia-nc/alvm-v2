@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { staffCampColumns, type StaffCampType, StaffCampActions } from './columns';
+import {
+  DuplicateCampDialog,
+  type DuplicateFormValues,
+} from '@/components/admin/camps/duplicate-camp-dialog';
+import { FilterBar } from '@/components/shared/filter-bar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -23,14 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
 import { Loader2, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-  DuplicateCampDialog,
-  type DuplicateFormValues,
-} from '@/components/admin/camps/duplicate-camp-dialog';
+import { StaffCampActions, staffCampColumns, type StaffCampType } from './columns';
 
 type ActionType = 'publish' | 'close';
 type StatusFilter = 'ALL' | 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
@@ -43,13 +44,23 @@ export function CampsTableClient() {
     camp: StaffCampType;
     action: ActionType;
   } | null>(null);
-  const [duplicatingCamp, setDuplicatingCamp] = useState<StaffCampType | null>(
-    null
-  );
+  const [duplicatingCamp, setDuplicatingCamp] = useState<StaffCampType | null>(null);
 
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
-  const { data, isLoading } = trpc.camps.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.camps.list.useQuery({
+    sortBy: pagination.sortBy as
+      | 'name'
+      | 'startDate'
+      | 'registrationDeadline'
+      | 'createdAt'
+      | undefined,
+    sortOrder: pagination.sortOrder,
     limit: pagination.limit,
     offset: pagination.offset,
     search: searchTerm || undefined,
@@ -62,9 +73,7 @@ export function CampsTableClient() {
   const updateMutation = trpc.camps.update.useMutation({
     onSuccess: () => {
       const action = actioningCamp?.action;
-      toast.success(
-        action === 'publish' ? 'ACM publié avec succès' : 'ACM fermé avec succès'
-      );
+      toast.success(action === 'publish' ? 'ACM publié avec succès' : 'ACM fermé avec succès');
       setActioningCamp(null);
       utils.camps.list.invalidate();
       router.refresh();
@@ -133,12 +142,8 @@ export function CampsTableClient() {
         cell: ({ row }: { row: { original: StaffCampType } }) => (
           <StaffCampActions
             item={row.original}
-            onPublish={(camp: StaffCampType) =>
-              setActioningCamp({ camp, action: 'publish' })
-            }
-            onClose={(camp: StaffCampType) =>
-              setActioningCamp({ camp, action: 'close' })
-            }
+            onPublish={(camp: StaffCampType) => setActioningCamp({ camp, action: 'publish' })}
+            onClose={(camp: StaffCampType) => setActioningCamp({ camp, action: 'close' })}
             onDuplicate={(camp: StaffCampType) => setDuplicatingCamp(camp)}
           />
         ),
@@ -156,8 +161,8 @@ export function CampsTableClient() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[200px]">
+      <FilterBar>
+        <div className="w-full sm:w-56">
           <Label htmlFor="status-filter" className="mb-2 block">
             Filtrer par statut
           </Label>
@@ -186,9 +191,12 @@ export function CampsTableClient() {
             </Button>
           </div>
         )}
-      </div>
+      </FilterBar>
 
       <DataTableServer
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['name', 'startDate', 'registrationDeadline', 'createdAt']}
         columns={columnsWithActions}
         data={filteredCamps}
         totalCount={data?.total || 0}
@@ -196,19 +204,15 @@ export function CampsTableClient() {
         pagination={pagination}
         searchKey="name"
         searchPlaceholder="Rechercher par nom ou lieu..."
+        search={searchTerm}
         onSearchChange={setSearchTerm}
       />
 
-      <AlertDialog
-        open={!!actioningCamp}
-        onOpenChange={(open) => !open && setActioningCamp(null)}
-      >
+      <AlertDialog open={!!actioningCamp} onOpenChange={(open) => !open && setActioningCamp(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{getActionTitle()}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {getActionDescription()}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{getActionDescription()}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isProcessing}>Annuler</AlertDialogCancel>

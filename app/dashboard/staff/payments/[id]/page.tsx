@@ -28,7 +28,7 @@ export default async function PaymentDetailPage({
     <div className="space-y-6">
       <PageHeader
         title="Détails du Paiement"
-        description={`Enregistré le ${new Date(payment.paymentDate).toLocaleDateString('fr-FR')}`}
+        description={`Enregistré le ${new Date(payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}`}
       />
 
       <PaymentDetails payment={payment} />

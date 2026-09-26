@@ -1,76 +1,21 @@
+'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail } from 'lucide-react';
+import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Réinitialisation du mot de passe | ALVM',
-  description: 'Réinitialisez votre mot de passe ALVM',
-};
-
-/**
- * Reset Password Page (Placeholder)
- *
- * TODO: Implement password reset functionality with email verification
- * For now, displays a message to contact admin
- */
+import { Input } from '@/components/ui/input';
 export default function ResetPasswordPage() {
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <div className="flex justify-center mb-4">
-          <div className="rounded-full bg-indigo-100 p-3">
-            <Mail className="h-8 w-8 text-indigo-600" />
-          </div>
-        </div>
-        <h2 className="text-3xl font-bold text-gray-900">Mot de passe oublié</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Réinitialisez votre mot de passe
-        </p>
-      </div>
-
-      {/* Information Message */}
-      <Alert>
-        <Mail className="h-4 w-4" />
-        <AlertDescription>
-          <p className="font-medium mb-2">Fonctionnalité en cours de développement</p>
-          <p className="text-sm">
-            Pour réinitialiser votre mot de passe, veuillez contacter un administrateur
-            à l'adresse{' '}
-            <a
-              href="mailto:admin@alvm.nc"
-              className="text-indigo-600 hover:text-indigo-500 font-medium"
-            >
-              admin@alvm.nc
-            </a>
-          </p>
-        </AlertDescription>
-      </Alert>
-
-      {/* Actions */}
-      <div className="flex flex-col gap-3">
-        <Button asChild variant="outline" className="w-full">
-          <Link href="/auth/signin">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la connexion
-          </Link>
-        </Button>
-      </div>
-
-      {/* Support */}
-      <div className="text-center text-sm text-gray-600">
-        <p>
-          Besoin d'aide ?{' '}
-          <a
-            href="mailto:support@alvm.nc"
-            className="text-indigo-600 hover:text-indigo-500 font-medium"
-          >
-            Contactez le support
-          </a>
-        </p>
-      </div>
-    </div>
-  );
+  const [token, setToken] = useState('');
+  useEffect(() => { setToken(new URLSearchParams(window.location.search).get('token') ?? ''); }, []);
+  const request = trpc.account.requestReset.useMutation();
+  const reset = trpc.account.reset.useMutation();
+  const done = request.isSuccess || reset.isSuccess;
+  return <div className="space-y-4"><h1 className="text-2xl font-bold">Réinitialiser le mot de passe</h1>
+    {done ? <p role="status">{reset.isSuccess ? 'Mot de passe modifié. Vous pouvez vous connecter.' : 'Si ce compte est actif, un lien valable 30 minutes a été envoyé.'}</p> : <form className="space-y-4" onSubmit={e => { e.preventDefault(); const data = new FormData(e.currentTarget); if (token) reset.mutate({ token, password: String(data.get('password')) }); else request.mutate({ email: String(data.get('email')) }); }}>
+      {token ? <label>Nouveau mot de passe<Input name="password" type="password" minLength={8} required autoComplete="new-password" /><span className="text-sm">8 caractères minimum, majuscule, minuscule et chiffre.</span></label> : <label>Email<Input name="email" type="email" required autoComplete="email" /></label>}
+      {(request.error || reset.error) && <p role="alert">{request.error?.message ?? reset.error?.message}</p>}
+      <Button disabled={request.isPending || reset.isPending}>{token ? 'Changer le mot de passe' : 'Recevoir le lien'}</Button>
+    </form>}
+    <Link className="block underline" href="/auth/signin">Retour à la connexion</Link>
+  </div>;
 }

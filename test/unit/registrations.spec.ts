@@ -123,11 +123,13 @@ function makeInvoice(overrides: Record<string, unknown> = {}) {
     paidAmount: 0,
     parentId: PARENT_USER.id,
     invoiceType: 'INVOICE',
-    taxRate: 0.11,
-    taxAmount: 750,
-    subtotalHt: 6750,
+    taxRate: 0,
+    taxAmount: 0,
+    subtotalHt: 7500,
     deletedAt: null,
     createdAt: now,
+    creditedAmount: 0,
+    lines: [{ id: REG_ID, registrationId: REG_ID, quantity: 1, unitPrice: 7500, totalPrice: 7500 }],
     ...overrides,
   };
 }
@@ -257,21 +259,21 @@ describe('registrations.list', () => {
       await caller.registrations.list(defaultInput);
 
       const call = mockPrisma.registration.findMany.mock.calls[0][0];
-      expect(call.orderBy).toEqual({ registrationDate: 'asc' });
+      expect(call.orderBy).toEqual([{ registrationDate: 'asc' }, { id: 'asc' }]);
     });
 
     it('should sort by childName through relation', async () => {
       await caller.registrations.list({ ...defaultInput, sortBy: 'childName', sortOrder: 'desc' });
 
       const call = mockPrisma.registration.findMany.mock.calls[0][0];
-      expect(call.orderBy).toEqual({ child: { lastName: 'desc' } });
+      expect(call.orderBy).toEqual([{ child: { lastName: 'desc' } }, { id: 'asc' }]);
     });
 
     it('should sort by status', async () => {
       await caller.registrations.list({ ...defaultInput, sortBy: 'status', sortOrder: 'asc' });
 
       const call = mockPrisma.registration.findMany.mock.calls[0][0];
-      expect(call.orderBy).toEqual({ status: 'asc' });
+      expect(call.orderBy).toEqual([{ status: 'asc' }, { id: 'asc' }]);
     });
   });
 
@@ -800,6 +802,7 @@ describe('registrations.updateStatus', () => {
 
     it('should allow STAFF users', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'PENDING' }));
       mockPrisma.registration.update.mockResolvedValue(makeRegistrationRow({ status: 'CONFIRMED' }));
 
@@ -817,6 +820,7 @@ describe('registrations.updateStatus', () => {
     });
 
     it('should throw NOT_FOUND when registration does not exist', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(null);
 
       await expect(caller.registrations.updateStatus({ id: REG_ID, status: 'CONFIRMED' })).rejects.toThrow(
@@ -825,6 +829,7 @@ describe('registrations.updateStatus', () => {
     });
 
     it('should reject CANCELLED/WAITLIST when paymentStatus is PAID', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID' }));
 
       await expect(caller.registrations.updateStatus({ id: REG_ID, status: 'CANCELLED' })).rejects.toThrow(
@@ -838,6 +843,7 @@ describe('registrations.updateStatus', () => {
     it('should allow CONFIRMED when paymentStatus is PAID (anti-deadlock présences)', async () => {
       // Une inscription facturée en PENDING puis payée doit rester confirmable,
       // sinon elle n'est plus jamais pointable en présence (campagne smoke 2026-07-06).
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID', status: 'PENDING' }));
       mockPrisma.registration.update.mockResolvedValue(makeRegistrationRow({ paymentStatus: 'PAID', status: 'CONFIRMED' }));
 
@@ -846,6 +852,7 @@ describe('registrations.updateStatus', () => {
     });
 
     it('should update to CONFIRMED status', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'PENDING' }));
       mockPrisma.registration.update.mockResolvedValue(makeRegistrationRow({ status: 'CONFIRMED' }));
 
@@ -857,6 +864,7 @@ describe('registrations.updateStatus', () => {
     });
 
     it('should update to CANCELLED status', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow());
       mockPrisma.registration.update.mockResolvedValue(makeRegistrationRow({ status: 'CANCELLED' }));
 
@@ -865,6 +873,7 @@ describe('registrations.updateStatus', () => {
     });
 
     it('should update to WAITLIST status', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCamp());
       mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow());
       mockPrisma.registration.update.mockResolvedValue(makeRegistrationRow({ status: 'WAITLIST' }));
 
@@ -917,10 +926,10 @@ describe('registrations.analyzeRegistrationStatus', () => {
     });
 
     it('should reject non-CONFIRMED registrations', async () => {
-      mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'PENDING' }));
+      mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'CANCELLED' }));
 
       await expect(caller.registrations.analyzeRegistrationStatus({ registrationId: REG_ID })).rejects.toThrow(
-        'Seules les inscriptions confirmées peuvent être analysées pour annulation',
+        'Inscription déjà annulée',
       );
     });
 
@@ -972,7 +981,7 @@ describe('registrations.analyzeRegistrationStatus', () => {
       expect(result.suggestedCase).toBe('PARTIALLY_PAID');
       expect(result.totalAmount).toBe(7500);
       expect(result.paidAmount).toBe(3000);
-      expect(result.requiredSteps).toBe(3);
+      expect(result.requiredSteps).toBe(4);
       expect(result.requiresRefundChoice).toBe(true);
     });
 
@@ -1045,6 +1054,10 @@ describe('registrations.cancelWithAccounting', () => {
 
     beforeEach(() => {
       ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+      mockPrisma.paymentMethod.findFirst.mockResolvedValue({ code: 'BANK_TRANSFER', accountingCode: '512000' });
+      mockPrisma.invoice.create.mockResolvedValue({ id: CREDIT_ID, invoiceNumber: 'AVO-2026-0001', issueDate: now });
+      mockPrisma.payment.findMany.mockResolvedValue([{ id: PAYMENT_ID, amount: 7500, refunds: [] }]);
+      mockPrisma.refund.create.mockResolvedValue({ id: REFUND_ID, refundMethod: 'FUTURE_CREDIT', refundDate: now });
     });
 
     it('should throw NOT_FOUND when registration does not exist', async () => {
@@ -1055,11 +1068,11 @@ describe('registrations.cancelWithAccounting', () => {
       );
     });
 
-    it('should reject non-CONFIRMED registrations', async () => {
-      mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'PENDING' }));
+    it('should reject already cancelled registrations', async () => {
+      mockPrisma.registration.findFirst.mockResolvedValue(makeRegistrationRow({ status: 'CANCELLED' }));
 
       await expect(caller.registrations.cancelWithAccounting(cancelInput)).rejects.toThrow(
-        'Seules les inscriptions confirmées peuvent être annulées avec gestion comptable',
+        'Inscription inactive ou déjà annulée',
       );
     });
 
@@ -1093,7 +1106,8 @@ describe('registrations.cancelWithAccounting', () => {
       // Should soft-delete the invoice
       const invoiceUpdateCall = mockPrisma.invoice.update.mock.calls[0][0];
       expect(invoiceUpdateCall.where.id).toBe(INVOICE_ID);
-      expect(invoiceUpdateCall.data.deletedAt).toBeInstanceOf(Date);
+      expect(invoiceUpdateCall.data.status).toBe('CANCELLED');
+      expect(mockPrisma.invoiceLine.updateMany).toHaveBeenCalled();
     });
 
     it('should handle SENT_UNPAID case (cancel invoice)', async () => {
@@ -1109,7 +1123,7 @@ describe('registrations.cancelWithAccounting', () => {
 
       // Should cancel the invoice (set status to CANCELLED)
       const invoiceUpdateCall = mockPrisma.invoice.update.mock.calls[0][0];
-      expect(invoiceUpdateCall.data.status).toBe('CANCELLED');
+      expect(invoiceUpdateCall.data.status).toBe('CREDITED');
     });
 
     it('should handle PARTIALLY_PAID case (create credit note + refund)', async () => {
@@ -1205,7 +1219,7 @@ describe('registrations.cancelWithAccounting', () => {
       expect(result.success).toBe(true);
       expect(result.case).toBe('FULLY_PAID_CREDIT');
       expect(result.creditNote).not.toBeNull();
-      expect(result.refund).toBeNull(); // No refund for future credit
+      expect(result.refund?.method).toBe('FUTURE_CREDIT');
 
       // Verify parentCredit is created for future credit
       expect(mockPrisma.parentCredit.create).toHaveBeenCalledWith(
@@ -1214,7 +1228,7 @@ describe('registrations.cancelWithAccounting', () => {
             creditNoteId: 'd1a00000-0000-4000-a000-000000000099',
             amountOriginal: 7500,
             amountRemaining: 7500,
-            notes: 'Crédit automatique suite à annulation',
+            notes: cancelInput.reason,
           }),
         }),
       );

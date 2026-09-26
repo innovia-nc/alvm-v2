@@ -1,0 +1,281 @@
+[
+  {
+    "role": "admin",
+    "kind": "children",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": [
+      {
+        "tag": "TABLE",
+        "cls": "w-full caption-bottom text-sm"
+      },
+      {
+        "tag": "THEAD",
+        "cls": "[&_tr]:border-b"
+      },
+      {
+        "tag": "TR",
+        "cls": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      }
+    ]
+  },
+  {
+    "role": "admin",
+    "kind": "registrations",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": [
+      {
+        "tag": "TABLE",
+        "cls": "w-full caption-bottom text-sm"
+      },
+      {
+        "tag": "THEAD",
+        "cls": "[&_tr]:border-b"
+      },
+      {
+        "tag": "TR",
+        "cls": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      }
+    ]
+  },
+  {
+    "role": "admin",
+    "kind": "invoices",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": [
+      {
+        "tag": "TABLE",
+        "cls": "w-full caption-bottom text-sm"
+      },
+      {
+        "tag": "THEAD",
+        "cls": "[&_tr]:border-b"
+      },
+      {
+        "tag": "TR",
+        "cls": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex cursor-pointer select-none items-center gap-2"
+      },
+      {
+        "tag": "SPAN",
+        "cls": "ml-auto"
+      },
+      {
+        "tag": "DIV",
+        "cls": "h-4 w-4"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      }
+    ]
+  },
+  {
+    "role": "staff",
+    "kind": "children",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": [
+      {
+        "tag": "TABLE",
+        "cls": "w-full caption-bottom text-sm"
+      },
+      {
+        "tag": "THEAD",
+        "cls": "[&_tr]:border-b"
+      },
+      {
+        "tag": "TR",
+        "cls": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      }
+    ]
+  },
+  {
+    "role": "staff",
+    "kind": "registrations",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": [
+      {
+        "tag": "TABLE",
+        "cls": "w-full caption-bottom text-sm"
+      },
+      {
+        "tag": "THEAD",
+        "cls": "[&_tr]:border-b"
+      },
+      {
+        "tag": "TR",
+        "cls": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-center"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      }
+    ]
+  },
+  {
+    "role": "staff",
+    "kind": "invoices",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": [
+      {
+        "tag": "TABLE",
+        "cls": "w-full caption-bottom text-sm"
+      },
+      {
+        "tag": "THEAD",
+        "cls": "[&_tr]:border-b"
+      },
+      {
+        "tag": "TR",
+        "cls": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex cursor-pointer select-none items-center gap-2"
+      },
+      {
+        "tag": "SPAN",
+        "cls": "ml-auto"
+      },
+      {
+        "tag": "DIV",
+        "cls": "h-4 w-4"
+      },
+      {
+        "tag": "TH",
+        "cls": "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+      }
+    ]
+  },
+  {
+    "role": "parent",
+    "kind": "children",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": []
+  },
+  {
+    "role": "parent",
+    "kind": "registrations",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": []
+  },
+  {
+    "role": "parent",
+    "kind": "invoices",
+    "width": 390,
+    "content": 390,
+    "mainWidth": 390,
+    "mainContent": 390,
+    "offenders": []
+  }
+]

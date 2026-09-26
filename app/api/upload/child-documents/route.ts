@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
     const { url } = await uploadToStorage(buffer, {
       pathname: `child-documents/${childId}/${filename}`,
       contentType: 'application/pdf',
+      access: 'private',
     });
     uploadedUrl = url;
   } catch (error) {
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
       childId: document.childId,
       filename: document.filename,
       originalFilename: document.originalFilename,
-      fileUrl: document.fileUrl,
+      fileUrl: `/api/documents/child/${document.id}`,
       fileSize: document.fileSize,
       description: document.description,
     });

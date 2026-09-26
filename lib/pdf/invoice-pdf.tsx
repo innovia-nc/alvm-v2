@@ -57,6 +57,7 @@ interface InvoiceData {
   taxRate: number;
   totalAmount: number;
   paidAmount: number;
+  creditedAmount?: number;
   org: OrgInfo;
   footerMention?: string;
   logoUrl?: string;
@@ -218,7 +219,7 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
     return `${formattedNumber} XPF`;
   };
 
-  const remainingAmount = data.totalAmount - data.paidAmount;
+  const remainingAmount = Math.max(0, data.totalAmount - data.paidAmount - (data.creditedAmount ?? 0));
 
   // Déterminer si c'est un devis ou une facture
   const isQuote = data.status === 'DRAFT';
@@ -318,6 +319,7 @@ export const InvoicePDF: React.FC<{ data: InvoiceData }> = ({ data }) => {
             <Text style={styles.totalValue}>{formatCurrency(data.totalAmount)}</Text>
           </View>
 
+          {(data.creditedAmount ?? 0) > 0 && <View style={styles.totalRow}><Text>Avoirs émis</Text><Text>-{formatCurrency(data.creditedAmount ?? 0)}</Text></View>}
           {data.paidAmount > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Déjà payé :</Text>

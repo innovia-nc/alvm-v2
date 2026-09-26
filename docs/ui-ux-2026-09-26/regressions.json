@@ -1,0 +1,256 @@
+[
+  {
+    "name": "admin /dashboard/admin",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/children",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/children/adult",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/camps",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/registrations",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/invoices",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/account",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/users",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/registrations/new",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/payments/new",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/refunds/new",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/fec/export",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin /dashboard/admin/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f/edit",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "admin navigation 390px",
+    "overflow": false
+  },
+  {
+    "name": "admin navigation 767px",
+    "overflow": false
+  },
+  {
+    "name": "admin navigation 768px",
+    "overflow": false
+  },
+  {
+    "name": "admin navigation 769px",
+    "overflow": false
+  },
+  {
+    "name": "staff /dashboard/staff",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/children",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/children/adult",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/camps",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/registrations",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/invoices",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/account",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff /dashboard/staff/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f/edit",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "staff navigation 390px",
+    "overflow": false
+  },
+  {
+    "name": "staff navigation 767px",
+    "overflow": false
+  },
+  {
+    "name": "staff navigation 768px",
+    "overflow": false
+  },
+  {
+    "name": "staff navigation 769px",
+    "overflow": false
+  },
+  {
+    "name": "parent /dashboard/parent",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/children",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/children/adult",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/camps",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/registrations",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/invoices",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/parent/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent /dashboard/account",
+    "status": 200,
+    "pageErrors": []
+  },
+  {
+    "name": "parent navigation 390px",
+    "overflow": false
+  },
+  {
+    "name": "parent navigation 767px",
+    "overflow": false
+  },
+  {
+    "name": "parent navigation 768px",
+    "overflow": false
+  },
+  {
+    "name": "parent navigation 769px",
+    "overflow": false
+  },
+  {
+    "name": "#35 HTTP privileged reset denied and hash unchanged"
+  },
+  {
+    "name": "#37 HTTP cross-family credit denied"
+  },
+  {
+    "name": "#40 #76 anonymous and cross-family denial, current invoice PDF"
+  },
+  {
+    "name": "#46 parent child PDF"
+  },
+  {
+    "name": "#45 #57 cancellation request visible and actionable for staff"
+  },
+  {
+    "name": "#86 network failure visibly recoverable"
+  },
+  {
+    "name": "#84 server sort request"
+  },
+  {
+    "name": "#83 selecting a client beyond the first 100 via server search"
+  },
+  {
+    "name": "#38 old cookie rejected after password reset"
+  },
+  {
+    "name": "#39 old cookie rejected after disable"
+  },
+  {
+    "name": "#38 old cookie rejected after role downgrade"
+  },
+  {
+    "name": "#38 revoked session can reach login without redirect loop"
+  }
+]

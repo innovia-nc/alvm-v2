@@ -22,16 +22,10 @@ export type StaffChildType = {
   lastName: string;
   birthDate: Date;
   gender: 'MALE' | 'FEMALE' | 'OTHER';
-  medicalInfo: {
-    allergies: string[];
-    medications: string[];
-    conditions: string[];
-    diet_restrictions: string[];
-    notes: string;
-  };
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
-  emergencyContactRelation: string | null;
+  allergyCount: number;
+  conditionCount: number;
   parents: Array<{
     id: string;
     parentId: string;
@@ -145,12 +139,12 @@ export const staffChildColumns: ColumnDef<StaffChildType>[] = [
     header: 'Allergies',
     cell: ({ row }) => {
       const child = row.original;
-      const hasAllergies = child.medicalInfo?.allergies && child.medicalInfo.allergies.length > 0;
+      const hasAllergies = child.allergyCount > 0;
 
       return hasAllergies ? (
         <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
           <AlertTriangle className="mr-1 h-3 w-3" />
-          {child.medicalInfo.allergies.length}
+          {child.allergyCount}
         </Badge>
       ) : (
         <span className="text-xs text-muted-foreground">Aucune</span>
@@ -162,12 +156,12 @@ export const staffChildColumns: ColumnDef<StaffChildType>[] = [
     header: 'Conditions',
     cell: ({ row }) => {
       const child = row.original;
-      const hasConditions = child.medicalInfo?.conditions && child.medicalInfo.conditions.length > 0;
+      const hasConditions = child.conditionCount > 0;
 
       return hasConditions ? (
         <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
           <AlertTriangle className="mr-1 h-3 w-3" />
-          {child.medicalInfo.conditions.length}
+          {child.conditionCount}
         </Badge>
       ) : (
         <span className="text-xs text-muted-foreground">Aucune</span>

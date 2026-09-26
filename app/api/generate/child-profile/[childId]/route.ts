@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { renderToStream } from '@react-pdf/renderer';
 import React from 'react';
 import { prisma } from '@/server/db';
+import { hasChildAccess } from '@/server/helpers/child-access.helper';
 import { auth } from '@/lib/auth';
 import { ChildProfilePDF } from '@/lib/pdf/child-profile-pdf';
 import { getPdfSettings } from '@/server/helpers/pdf-settings.helper';
@@ -28,12 +29,12 @@ export async function GET(
     if (!session?.user) {
         return new NextResponse('Non authentifié', { status: 401 });
     }
-    if (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN') {
+    if (!(await hasChildAccess(prisma, session.user.id, session.user.role ?? 'PARENT', childId))) {
         return new NextResponse('Non autorisé', { status: 403 });
     }
 
     const child = await prisma.child.findUnique({
-        where: { id: childId },
+        where: { id: childId, deletedAt: null },
         select: {
             id: true,
             firstName: true,
@@ -46,6 +47,7 @@ export async function GET(
             emergencyContactPhone: true,
             emergencyContactRelation: true,
             parentLinks: {
+                where: { parent: { deletedAt: null } },
                 select: {
                     parentId: true,
                     isPrimary: true,
@@ -106,6 +108,7 @@ export async function GET(
     return new NextResponse(stream as unknown as ReadableStream, {
         headers: {
             'Content-Type': 'application/pdf',
+            'Cache-Control': 'private, no-store',
             'Content-Disposition': `attachment; filename="fiche-${child.firstName}-${child.lastName}.pdf"`,
         },
     });

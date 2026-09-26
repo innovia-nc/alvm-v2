@@ -21,11 +21,11 @@ export default async function StaffRegistrationsPage() {
 
   // Récupérer toutes les inscriptions et statistiques
   const [allRegistrations, pendingRegistrations, confirmedRegistrations, cancelledRegistrations, waitlistRegistrations] = await Promise.all([
-    trpc.registrations.list({ limit: 100, offset: 0 }),
-    trpc.registrations.list({ limit: 100, offset: 0, status: 'PENDING' }),
-    trpc.registrations.list({ limit: 100, offset: 0, status: 'CONFIRMED' }),
-    trpc.registrations.list({ limit: 100, offset: 0, status: 'CANCELLED' }),
-    trpc.registrations.list({ limit: 100, offset: 0, status: 'WAITLIST' }),
+    trpc.registrations.list({ limit: 1, offset: 0 }),
+    trpc.registrations.list({ limit: 1, offset: 0, status: 'PENDING' }),
+    trpc.registrations.list({ limit: 1, offset: 0, status: 'CONFIRMED' }),
+    trpc.registrations.list({ limit: 1, offset: 0, status: 'CANCELLED' }),
+    trpc.registrations.list({ limit: 1, offset: 0, status: 'WAITLIST' }),
   ]);
 
   return (

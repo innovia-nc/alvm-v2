@@ -94,7 +94,7 @@ export default function EditCampPage({ params }: PageProps) {
             startDate: camp.startDate ? new Date(camp.startDate).toISOString().split('T')[0]! : '',
             endDate: camp.endDate ? new Date(camp.endDate).toISOString().split('T')[0]! : '',
             registrationDeadline: new Date(camp.registrationDeadline).toISOString().split('T')[0]!,
-            totalPrice: camp.pricePerDay * camp.daysCount,
+            totalPrice: camp.totalPrice ?? camp.pricePerDay * camp.daysCount,
             status: camp.status as 'DRAFT' | 'PUBLISHED',
           }}
           onSubmit={handleSubmit}

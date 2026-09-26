@@ -37,7 +37,7 @@ describe('blob-storage — suppression (TD-006)', () => {
   describe('deleteFromStorage', () => {
     it('supprime le blob', async () => {
       await deleteFromStorage(URL_1);
-      expect(del).toHaveBeenCalledWith(URL_1);
+      expect(del).toHaveBeenCalledWith(URL_1, { token: process.env.BLOB_READ_WRITE_TOKEN });
     });
 
     it('échoue explicitement si le store n’est pas configuré', async () => {
@@ -53,7 +53,7 @@ describe('blob-storage — suppression (TD-006)', () => {
       const result = await deleteFromStorageBestEffort(URL_1, 'document enfant');
 
       expect(result).toBe(true);
-      expect(del).toHaveBeenCalledWith(URL_1);
+      expect(del).toHaveBeenCalledWith(URL_1, { token: process.env.BLOB_READ_WRITE_TOKEN });
     });
 
     it('n’appelle pas le store pour une URL absente', async () => {

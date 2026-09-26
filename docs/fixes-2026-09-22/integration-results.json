@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-22T00:24:17.217Z",
+  "results": [
+    "#35 privileged password resets refused",
+    "#38 password reset revokes session version",
+    "#90 account/profile email synchronized",
+    "#49 contact activation",
+    "#72 #73 camp days and exact total",
+    "#36 #37 family boundaries",
+    "#44 child ownership editing",
+    "#58 concurrent last-place capacity",
+    "#87 bulk attendance ownership and atomicity",
+    "#69 invoice ownership and uniqueness",
+    "#88 grouped sales accounts",
+    "#70 forged paid transition refused",
+    "#65 missing credit refused",
+    "#68 simultaneous overpayment prevented",
+    "#64 clean-database payment synchronization",
+    "#59 #60 #62 only affected service compensated with chosen future credit",
+    "#71 automatic FIFO on direct issue",
+    "#61 accounting reversal retained",
+    "#80 Prisma soft-delete",
+    "#45 #74 parent cancellation and re-registration",
+    "#43 adult participant with self payer",
+    "#89 immutable FEC snapshot",
+    "#77 sequence usable after rollback",
+    "#41 persistent account rate limit",
+    "#39 archived profile disables access"
+  ]
+}

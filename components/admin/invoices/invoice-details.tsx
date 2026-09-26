@@ -1,4 +1,5 @@
 'use client';
+import { formatNumber } from '@/lib/format';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -325,11 +326,11 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
               <div className="space-y-1">
                 <p className="text-sm">
                   <span className="text-muted-foreground">Date d'émission: </span>
-                  {new Date(invoice.issueDate).toLocaleDateString('fr-FR')}
+                  {new Date(invoice.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">Date d'échéance: </span>
-                  {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}
+                  {new Date(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                 </p>
                 {invoice.subtotalHt !== undefined && (
                   <p className="text-sm">
@@ -340,20 +341,20 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                 {invoice.taxAmount !== undefined && (
                   <p className="text-sm">
                     <span className="text-muted-foreground">Taxes ({(invoice.taxRate ?? 0) * 100}%): </span>
-                    <span className="font-semibold">{invoice.taxAmount.toLocaleString('fr-FR')} XPF</span>
+                    <span className="font-semibold">{formatNumber(invoice.taxAmount)} XPF</span>
                   </p>
                 )}
                 <p className="text-sm">
                   <span className="text-muted-foreground">Montant total TTC: </span>
-                  <span className="font-semibold">{invoice.totalAmount.toLocaleString('fr-FR')} XPF</span>
+                  <span className="font-semibold">{formatNumber(invoice.totalAmount)} XPF</span>
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">Montant payé: </span>
-                  <span className="font-semibold">{invoice.paidAmount.toLocaleString('fr-FR')} XPF</span>
+                  <span className="font-semibold">{formatNumber(invoice.paidAmount)} XPF</span>
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">Reste à payer: </span>
-                  <span className="font-semibold">{invoice.remainingAmount.toLocaleString('fr-FR')} XPF</span>
+                  <span className="font-semibold">{formatNumber(invoice.remainingAmount)} XPF</span>
                 </p>
               </div>
             </div>
@@ -405,7 +406,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                     Taxes ({(invoice.taxRate ?? 0) * 100}%)
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    {invoice.taxAmount.toLocaleString('fr-FR')} XPF
+                    {formatNumber(invoice.taxAmount)} XPF
                   </TableCell>
                 </TableRow>
               )}
@@ -414,7 +415,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                   Total TTC
                 </TableCell>
                 <TableCell className="text-right font-bold">
-                  {invoice.totalAmount.toLocaleString('fr-FR')} XPF
+                  {formatNumber(invoice.totalAmount)} XPF
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -442,11 +443,11 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
                 {invoice.payments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>
-                      {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
+                      {new Date(payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
                     </TableCell>
                     <TableCell>{payment.paymentMethod}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {payment.amount.toLocaleString()} XPF
+                      {formatNumber(payment.amount)} XPF
                     </TableCell>
                     <TableCell className="text-right">
                       <Link href={`${basePath}/payments/${payment.id}`}>

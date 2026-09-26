@@ -1,25 +1,19 @@
-import { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { CancelRegistrationButton } from '@/components/parent/cancel-registration-button';
+import { BackButton } from '@/components/shared/back-button';
+import { PageHeader } from '@/components/shared/page-header';
+import { StatusBadge } from '@/components/shared/status-badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { auth } from '@/lib/auth/config';
 import { createServerTRPC } from '@/lib/trpc';
-import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import { CancelRegistrationButton } from '@/components/parent/cancel-registration-button';
-import {
-  Calendar,
-  MapPin,
-  User,
-  Clock,
-  AlertCircle,
-  FileText,
-  ArrowLeft,
-} from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { AlertCircle, Calendar, Clock, FileText, MapPin, User } from 'lucide-react';
+import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
 
 // ============================================================================
 // METADATA
@@ -50,36 +44,6 @@ export async function generateMetadata({
 // HELPER FUNCTIONS
 // ============================================================================
 
-const getStatusVariant = (status: string) => {
-  switch (status) {
-    case 'CONFIRMED':
-      return 'default' as const;
-    case 'PENDING':
-      return 'secondary' as const;
-    case 'CANCELLED':
-      return 'destructive' as const;
-    case 'WAITLIST':
-      return 'outline' as const;
-    default:
-      return 'secondary' as const;
-  }
-};
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'CONFIRMED':
-      return 'Confirmée';
-    case 'PENDING':
-      return 'En attente';
-    case 'CANCELLED':
-      return 'Annulée';
-    case 'WAITLIST':
-      return 'Liste d\'attente';
-    default:
-      return status;
-  }
-};
-
 // ============================================================================
 // PAGE COMPONENT
 // ============================================================================
@@ -104,31 +68,34 @@ export default async function RegistrationDetailPage({
     notFound();
   }
 
-  const canCancel = registration.status === 'PENDING' || registration.status === 'CONFIRMED';
+  const canCancel =
+    ['PENDING', 'CONFIRMED', 'WAITLIST'].includes(registration.status) &&
+    !registration.cancellationRequestedAt &&
+    registration.camp.startDate !== null &&
+    new Date(registration.camp.startDate) > new Date();
   const isCancelled = registration.status === 'CANCELLED';
 
   return (
     <div className="space-y-6">
       {/* Header with back button */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/parent/registrations">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <PageHeader
-          title={`Inscription au ${registration.camp.name}`}
-          description={`${registration.child.firstName} ${registration.child.lastName}`}
-        />
-      </div>
+      <PageHeader
+        title={registration.camp.name}
+        description={`Inscription de ${registration.child.firstName} ${registration.child.lastName}`}
+        actions={<BackButton href="/dashboard/parent/registrations" label="Mes inscriptions" />}
+      />
 
       {/* Status Badge */}
       <div className="flex items-center gap-2">
-        <Badge variant={getStatusVariant(registration.status)} className="text-base px-3 py-1">
-          {getStatusLabel(registration.status)}
-        </Badge>
+        <StatusBadge type="registration" status={registration.status} />
       </div>
 
+      {registration.cancellationRequestedAt && !isCancelled && (
+        <Alert>
+          <AlertDescription>
+            Votre demande d’annulation a été transmise au secrétariat.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Cancelled warning */}
       {isCancelled && (
         <Alert variant="destructive">
@@ -176,7 +143,9 @@ export default async function RegistrationDetailPage({
                   <div className="flex-1">
                     <p className="text-sm font-medium">Statut du camp</p>
                     <Badge variant="outline" className="mt-1">
-                      {registration.camp.status === 'PUBLISHED' ? 'Publié' : registration.camp.status}
+                      {registration.camp.status === 'PUBLISHED'
+                        ? 'Publié'
+                        : registration.camp.status}
                     </Badge>
                   </div>
                 </div>
@@ -189,7 +158,8 @@ export default async function RegistrationDetailPage({
             <CardHeader>
               <CardTitle>Période du camp</CardTitle>
               <CardDescription>
-                {registration.camp.daysCount} journée{registration.camp.daysCount > 1 ? 's' : ''} au total
+                {registration.camp.daysCount} journée{registration.camp.daysCount > 1 ? 's' : ''} au
+                total
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -199,21 +169,31 @@ export default async function RegistrationDetailPage({
                     <p className="text-sm text-muted-foreground">Date de début</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{registration.camp.startDate ? formatDate(new Date(registration.camp.startDate)) : 'Non définie'}</span>
+                      <span className="font-medium">
+                        {registration.camp.startDate
+                          ? formatDate(new Date(registration.camp.startDate))
+                          : 'Non définie'}
+                      </span>
                     </div>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Date de fin</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{registration.camp.endDate ? formatDate(new Date(registration.camp.endDate)) : 'Non définie'}</span>
+                      <span className="font-medium">
+                        {registration.camp.endDate
+                          ? formatDate(new Date(registration.camp.endDate))
+                          : 'Non définie'}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Durée totale</span>
-                  <span className="font-semibold">{registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''}</span>
+                  <span className="font-semibold">
+                    {registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''}
+                  </span>
                 </div>
               </div>
             </CardContent>

@@ -28,7 +28,7 @@ function makePayment(overrides: Record<string, unknown> = {}) {
     paymentMethodId: PAYMENT_METHOD_ID,
     invoiceId: INVOICE_ID,
     paymentMethod: { accountingCode: '530000' },
-    invoice: { invoiceNumber: 'FAC-2025-0001', parentId: PARENT_ID },
+    invoice: { id: INVOICE_ID, invoiceNumber: 'FAC-2025-0001', parentId: PARENT_ID, totalAmount: 10000, paidAmount: 10000, creditedAmount: 0, taxRate: 0 },
     ...overrides,
   };
 }
@@ -229,7 +229,7 @@ describe('refunds router', () => {
         expect.objectContaining({
           take: 10,
           skip: 20,
-          orderBy: { amount: 'asc' },
+          orderBy: [{ amount: 'asc' }, { id: 'asc' }],
         }),
       );
     });
@@ -282,7 +282,7 @@ describe('refunds router', () => {
 
       expect(mockPrisma.refund.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: { refundDate: 'desc' },
+          orderBy: [{ refundDate: 'desc' }, { id: 'asc' }],
         }),
       );
     });
@@ -329,6 +329,7 @@ describe('refunds router', () => {
   describe('create', () => {
     beforeEach(() => {
       ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+      mockPrisma.invoice.create.mockResolvedValue({ id: INVOICE_ID, invoiceNumber: 'AVO-TEST', issueDate: new Date() });
     });
 
     it('creates a refund successfully', async () => {
@@ -371,7 +372,8 @@ describe('refunds router', () => {
         }),
       );
       // FUTURE_CREDIT should NOT create accounting entries
-      expect(mockPrisma.accountingEntry.create).not.toHaveBeenCalled();
+      expect(mockPrisma.accountingEntry.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.parentCredit.create).toHaveBeenCalled();
     });
 
     it('creates a refund when existing refunds exist but total does not exceed payment', async () => {
@@ -592,7 +594,7 @@ describe('refunds router', () => {
       );
     });
 
-    it('does NOT create accounting entries for FUTURE_CREDIT refund', async () => {
+    it('creates a usable future credit without a bank outflow', async () => {
       mockPrisma.payment.findUnique.mockResolvedValue(makePayment());
       mockPrisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
       mockPrisma.refund.create.mockResolvedValue(makeRefundRow({ refundMethod: 'FUTURE_CREDIT' }));
@@ -606,7 +608,8 @@ describe('refunds router', () => {
       });
 
       // FUTURE_CREDIT should NOT generate accounting entries
-      expect(mockPrisma.accountingEntry.create).not.toHaveBeenCalled();
+      expect(mockPrisma.accountingEntry.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.parentCredit.create).toHaveBeenCalled();
     });
   });
 
@@ -637,7 +640,7 @@ describe('refunds router', () => {
       // La suppression d'un remboursement immédiat restitue le montant : 22000 + 3000 = 25000 → PAID
       expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: 'a0000000-0000-1000-a000-00000000000f' },
-        data: { paidAmount: 25000, status: 'PAID' },
+        data: { creditedAmount: 0, paidAmount: 25000, status: 'PAID', pdfUrl: null, version: { increment: 1 } },
       });
     });
 
@@ -648,17 +651,7 @@ describe('refunds router', () => {
 
       await caller.refunds.delete({ id: REFUND_ID });
 
-      expect(mockPrisma.accountingEntry.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            refundId: REFUND_ID,
-            isCancelled: false,
-          }),
-          data: expect.objectContaining({
-            isCancelled: true,
-          }),
-        }),
-      );
+      expect(mockPrisma.accountingEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ refundId: REFUND_ID, isCancelled: false, cancelledAt: null }) }));
     });
 
     it('throws NOT_FOUND when refund does not exist', async () => {

@@ -1,3 +1,7 @@
+'use client';
+
+import { EmptyState } from '@/components/shared/empty-state';
+import { ErrorState } from '@/components/shared/error-state';
 /**
  * Data Table Component avec Server-Side Pagination
  *
@@ -28,33 +32,20 @@
  * ```
  */
 
-'use client';
-
-import * as React from 'react';
 import {
   ColumnDef,
   ColumnFiltersState,
-  SortingState,
   VisibilityState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
+import * as React from 'react';
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import {
   Pagination,
   PaginationContent,
@@ -71,8 +62,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PAGINATION_DEFAULTS } from '@/lib/constants/pagination';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { UseServerPaginationReturn } from '@/hooks/use-server-pagination';
+import { PAGINATION_DEFAULTS } from '@/lib/constants/pagination';
+import { cn } from '@/lib/utils';
 
 // ============================================================================
 // TYPES
@@ -99,6 +99,9 @@ interface DataTableServerProps<TData, TValue> {
    * @default false
    */
   isLoading?: boolean;
+  error?: unknown;
+  onRetry?: () => unknown;
+  sortableColumns?: string[];
 
   /**
    * Placeholder pour l'input de recherche
@@ -122,6 +125,8 @@ interface DataTableServerProps<TData, TValue> {
    * ou bouton « Rechercher »). Jamais appelé pendant la frappe.
    */
   onSearchChange?: (search: string) => void;
+  /** Applied query; synchronizes external filter resets without submitting draft input. */
+  search?: string;
 
   /**
    * Composant personnalisé pour l'empty state
@@ -144,10 +149,7 @@ function DataTableSkeleton({ columns }: { columns: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex gap-4">
           {Array.from({ length: columns }).map((_, j) => (
-            <div
-              key={j}
-              className="h-12 flex-1 animate-pulse rounded-md bg-muted"
-            />
+            <div key={j} className="h-12 flex-1 animate-pulse rounded-md bg-muted" />
           ))}
         </div>
       ))}
@@ -161,15 +163,11 @@ function DataTableSkeleton({ columns }: { columns: number }) {
 
 function DataTableEmpty() {
   return (
-    <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-        <Search className="h-6 w-6 text-muted-foreground" />
-      </div>
-      <h3 className="mt-4 text-lg font-semibold">Aucune donnée</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Aucun résultat ne correspond à votre recherche.
-      </p>
-    </div>
+    <EmptyState
+      title="Aucune donnée"
+      description="Les éléments ajoutés apparaîtront ici. Si un filtre est actif, essayez de le modifier."
+      icon={Search}
+    />
   );
 }
 
@@ -182,10 +180,7 @@ interface DataTablePaginationProps {
   totalCount: number;
 }
 
-function DataTablePagination({
-  pagination,
-  totalCount,
-}: DataTablePaginationProps) {
+function DataTablePagination({ pagination, totalCount }: DataTablePaginationProps) {
   const totalPages = pagination.getTotalPages(totalCount);
   const currentPage = pagination.page;
 
@@ -236,14 +231,14 @@ function DataTablePagination({
     <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
       {/* Compteur de résultats et sélecteur de taille */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-        <div className="text-sm text-muted-foreground">
+        <div role="status" className="text-sm text-muted-foreground">
           {totalCount === 0 ? (
             'Aucun résultat'
           ) : (
             <>
               {(currentPage - 1) * pagination.pageSize + 1} -{' '}
-              {Math.min(currentPage * pagination.pageSize, totalCount)} sur{' '}
-              {totalCount} résultat{totalCount > 1 ? 's' : ''}
+              {Math.min(currentPage * pagination.pageSize, totalCount)} sur {totalCount} résultat
+              {totalCount > 1 ? 's' : ''}
             </>
           )}
         </div>
@@ -259,7 +254,7 @@ function DataTablePagination({
                 pagination.resetToFirstPage();
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger aria-label="Résultats par page" className="h-10 w-[70px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -277,32 +272,32 @@ function DataTablePagination({
 
       {/* Navigation pagination */}
       {totalPages > 1 && (
-        <Pagination>
-          <PaginationContent>
+        <Pagination className="mx-0 w-auto">
+          <PaginationContent className="flex-wrap">
             {/* Bouton Précédent */}
             <PaginationItem>
               <PaginationPrevious
+                aria-disabled={!pagination.hasPrevPage}
+                tabIndex={pagination.hasPrevPage ? 0 : -1}
                 onClick={(e) => {
                   e.preventDefault();
                   if (pagination.hasPrevPage) {
                     pagination.goToPrevPage();
                   }
                 }}
-                className={cn(
-                  !pagination.hasPrevPage &&
-                    'pointer-events-none opacity-50'
-                )}
+                className={cn(!pagination.hasPrevPage && 'pointer-events-none opacity-50')}
                 href="#"
               />
             </PaginationItem>
 
             {/* Numéros de pages */}
             {pageNumbers.map((page, index) => (
-              <PaginationItem key={`page-${page}-${index}`}>
+              <PaginationItem className="hidden lg:block" key={`page-${page}-${index}`}>
                 {page === 'ellipsis' ? (
                   <PaginationEllipsis />
                 ) : (
                   <PaginationLink
+                    aria-label={`Page ${page}`}
                     onClick={(e) => {
                       e.preventDefault();
                       pagination.setPage(page);
@@ -316,9 +311,15 @@ function DataTablePagination({
               </PaginationItem>
             ))}
 
+            <PaginationItem className="px-2 text-sm tabular-nums lg:hidden">
+              Page {currentPage} sur {totalPages}
+            </PaginationItem>
+
             {/* Bouton Suivant */}
             <PaginationItem>
               <PaginationNext
+                aria-disabled={!pagination.hasNextPage(totalPages)}
+                tabIndex={pagination.hasNextPage(totalPages) ? 0 : -1}
                 onClick={(e) => {
                   e.preventDefault();
                   if (pagination.hasNextPage(totalPages)) {
@@ -326,8 +327,7 @@ function DataTablePagination({
                   }
                 }}
                 className={cn(
-                  !pagination.hasNextPage(totalPages) &&
-                    'pointer-events-none opacity-50'
+                  !pagination.hasNextPage(totalPages) && 'pointer-events-none opacity-50',
                 )}
                 href="#"
               />
@@ -348,27 +348,35 @@ export function DataTableServer<TData, TValue>({
   data,
   totalCount,
   isLoading = false,
+  error,
+  onRetry,
+  sortableColumns = [],
   searchPlaceholder = 'Rechercher...',
   searchKey,
   pagination,
   onSearchChange,
+  search,
   emptyState,
   className,
 }: DataTableServerProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+  const sorting = pagination.sorting;
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   // Recherche : la saisie (`searchValue`) est purement locale. Elle n'est
   // remontée au serveur qu'à la VALIDATION explicite — touche « Entrée » ou
   // bouton « Rechercher » (US-UX-01). Aucun debounce, donc aucun appel réseau
   // pendant la frappe. `submittedSearch` porte le dernier terme réellement
   // soumis : c'est lui qui pilote l'empty state et le message « aucun résultat ».
-  const [searchValue, setSearchValue] = React.useState('');
-  const [submittedSearch, setSubmittedSearch] = React.useState('');
+  const [searchValue, setSearchValue] = React.useState(search ?? '');
+  const [submittedSearch, setSubmittedSearch] = React.useState(search ?? '');
+
+  React.useEffect(() => {
+    if (search !== undefined) {
+      setSearchValue(search);
+      setSubmittedSearch(search);
+    }
+  }, [search]);
 
   const submitSearch = React.useCallback(() => {
     const term = searchValue.trim();
@@ -391,11 +399,19 @@ export function DataTableServer<TData, TValue>({
 
   const table = useReactTable({
     data,
-    columns,
+    columns: columns.map((column) => ({
+      ...column,
+      enableSorting:
+        sortableColumns?.includes(
+          column.id ?? ('accessorKey' in column ? String(column.accessorKey) : ''),
+        ) ?? false,
+    })),
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    manualSorting: true,
+    // Keep the cycle stable while a server request temporarily empties data.
+    sortDescFirst: false,
     getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
+    onSortingChange: pagination.onSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     // IMPORTANT: Pas de getPaginationRowModel() car pagination server-side
@@ -419,77 +435,96 @@ export function DataTableServer<TData, TValue>({
   // que seul le contenu en dessous bascule.
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('min-w-0 space-y-4', className)}>
       {/* Search Input (toujours monté, jamais désactivé) */}
       {searchKey && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
             onKeyDown={handleSearchKeyDown}
             aria-label={searchPlaceholder}
-            className="max-w-sm"
+            className="min-w-0 flex-1 basis-40 sm:max-w-sm bg-card"
           />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={submitSearch}
-            aria-label="Rechercher"
-          >
+          <Button type="button" variant="outline" onClick={submitSearch} aria-label="Rechercher">
             <Search className="mr-2 h-4 w-4" />
             Rechercher
           </Button>
+          {(searchValue || submittedSearch) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Effacer la recherche"
+              onClick={() => {
+                setSearchValue('');
+                if (submittedSearch) {
+                  setSubmittedSearch('');
+                  onSearchChange?.('');
+                  pagination.setPage(1);
+                }
+              }}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          )}
         </div>
       )}
+      {submittedSearch && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Recherche : <span className="font-medium text-foreground">{submittedSearch}</span>
+        </p>
+      )}
 
-      {isLoading ? (
-        <DataTableSkeleton columns={columns.length} />
-      ) : totalCount === 0 && !submittedSearch ? (
-        emptyState ?? <DataTableEmpty />
+      {error ? (
+        <ErrorState onRetry={onRetry} />
+      ) : totalCount === 0 && !submittedSearch && !isLoading ? (
+        (emptyState ?? <DataTableEmpty />)
       ) : (
         <>
           {/* Table */}
-          <div className="w-full overflow-x-auto rounded-md border">
+          <div className="w-full overflow-x-auto rounded-xl border bg-card shadow-sm">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
-                      const canSort = header.column.getCanSort();
+                      const canSort =
+                        header.column.getCanSort() && sortableColumns.includes(header.column.id);
 
                       return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder ? null : (
-                            <div
-                              className={cn(
-                                canSort &&
-                                  'flex cursor-pointer select-none items-center gap-2',
-                                !canSort && 'flex items-center'
-                              )}
-                              onClick={
-                                canSort
-                                  ? header.column.getToggleSortingHandler()
-                                  : undefined
-                              }
+                        <TableHead
+                          key={header.id}
+                          aria-sort={
+                            canSort
+                              ? header.column.getIsSorted() === 'asc'
+                                ? 'ascending'
+                                : header.column.getIsSorted() === 'desc'
+                                  ? 'descending'
+                                  : 'none'
+                              : undefined
+                          }
+                        >
+                          {header.isPlaceholder ? null : canSort ? (
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 rounded-sm py-2 text-left font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              onClick={header.column.getToggleSortingHandler()}
                             >
-                              {flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                              {canSort && (
-                                <span className="ml-auto">
-                                  {header.column.getIsSorted() === 'asc' ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                  ) : header.column.getIsSorted() ===
-                                    'desc' ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <div className="h-4 w-4" />
-                                  )}
-                                </span>
-                              )}
-                            </div>
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              <span className="ml-auto" aria-hidden="true">
+                                {header.column.getIsSorted() === 'asc' ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : header.column.getIsSorted() === 'desc' ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ArrowUpDown className="h-4 w-4" />
+                                )}
+                              </span>
+                            </button>
+                          ) : (
+                            flexRender(header.column.columnDef.header, header.getContext())
                           )}
                         </TableHead>
                       );
@@ -498,28 +533,27 @@ export function DataTableServer<TData, TValue>({
                 ))}
               </TableHeader>
               <TableBody>
-                {data.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length}>
+                      <div role="status" aria-label="Chargement des résultats">
+                        <DataTableSkeleton columns={columns.length} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : data.length > 0 ? (
                   table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && 'selected'}
-                    >
+                    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
                       {submittedSearch
                         ? `Aucun résultat pour « ${submittedSearch} »`
                         : 'Aucun résultat'}

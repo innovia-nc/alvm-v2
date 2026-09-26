@@ -253,7 +253,7 @@ describe('parents router', () => {
       });
 
       const findManyCall = admin.mockPrisma.parent.findMany.mock.calls[0][0];
-      expect(findManyCall.orderBy).toEqual({ createdAt: 'desc' });
+      expect(findManyCall.orderBy).toEqual([{ createdAt: 'desc' }, { userId: 'asc' }]);
     });
 
     it('should default registrationsCount to 0 when parent has no registrations', async () => {
@@ -701,7 +701,7 @@ describe('parents router', () => {
       expect(result.email).toBe('new@test.com');
       expect(admin.mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: PARENT_ID },
-        data: { email: 'new@test.com' },
+        data: { email: 'new@test.com', sessionVersion: { increment: 1 } },
       });
     });
 
@@ -772,6 +772,7 @@ describe('parents router', () => {
 
     it('should allow STAFF to soft-delete parent without active registrations', async () => {
       staff.mockPrisma.registration.count.mockResolvedValue(0);
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       staff.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       staff.mockPrisma.childParent.findMany.mockResolvedValue([]);
       staff.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });
@@ -787,6 +788,7 @@ describe('parents router', () => {
 
     it('should soft-delete parent without active registrations', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
       admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });
@@ -811,6 +813,7 @@ describe('parents router', () => {
 
     it('should throw NOT_FOUND when parent does not exist (updateMany count 0)', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(
@@ -855,6 +858,7 @@ describe('parents router', () => {
       // Cas constaté en recette : plus aucun enfant visible côté UI, mais le
       // lien vers l'enfant archivé subsiste et faisait remonter l'erreur BDD.
       admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany
         .mockResolvedValueOnce([makeChildLink(CHILD_ID_A, { deletedAt: new Date('2025-01-01') })])
@@ -870,6 +874,7 @@ describe('parents router', () => {
 
     it('should delete only the links of children that keep another parent', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany
         .mockResolvedValueOnce([
@@ -941,6 +946,7 @@ describe('parents router', () => {
 
     it('should not delete any link when the parent has no child', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
 
@@ -952,6 +958,7 @@ describe('parents router', () => {
 
     it('should check registrations with CONFIRMED status and deletedAt null', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
       admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });

@@ -53,7 +53,7 @@ function formatXpf(amount: number): string {
 }
 
 function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString('fr-FR');
+  return new Date(date).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' });
 }
 
 export function CreditConsumptionCard({
