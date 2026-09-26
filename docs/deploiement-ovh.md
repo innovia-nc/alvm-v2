@@ -53,25 +53,32 @@ login_attempts_window_start_idx` — objets posés volontairement par le SQL,
 Staging et srv-ovh : **bases et stores Blob distincts de la prod** — un staging
 branché sur le store de prod supprimerait de vrais documents (TD-006).
 
-## 3. Staging
+## 3. Staging — srv-innovia (Docker Compose, réseau local)
 
-Objectif : valider le code et les migrations sur une copie des données réelles
-avant la bascule srv-ovh.
+Choix du 2026-09-27 : staging temporaire sur srv-innovia, joignable
+uniquement sur le LAN / WireGuard (la règle d'infra réserve ce serveur aux
+services IA — à démonter après la bascule srv-ovh). Fichiers :
+`deploy/staging/compose.yml` + `deploy/staging/.env.example` (pile testée en
+local : `/api/health?db=1` à 200).
 
-1. Clone de prod : `pg_dump --no-owner --no-acl --exclude-schema=neon_auth` de
-   Neon → base de staging (branche Neon, ou Postgres 17 Coolify `alvm-staging-db`).
-2. Appliquer les migrations (§ 1), puis `pnpm db:seed:payment-methods`
-   (idempotent).
-3. Déployer la branche :
-   - **Vercel** : `vercel deploy` (preview) — ⚠️ les previews échouaient en une
-     seconde au 2026-08-19, diagnostic préalable dans `docs/deploiement.md`
-     § « Échecs de déploiement en preview » ;
-   - **ou Coolify** : application `alvm-staging` construite depuis la branche,
-     mêmes réglages qu'au § 4, domaine de staging.
-4. Créer le super administrateur (§ 5), se connecter, configurer les
-   intégrations et le branding.
-5. `pnpm smoke` et `pnpm recette` contre le staging **uniquement s'il est
-   jetable** (les deux campagnes écrivent).
+1. **Code** : sur srv-innovia, `cd /srv && git clone git@github.com:innovia-nc/alvm-v2.git alvm-staging`
+   (ou `git pull` si déjà cloné), sur la branche à valider.
+2. **Environnement** : `cp deploy/staging/.env.example deploy/staging/.env`,
+   remplir (`openssl rand -base64 32` pour `AUTH_SECRET`,
+   `PLATFORM_ENCRYPTION_KEY`, `DB_PASSWORD`). Stores Blob **dédiés** au staging.
+3. **Base seule d'abord** :
+   `docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env up -d db`
+4. **Clone de prod** (depuis un poste qui a l'URL Neon directe) :
+   `pg_dump --no-owner --no-acl --exclude-schema=neon_auth -Fc "$NEON_URL" > prod.dump`,
+   copier sur le serveur, puis
+   `docker compose … exec -T db pg_restore -U alvm -d alvm --no-owner < prod.dump`.
+5. **Migrations** (§ 1) : `docker compose … exec -T db psql -U alvm -d alvm -v ON_ERROR_STOP=1 < prisma/migrations-manual/<fichier>.sql`
+   dans l'ordre. Puis moyens de paiement et super admin depuis un poste de dev
+   via `ssh -N -L 5440:127.0.0.1:5440 innovia-admin@192.168.0.252` (§ 5).
+6. **Application** : `docker compose … up -d --build app`, vérifier
+   `curl http://192.168.0.252:3100/api/health?db=1`.
+7. **Recette** : connexion ADMIN / PARENT / super admin, facture PDF,
+   téléversement ; `SMOKE_BASE_URL=http://192.168.0.252:3100 SMOKE_DB_URL=postgresql://alvm:<mdp>@127.0.0.1:5440/alvm pnpm smoke` (tunnel ouvert, base jetable).
 
 ## 4. srv-ovh (Coolify v4)
 

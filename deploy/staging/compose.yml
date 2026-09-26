@@ -1,0 +1,50 @@
+# Staging ALVM sur srv-innovia (réseau local / WireGuard uniquement).
+# Usage (depuis la racine du dépôt cloné sur le serveur) :
+#   cp deploy/staging/.env.example deploy/staging/.env   # puis remplir
+#   docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env up -d --build
+# Procédure complète : docs/deploiement-ovh.md § 3.
+name: alvm-staging
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: alvm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requis}
+      POSTGRES_DB: alvm
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Port publié sur loopback seulement : restauration / migrations / tunnel SSH.
+    ports:
+      - '127.0.0.1:5440:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U alvm -d alvm']
+      interval: 10s
+      retries: 10
+
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_PRISMA_URL: postgresql://alvm:${DB_PASSWORD}@db:5432/alvm
+      POSTGRES_URL_NON_POOLING: postgresql://alvm:${DB_PASSWORD}@db:5432/alvm
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
+      AUTH_URL: ${AUTH_URL:?AUTH_URL requis}
+      PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY requis}
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
+      BLOB_PRIVATE_READ_WRITE_TOKEN: ${BLOB_PRIVATE_READ_WRITE_TOKEN:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Aucun proxy devant : X-Forwarded-For n'est pas lu.
+      TRUSTED_PROXY_HOPS: '0'
+    # Jamais 0.0.0.0 : interface LAN (ou WireGuard 10.10.0.2) uniquement.
+    ports:
+      - '${BIND_IP:?BIND_IP requis}:3100:3000'
+
+volumes:
+  db-data:
