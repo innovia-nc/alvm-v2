@@ -1,7 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Vercel handles output automatically — no 'standalone' needed
+  // Vercel gère la sortie lui-même. L'image Docker (Coolify / srv-ovh) pose
+  // NEXT_OUTPUT=standalone au build pour produire `.next/standalone`.
+  output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   //
   // Pas de bloc `images` : aucun composant n'importe `next/image`. Les seules
   // images du produit sont le logo de l'association (balise `<img>` dans

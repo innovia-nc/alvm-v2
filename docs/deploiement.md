@@ -1,6 +1,8 @@
 # Déploiement — ALVM (Vercel + Neon)
 
 > Dernière mise à jour : 2026-08-19 (§ Échecs de déploiement en preview ; version pnpm figée)
+>
+> **Staging puis srv-ovh (Coolify)** : voir `docs/deploiement-ovh.md` (2026-09-27).
 
 ## Topologie
 

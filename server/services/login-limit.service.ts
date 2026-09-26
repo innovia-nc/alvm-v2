@@ -1,11 +1,10 @@
 import { createHash } from 'node:crypto';
 import { prisma } from '@/server/db';
+import { getClientIp } from '@/server/helpers/client-ip';
 
 // Fixed windows shared by every instance. Passwords and raw IPs are never stored.
 export async function consumeLoginAttempt(email: string, headers: Headers): Promise<boolean> {
-  const origin = process.env.VERCEL
-    ? (headers.get('x-vercel-forwarded-for') ?? 'unknown')
-    : 'local';
+  const origin = getClientIp(headers);
   const keys = [`account:${email.trim().toLowerCase()}`, `origin:${origin}`];
   const allowed = await Promise.all(
     keys.map(async (key, index) => {

@@ -5,6 +5,26 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — déploiement staging puis srv-ovh (2026-09-27)
+
+- **`Dockerfile`** multi-étapes (pnpm, sortie Next `standalone` activée par
+  `NEXT_OUTPUT=standalone` au build seulement — Vercel inchangé),
+  `docker-entrypoint.sh` (`exec node server.js`, aucune migration automatique)
+  et `.dockerignore`.
+- **`GET /api/health`** : liveness pour le HEALTHCHECK de l'image ;
+  `?db=1` ajoute un `SELECT 1` (503 si la base est KO).
+- **`docs/deploiement-ovh.md`** : ordre d'application des cinq migrations SQL
+  en attente (répété sur copie), variables d'environnement, bascule Neon →
+  Postgres 17 Coolify, création du premier super administrateur.
+
+### Fixed — limitation des connexions hors Vercel
+
+Hors Vercel, `consumeLoginAttempt` rangeait **toutes** les requêtes sous la
+même origine `local` : 100 tentatives en 15 minutes auraient bloqué la
+connexion de tout le monde sur srv-ovh. L'IP est désormais lue dans
+`X-Forwarded-For` en partant de la fin, sur `TRUSTED_PROXY_HOPS` relais de
+confiance (`server/helpers/client-ip.ts`, `test/unit/client-ip.spec.ts`).
+
 ### Added — téléversement des fichiers, enfin branché (TD-025, 2026-08-19)
 
 Trois appels `fetch` du navigateur visaient des routes qui n'existaient dans
