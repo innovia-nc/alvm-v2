@@ -1,51 +1,68 @@
-# Staging ALVM sur srv-innovia (réseau local / WireGuard uniquement).
-# Usage (depuis la racine du dépôt cloné sur le serveur) :
-#   cp deploy/staging/.env.example deploy/staging/.env   # puis remplir
-#   docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env up -d --build
-# Base neuve : `... run --rm app db-init`, puis seed-payment-methods et
+# Staging alvm-v2 — srv-innovia (convention /srv/staging/README.md du serveur).
+#
+# Bloc de ports : `staging-ports alloc alvm-v2` ; BASE_PORT = port de base du
+# bloc (application en 127.0.0.1 ET port HTTPS du tailnet).
+#
+#   - l'application se lie à 127.0.0.1 uniquement ; l'accès passe par
+#     `tailscale serve` (staging-ports expose alvm-v2) ;
+#   - la base n'est JAMAIS liée à l'hôte : réseau Docker seul ;
+#   - l'image est construite sur le serveur et taguée au SHA court du commit
+#     (IMAGE_TAG) — jamais `latest`. Les runners CI du serveur servent
+#     l'organisation innovia-noumea, pas innovia-nc.
+#
+# Base neuve : `dc run --rm app db-init`, puis seed-payment-methods et
 # create-super-admin. Procédure complète : docs/deploiement-ovh.md § 3.
-name: alvm-staging
+name: alvm-v2-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
 
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: alvm
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requis}
-      POSTGRES_DB: alvm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD absent du .env}
+      POSTGRES_DB: alvm_staging
     volumes:
       - db-data:/var/lib/postgresql/data
-    # Port publié sur loopback seulement : restauration / migrations / tunnel SSH.
-    ports:
-      - '127.0.0.1:5440:5432'
+    # Aucun `ports:` — volontaire. Inspection : dc exec db psql -U alvm alvm_staging
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U alvm -d alvm']
-      interval: 10s
+      test: ['CMD-SHELL', 'pg_isready -U alvm -d alvm_staging']
+      interval: 5s
       retries: 10
 
   app:
+    image: alvm-v2:${IMAGE_TAG:?IMAGE_TAG absent du .env}
     build:
       context: ../..
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
     environment:
-      POSTGRES_PRISMA_URL: postgresql://alvm:${DB_PASSWORD}@db:5432/alvm
-      POSTGRES_URL_NON_POOLING: postgresql://alvm:${DB_PASSWORD}@db:5432/alvm
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
-      AUTH_URL: ${AUTH_URL:?AUTH_URL requis}
-      PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY requis}
+      POSTGRES_PRISMA_URL: postgresql://alvm:${POSTGRES_PASSWORD}@db:5432/alvm_staging
+      POSTGRES_URL_NON_POOLING: postgresql://alvm:${POSTGRES_PASSWORD}@db:5432/alvm_staging
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent du .env}
+      # Doit valoir exactement `staging-ports url alvm-v2`, sinon les cookies
+      # de session et les redirections d'auth cassent.
+      AUTH_URL: ${APP_URL:?APP_URL absent du .env}
+      PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY absent du .env}
       BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
       BLOB_PRIVATE_READ_WRITE_TOKEN: ${BLOB_PRIVATE_READ_WRITE_TOKEN:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      # Aucun proxy devant : X-Forwarded-For n'est pas lu.
-      TRUSTED_PROXY_HOPS: '0'
-    # Jamais 0.0.0.0 : interface LAN (ou WireGuard 10.10.0.2) uniquement.
+      SOURCE_COMMIT: ${IMAGE_TAG}
+      # Un seul relais devant l'application : `tailscale serve`.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     ports:
-      - '${BIND_IP:?BIND_IP requis}:3100:3000'
+      - '127.0.0.1:${BASE_PORT:?BASE_PORT absent du .env}:3000'
 
 volumes:
   db-data:

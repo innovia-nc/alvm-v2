@@ -46,21 +46,30 @@ enfant sans parent.
 | `AUTH_SECRET`                                            | ✅                | `openssl rand -base64 32`, **distinct** par environnement                                                                                                                                                             |
 | `AUTH_URL`                                               | ✅                | URL publique sans slash final — liens de réinitialisation de mot de passe                                                                                                                                             |
 | `PLATFORM_ENCRYPTION_KEY`                                | ✅                | `openssl rand -base64 32`. **À sauvegarder** : la perdre rend illisibles les clés API saisies dans la super administration                                                                                            |
-| `TRUSTED_PROXY_HOPS`                                     | prod              | **Contrôle de sécurité.** Cloudflare proxy + Traefik : `2` ; staging sans proxy : `0`. Mal réglé, un appelant choisit son IP et contourne la limitation des connexions                                                |
+| `TRUSTED_PROXY_HOPS`                                     | prod              | **Contrôle de sécurité.** Cloudflare proxy + Traefik : `2` ; staging derrière `tailscale serve` : `1`. Mal réglé, un appelant choisit son IP et contourne la limitation des connexions                                |
 | `BLOB_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | pour les fichiers | Le stockage reste **Vercel Blob** (API par jeton, fonctionne hors Vercel). Sans jeton : pas de logo ni de documents téléversés. Surchargeables depuis la super administration. Stores **distincts** par environnement |
 | `RESEND_API_KEY`                                         | pour l'email      | Absente : envoi désactivé et expliqué à l'écran                                                                                                                                                                       |
 
 ## 3. Staging — srv-innovia
 
-Staging temporaire, joignable uniquement sur le LAN / WireGuard (la règle
-d'infra réserve srv-innovia aux services IA). Tout se lance depuis la racine
-du dépôt cloné ; `dc` abrège
+Suit la convention du serveur (`/srv/staging/README.md` : bloc de 10 ports
+par projet, app liée à `127.0.0.1`, base jamais liée à l'hôte, accès HTTPS
+par le tailnet via `tailscale serve`). Écart assumé : l'image est **construite
+sur le serveur**, taguée au SHA court, au lieu d'être publiée par la CI — les
+runners de srv-innovia servent l'organisation `innovia-noumea`, pas
+`innovia-nc`. `dc` abrège
 `docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env`.
+
+Premier déploiement :
 
 ```bash
 ssh innovia-admin@192.168.0.252
-cd /srv && git clone git@github.com:innovia-nc/alvm-v2.git alvm-staging && cd alvm-staging
-cp deploy/staging/.env.example deploy/staging/.env && nano deploy/staging/.env
+free -h                                   # mémoire partagée avec l'inférence GPU
+staging-ports alloc alvm-v2 && staging-ports list   # noter le port de base
+git clone git@github.com:innovia-nc/alvm-v2.git /srv/dev/alvm-v2 && cd /srv/dev/alvm-v2
+cp deploy/staging/.env.example deploy/staging/.env && chmod 600 deploy/staging/.env
+# remplir : BASE_PORT, IMAGE_TAG=$(git rev-parse --short HEAD),
+#           APP_URL=$(staging-ports url alvm-v2), secrets (openssl rand -base64 32)
 alias dc='docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env'
 
 dc build app
@@ -69,18 +78,19 @@ dc run --rm app db-init
 dc run --rm app seed-payment-methods
 dc run --rm -e SUPER_ADMIN_EMAIL=… -e SUPER_ADMIN_PASSWORD=… app create-super-admin
 dc up -d app
-curl -s "http://192.168.0.252:3100/api/health?db=1"
+curl -s "http://127.0.0.1:$BASE_PORT/api/health?db=1"
+staging-ports expose alvm-v2 && staging-ports url alvm-v2
 ```
 
-Mise à jour : `git pull && dc up -d --build app` — en appliquant d'abord tout
-nouveau fichier de `prisma/migrations-manual/` :
-`dc exec -T db psql -U alvm -d alvm -v ON_ERROR_STOP=1 < prisma/migrations-manual/<f>.sql`.
+Mise à jour : `git pull`, `IMAGE_TAG` = nouveau SHA court dans le `.env`,
+appliquer tout nouveau fichier de `prisma/migrations-manual/`
+(`dc exec -T db psql -U alvm -d alvm_staging -v ON_ERROR_STOP=1 < prisma/migrations-manual/<f>.sql`),
+puis `dc up -d --build app`. Retour arrière : remettre l'ancien `IMAGE_TAG`
+(l'image précédente reste en local) et `dc up -d app`.
 
 Recette : connexion super admin (`/auth/super-admin`), création d'un ADMIN,
 paramétrage (organisation, branding, intégrations), puis parcours camp →
-inscription → facture → paiement → PDF. Campagne automatique possible,
-base jetable uniquement :
-`SMOKE_BASE_URL=http://192.168.0.252:3100 SMOKE_DB_URL=… pnpm smoke`.
+inscription → facture → paiement → PDF.
 
 ## 4. Production — srv-ovh (Coolify v4)
 
