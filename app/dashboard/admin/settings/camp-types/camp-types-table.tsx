@@ -1,5 +1,16 @@
 'use client';
 
+import { PageHeader } from '@/components/shared/page-header';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,7 +66,8 @@ const campTypeSchema = z.object({
   accountingCode: z
     .string()
     .regex(/^\d{6}$/, 'Code comptable invalide (6 chiffres)')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
 });
 
 type CampTypeFormData = z.infer<typeof campTypeSchema>;
@@ -73,6 +85,7 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<CampType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CampType | null>(null);
 
   const createMutation = trpc.campTypes.create.useMutation();
   const updateMutation = trpc.campTypes.update.useMutation();
@@ -88,6 +101,7 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
   });
 
   function openCreateDialog() {
+    setError(null);
     setEditingType(null);
     form.reset({
       name: '',
@@ -98,6 +112,7 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
   }
 
   function openEditDialog(type: CampType) {
+    setError(null);
     setEditingType(type);
     form.reset({
       name: type.name,
@@ -124,7 +139,7 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
         await createMutation.mutateAsync({
           name: values.name,
           description: values.description,
-          accountingCode: values.accountingCode,
+          accountingCode: values.accountingCode || undefined,
         });
       }
 
@@ -136,13 +151,10 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce type de camp ?')) {
-      return;
-    }
-
     try {
       setError(null);
       await deleteMutation.mutateAsync({ id });
+      setDeleteTarget(null);
       router.refresh();
     } catch (err) {
       setError(
@@ -157,77 +169,120 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
-    <>
-      {error && (
+    <div className="space-y-6">
+      {error && !isDialogOpen && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <div className="flex justify-end mb-4">
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Ajouter un type de camp
-        </Button>
-      </div>
+      <PageHeader
+        title="Types d’ACM"
+        description="Gérez les types d’accueil proposés aux familles."
+        actions={
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Ajouter un type de camp
+          </Button>
+        }
+      />
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nom</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Code Comptable</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead className="w-[120px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {initialCampTypes.length === 0 ? (
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                Aucun type de camp configuré
-              </TableCell>
+              <TableHead>Nom</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Code Comptable</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
-          ) : (
-            initialCampTypes.map((type) => (
-              <TableRow key={type.id}>
-                <TableCell className="font-medium">{type.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {type.description || '-'}
-                </TableCell>
-                <TableCell>{type.accountingCode || '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={type.active ? 'default' : 'secondary'}>
-                    {type.active ? 'Actif' : 'Inactif'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(type)}
-                      disabled={isLoading}
-                      aria-label="Modifier"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(type.id)}
-                      disabled={isLoading}
-                      aria-label="Supprimer"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+          </TableHeader>
+          <TableBody>
+            {initialCampTypes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  Aucun type de camp configuré
                 </TableCell>
               </TableRow>
-            ))
+            ) : (
+              initialCampTypes.map((type) => (
+                <TableRow key={type.id}>
+                  <TableCell className="font-medium">{type.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {type.description || '-'}
+                  </TableCell>
+                  <TableCell>{type.accountingCode || '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={type.active ? 'default' : 'secondary'}>
+                      {type.active ? 'Actif' : 'Inactif'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(type)}
+                        disabled={isLoading}
+                        aria-label="Modifier"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setError(null);
+                          setDeleteTarget(type);
+                        }}
+                        disabled={isLoading}
+                        aria-label="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce type d’ACM ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirmez la suppression de « {deleteTarget?.name} ».
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
-        </TableBody>
-      </Table>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) void handleDelete(deleteTarget.id);
+              }}
+            >
+              {deleteMutation.isPending ? 'Suppression…' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog Create/Edit */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -245,6 +300,11 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               <FormField
                 control={form.control}
                 name="name"
@@ -305,6 +365,6 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
           </Form>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

@@ -1,12 +1,13 @@
+import { ParentRecordCard } from '@/components/parent/parent-record-card';
+import { StatusBadge } from '@/components/shared/status-badge';
+import { formatDate } from '@/lib/utils';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ListPagination } from '@/components/shared/list-pagination';
 import { PageHeader } from '@/components/shared/page-header';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { auth } from '@/lib/auth/config';
 import { createServerTRPC } from '@/lib/trpc';
-import { Calendar, DollarSign, MapPin, Users } from 'lucide-react';
+import { Calendar, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -27,7 +28,11 @@ export default async function ParentCampsPage({
 
   const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
   const trpc = await createServerTRPC();
-  const campsData = await trpc.camps.list({ limit: 20, offset: (page - 1) * 20 });
+  const campsData = await trpc.camps.list({
+    limit: 20,
+    offset: (page - 1) * 20,
+    status: 'PUBLISHED',
+  });
   const camps = campsData.camps;
 
   // Filter only published camps
@@ -47,57 +52,47 @@ export default async function ParentCampsPage({
           icon={Calendar}
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           {availableCamps.map((camp) => (
-            <Card key={camp.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-xl">{camp.name}</CardTitle>
-                  <Badge variant={camp.status === 'PUBLISHED' ? 'default' : 'secondary'}>
-                    {camp.status === 'PUBLISHED' ? 'Ouvert' : camp.status}
-                  </Badge>
-                </div>
-                <CardDescription className="line-clamp-2">{camp.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Days count */}
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {camp.daysCount} jour{camp.daysCount > 1 ? 's' : ''}
-                </div>
-
-                {/* Location */}
-                {camp.location && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    {camp.location}
-                  </div>
-                )}
-
-                {/* Camp Type */}
-                {camp.campType.description && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Users className="mr-2 h-4 w-4" />
-                    {camp.campType.description}
-                  </div>
-                )}
-
-                {/* Price */}
-                <div className="flex items-center text-sm font-medium text-foreground">
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  {camp.pricePerDay.toLocaleString('fr-FR')} XPF / jour
-                </div>
-
-                {/* Actions */}
-                <div className="pt-4">
-                  <Button asChild className="w-full">
-                    <Link href={`/dashboard/parent/camps/${camp.id}`}>
-                      Voir les détails et inscrire
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <ParentRecordCard
+              key={camp.id}
+              title={camp.name}
+              href={`/dashboard/parent/camps/${camp.id}`}
+              status={<StatusBadge type="camp" status={camp.status} />}
+              description={<span className="line-clamp-2">{camp.description}</span>}
+              summary={
+                <>
+                  {camp.totalPrice.toLocaleString('fr-FR')} XPF{' '}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    pour {camp.daysCount} jours
+                  </span>
+                </>
+              }
+              actions={
+                <Button asChild>
+                  <Link href={`/dashboard/parent/camps/${camp.id}`}>Découvrir et inscrire</Link>
+                </Button>
+              }
+            >
+              <p className="flex items-start gap-2">
+                <Calendar className="mt-0.5 h-4 w-4 shrink-0" />
+                {camp.startDate && camp.endDate
+                  ? `Du ${formatDate(camp.startDate)} au ${formatDate(camp.endDate)}`
+                  : 'Dates à confirmer'}
+              </p>
+              {camp.location && (
+                <p className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                  {camp.location}
+                </p>
+              )}
+              <p>
+                {camp.availableSpots > 0
+                  ? `${camp.availableSpots} place${camp.availableSpots > 1 ? 's' : ''} disponible${camp.availableSpots > 1 ? 's' : ''}`
+                  : 'Camp complet'}{' '}
+                · {camp.pricePerDay.toLocaleString('fr-FR')} XPF / jour
+              </p>
+            </ParentRecordCard>
           ))}
         </div>
       )}

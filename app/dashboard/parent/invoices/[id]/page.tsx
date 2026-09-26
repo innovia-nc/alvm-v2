@@ -318,19 +318,21 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </Card>
 
           {/* Actions */}
-          <Card>
+          <Card id="reglement" className="scroll-mt-24">
             <CardHeader>
-              <CardTitle className="text-base">Actions</CardTitle>
+              <CardTitle>Règlement et document</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {invoice.pdfUrl && (
-                <Button variant="outline" className="w-full" asChild>
-                  <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
-                    <Download className="mr-2 h-4 w-4" />
-                    Télécharger PDF
-                  </a>
-                </Button>
-              )}
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href={`/api/documents/invoice/${invoice.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Télécharger PDF
+                </a>
+              </Button>
               {canPay && invoice.remainingAmount > 0 && (
                 <p className="text-sm text-muted-foreground">
                   Pour régler cette facture, contactez le secrétariat ALVM afin de convenir du moyen

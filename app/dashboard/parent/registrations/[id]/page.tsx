@@ -68,19 +68,21 @@ export default async function RegistrationDetailPage({
     notFound();
   }
 
-  const canCancel = registration.status === 'PENDING' || registration.status === 'CONFIRMED';
+  const canCancel =
+    ['PENDING', 'CONFIRMED', 'WAITLIST'].includes(registration.status) &&
+    !registration.cancellationRequestedAt &&
+    registration.camp.startDate !== null &&
+    new Date(registration.camp.startDate) > new Date();
   const isCancelled = registration.status === 'CANCELLED';
 
   return (
     <div className="space-y-6">
       {/* Header with back button */}
-      <div className="flex items-center gap-4">
-        <BackButton href="/dashboard/parent/registrations" />
-        <PageHeader
-          title={`Inscription au ${registration.camp.name}`}
-          description={`${registration.child.firstName} ${registration.child.lastName}`}
-        />
-      </div>
+      <PageHeader
+        title={registration.camp.name}
+        description={`Inscription de ${registration.child.firstName} ${registration.child.lastName}`}
+        actions={<BackButton href="/dashboard/parent/registrations" label="Mes inscriptions" />}
+      />
 
       {/* Status Badge */}
       <div className="flex items-center gap-2">

@@ -1,12 +1,13 @@
+import { ParentRecordCard } from '@/components/parent/parent-record-card';
+import { ParentStatusFilters } from '@/components/parent/parent-status-filters';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ListPagination } from '@/components/shared/list-pagination';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { auth } from '@/lib/auth/config';
 import { createServerTRPC } from '@/lib/trpc';
-import { DollarSign, Download, Eye, FileText } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -26,7 +27,11 @@ export default async function ParentInvoicesPage({
   }
 
   const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
-  const status = (await searchParams).status === 'OVERDUE' ? ('OVERDUE' as const) : undefined;
+  const requestedStatus = (await searchParams).status;
+  const status =
+    requestedStatus === 'OVERDUE' || requestedStatus === 'PAID' || requestedStatus === 'SENT'
+      ? requestedStatus
+      : undefined;
   const trpc = await createServerTRPC();
 
   // Get invoices
@@ -37,83 +42,71 @@ export default async function ParentInvoicesPage({
     <div className="space-y-6">
       <PageHeader title="Mes factures" description="Consultez et téléchargez vos factures" />
 
+      <ParentStatusFilters
+        basePath="/dashboard/parent/invoices"
+        value={status}
+        options={[
+          { label: 'Toutes' },
+          { value: 'SENT', label: 'Émises' },
+          { value: 'OVERDUE', label: 'En retard' },
+          { value: 'PAID', label: 'Payées' },
+        ]}
+      />
       {invoices.length === 0 ? (
         <EmptyState
-          title="Aucune facture"
+          title={status ? 'Aucune facture pour ce statut' : 'Aucune facture'}
           description={
-            <>Vous n'avez pas encore de factures. Elles apparaîtront ici après une inscription.</>
+            status
+              ? 'Choisissez un autre statut pour retrouver vos factures.'
+              : 'Vos factures apparaîtront ici après leur émission.'
           }
           icon={FileText}
         />
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2">
           {invoices.map((invoice) => (
-            <Card key={invoice.id}>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <CardTitle className="break-words text-lg">
-                        Facture #{invoice.invoiceNumber}
-                      </CardTitle>
-                      <StatusBadge type="invoice" status={invoice.status} />
-                    </div>
-                    <CardDescription className="mt-1">
-                      Émise le{' '}
-                      {new Date(invoice.createdAt).toLocaleDateString('fr-FR', {
-                        timeZone: 'Pacific/Noumea',
-                      })}
-                      {invoice.dueDate && (
-                        <>
-                          {' '}
-                          • Échéance :{' '}
-                          {new Date(invoice.dueDate).toLocaleDateString('fr-FR', {
-                            timeZone: 'Pacific/Noumea',
-                          })}
-                        </>
-                      )}
-                    </CardDescription>
-                  </div>
-                  <div className="sm:text-right">
-                    <div className="text-2xl font-bold">
-                      {invoice.totalAmount.toLocaleString('fr-FR')} XPF
-                    </div>
-                    {invoice.status === 'PAID' && (
-                      <div className="text-sm text-green-600">Payée</div>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/dashboard/parent/invoices/${invoice.id}`}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Voir le détail
-                    </Link>
+            <ParentRecordCard
+              key={invoice.id}
+              title={`Facture ${invoice.invoiceNumber}`}
+              href={`/dashboard/parent/invoices/${invoice.id}`}
+              status={<StatusBadge type="invoice" status={invoice.status} />}
+              description={`Émise le ${invoice.issueDate.toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}`}
+              summary={
+                <>
+                  {invoice.totalAmount.toLocaleString('fr-FR')} XPF{' '}
+                  <span className="text-sm font-normal text-muted-foreground">au total</span>
+                </>
+              }
+              actions={
+                <>
+                  <Button asChild>
+                    <Link href={`/dashboard/parent/invoices/${invoice.id}`}>Voir la facture</Link>
                   </Button>
-                  {invoice.pdfUrl ? (
-                    <Button asChild variant="outline" size="sm">
-                      <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
-                        <Download className="mr-2 h-4 w-4" />
-                        Télécharger PDF
-                      </a>
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" disabled>
-                      <Download className="mr-2 h-4 w-4" />
-                      PDF non disponible
-                    </Button>
-                  )}
-                  {invoice.status === 'SENT' && (
-                    <Button size="sm" className="ml-auto">
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      Payer maintenant
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  <Button asChild variant="outline">
+                    <a
+                      href={`/api/documents/invoice/${invoice.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download className="h-4 w-4" /> Télécharger PDF
+                    </a>
+                  </Button>
+                </>
+              }
+            >
+              <p>
+                Échéance :{' '}
+                {invoice.dueDate.toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+              </p>
+              {(invoice.status === 'SENT' || invoice.status === 'OVERDUE') && (
+                <Link
+                  className="inline-block font-medium text-primary hover:underline"
+                  href={`/dashboard/parent/invoices/${invoice.id}#reglement`}
+                >
+                  Comment régler cette facture ?
+                </Link>
+              )}
+            </ParentRecordCard>
           ))}
         </div>
       )}

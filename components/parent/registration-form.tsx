@@ -59,6 +59,7 @@ export function RegistrationForm({
   daysCount,
 }: RegistrationFormProps) {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [selectedChildId, setSelectedChildId] = useState<string>('');
   const [specialRequirements, setSpecialRequirements] = useState('');
 
@@ -75,7 +76,8 @@ export function RegistrationForm({
 
   // Create registration mutation
   const createRegistration = trpc.registrations.create.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await utils.dashboard.summary.invalidate(undefined, { refetchType: 'all' });
       toast.success('Inscription réussie', {
         description: `${selectedChild?.firstName} a été inscrit(e) au camp ${campName}`,
       });
@@ -142,13 +144,17 @@ export function RegistrationForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-3">
-            {optionsPage0.controls(
-              childrenData?.total ?? 0,
-              loadingChildren,
-              optionsError0,
-              optionsRetry0,
-            )}
+          <div className="space-y-3 empty:hidden">
+            {(Boolean(optionsPage0.params.search) ||
+              optionsPage0.params.offset > 0 ||
+              (childrenData?.total ?? 0) > 20 ||
+              !!optionsError0) &&
+              optionsPage0.controls(
+                childrenData?.total ?? 0,
+                loadingChildren,
+                optionsError0,
+                optionsRetry0,
+              )}
           </div>
 
           {/* Child selection */}
@@ -162,11 +168,14 @@ export function RegistrationForm({
             ) : children.length === 0 ? (
               <Alert>
                 <AlertDescription>
-                  Vous devez d'abord ajouter un enfant avant de pouvoir vous inscrire.
+                  {optionsPage0.params.search
+                    ? 'Aucun enfant ne correspond à cette recherche.'
+                    : 'Ajoutez la fiche de votre enfant pour poursuivre cette inscription.'}
                   <Button
+                    type="button"
                     variant="link"
                     className="p-0 h-auto ml-1"
-                    onClick={() => router.push('/dashboard/parent/children/new')}
+                    onClick={() => router.push(`/dashboard/parent/children/new?campId=${campId}`)}
                   >
                     Ajouter un enfant
                   </Button>
@@ -198,7 +207,7 @@ export function RegistrationForm({
               <Calendar className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm">
                       Du {formatDate(new Date(startDate))} au {formatDate(new Date(endDate))}
                     </span>
@@ -206,7 +215,7 @@ export function RegistrationForm({
                       {daysCount} jour{daysCount > 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between border-t pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2">
                     <span className="text-sm">
                       {daysCount} jour{daysCount > 1 ? 's' : ''} ×{' '}
                       {pricePerDay.toLocaleString('fr-FR')} XPF
@@ -237,7 +246,11 @@ export function RegistrationForm({
 
           {/* Submit button */}
           <FormActions>
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/dashboard/parent/camps')}
+            >
               Annuler
             </Button>
             <Button type="submit" disabled={!canSubmit}>

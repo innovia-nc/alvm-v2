@@ -19,6 +19,10 @@ La recette a également permis de corriger le retour à la ligne des longs noms 
 
 Voir les [conventions des composants et captures complémentaires](consistency/README.md).
 
+## Parcours parent et écrans administrateur
+
+Les [corrections ciblées et leur recette](parent-admin/README.md) complètent l’harmonisation : comptes et habilitations, méthodes de paiement, types d’ACM et parcours parent complet. Les cartes parent, filtres et retours sont cohérents ; les actions inopérantes ou réservées au personnel ont été corrigées. L’ajout d’un enfant depuis un camp ramène à l’inscription avec les données actualisées.
+
 ## Vérification
 
 - Suite unitaire : **1 013 tests passants**, dont 19 nouveaux tests des composants, de navigation, recherche, tri, pagination et conservation du focus.
@@ -26,6 +30,7 @@ Voir les [conventions des composants et captures complémentaires](consistency/R
 - ESLint : aucune erreur ; 39 avertissements historiques.
 - Build Next.js de production : réussi, avec génération du client Prisma.
 - Campagne existante `test/integration/browser-regressions.mjs` : **58 contrôles réussis**, y compris droits, PDF, formulaires, erreurs réseau et révocation des sessions (voir `regressions.json`).
+- Parcours ciblés administrateur/parent : **34 contrôles réussis**, dont création, édition, confirmations, inscription, annulation et téléchargement PDF ; voir [parent-admin/](parent-admin/README.md).
 - Inventaire des écrans : `test/integration/ui-consistency.mjs`, **195 contrôles réussis** ; détails et limites dans [consistency/README.md](consistency/README.md).
 - Recette navigateur : `test/integration/ui-ux.mjs`, sur le build de production local. **46 contrôles réussis**, aucune erreur JavaScript. Les résultats détaillés et captures sont joints à ce dossier.
 

@@ -1,3 +1,4 @@
+import { ParentStatusFilters } from '@/components/parent/parent-status-filters';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ListPagination } from '@/components/shared/list-pagination';
 import { PageHeader } from '@/components/shared/page-header';
@@ -25,7 +26,14 @@ export default async function ParentRegistrationsPage({
   }
 
   const page = Math.max(1, Math.floor(Number((await searchParams).page) || 1));
-  const status = (await searchParams).status === 'PENDING' ? ('PENDING' as const) : undefined;
+  const requestedStatus = (await searchParams).status;
+  const status =
+    requestedStatus === 'PENDING' ||
+    requestedStatus === 'CONFIRMED' ||
+    requestedStatus === 'WAITLIST' ||
+    requestedStatus === 'CANCELLED'
+      ? requestedStatus
+      : undefined;
   const trpc = await createServerTRPC();
 
   // Get registrations
@@ -48,10 +56,25 @@ export default async function ParentRegistrationsPage({
         }
       />
 
+      <ParentStatusFilters
+        basePath="/dashboard/parent/registrations"
+        value={status}
+        options={[
+          { label: 'Toutes' },
+          { value: 'PENDING', label: 'En attente' },
+          { value: 'CONFIRMED', label: 'Confirmées' },
+          { value: 'WAITLIST', label: 'Liste d’attente' },
+          { value: 'CANCELLED', label: 'Annulées' },
+        ]}
+      />
       {registrations.length === 0 ? (
         <EmptyState
-          title="Aucune inscription"
-          description={<>Vous n'avez pas encore inscrit d'enfants à un camp.</>}
+          title={status ? 'Aucune inscription pour ce statut' : 'Aucune inscription'}
+          description={
+            status
+              ? 'Choisissez un autre statut pour retrouver vos inscriptions.'
+              : 'Choisissez un camp pour inscrire votre enfant.'
+          }
           icon={ClipboardList}
           action={
             <>

@@ -1,5 +1,6 @@
 'use client';
 
+import { BackButton } from '@/components/shared/back-button';
 import { FormActions } from '@/components/shared/form-actions';
 import { PageHeader } from '@/components/shared/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -22,6 +23,7 @@ export function AdultParticipantForm({ role }: { role: 'parent' | 'staff' | 'adm
     <div className="space-y-6">
       <PageHeader
         title="Participant adulte autonome"
+        actions={<BackButton href={`/dashboard/${role}/children`} />}
         description="Créez la fiche du participant et ses coordonnées de contact."
       />
       <Alert className="max-w-2xl">

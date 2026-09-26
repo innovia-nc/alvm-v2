@@ -1,38 +1,17 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { ParentRecordCard } from '@/components/parent/parent-record-card';
+import { CancelRegistrationButton } from '@/components/parent/cancel-registration-button';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { trpc } from '@/lib/trpc/client';
-import { MapPin, X, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, MapPin } from 'lucide-react';
 import Link from 'next/link';
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { formatDate } from '@/lib/utils';
 
 type Registration = {
   id: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
   totalAmount: number;
-  specialRequirements: string | null;
-  child: {
-    firstName: string;
-    lastName: string;
-  };
+  cancellationRequestedAt?: Date | null;
+  child: { firstName: string; lastName: string };
   camp: {
     name: string;
     location: string | null;
@@ -42,165 +21,68 @@ type Registration = {
   };
 };
 
-// ============================================================================
-// COMPOSANT
-// ============================================================================
-
-interface RegistrationsListProps {
+export function RegistrationsList({
+  initialRegistrations,
+}: {
   initialRegistrations: Registration[];
-}
-
-export function RegistrationsList({ initialRegistrations }: RegistrationsListProps) {
-  const router = useRouter();
-  const [cancellingRegistration, setCancellingRegistration] = useState<Registration | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const cancelMutation = trpc.registrations.updateStatus.useMutation();
-
-  async function handleCancel() {
-    if (!cancellingRegistration) return;
-
-    try {
-      setError(null);
-      await cancelMutation.mutateAsync({
-        id: cancellingRegistration.id,
-        status: 'CANCELLED',
-      });
-      setCancellingRegistration(null);
-      router.refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error && err.message
-          ? err.message
-          : "Impossible d'annuler cette inscription",
-      );
-      setCancellingRegistration(null);
-    }
-  }
-
+}) {
   return (
-    <>
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="space-y-4">
-        {initialRegistrations.map((registration) => (
-          <Card key={registration.id}>
-            <CardHeader>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2 flex flex-wrap items-center gap-3">
-                    <CardTitle className="break-words text-lg">
-                      {registration.child.firstName} {registration.child.lastName}
-                    </CardTitle>
-                    <StatusBadge type="registration" status={registration.status} />
-                  </div>
-                  <CardDescription>Inscription au camp : {registration.camp.name}</CardDescription>
-                </div>
-                <div className="sm:text-right">
-                  <div className="text-lg font-semibold">
-                    {registration.totalAmount.toLocaleString('fr-FR')} XPF
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Camp details */}
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {registration.camp.location && (
-                  <div className="flex items-center">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    {registration.camp.location}
-                  </div>
-                )}
-              </div>
-
-              {/* Camp period */}
-              <div className="text-sm">
-                <p className="text-foreground">
-                  Du{' '}
-                  {new Date(registration.camp.startDate).toLocaleDateString('fr-FR', {
-                    timeZone: 'Pacific/Noumea',
-                  })}{' '}
-                  au{' '}
-                  {new Date(registration.camp.endDate).toLocaleDateString('fr-FR', {
-                    timeZone: 'Pacific/Noumea',
-                  })}
-                </p>
-                <p className="text-muted-foreground">
-                  {registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''} au
-                  total
-                </p>
-              </div>
-
-              {/* Special requirements */}
-              {registration.specialRequirements && (
-                <div className="text-sm">
-                  <p className="font-medium text-foreground mb-1">Besoins spéciaux :</p>
-                  <p className="text-muted-foreground">{registration.specialRequirements}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex flex-wrap gap-2 pt-2">
-                <Button asChild variant="outline" size="sm">
+    <div className="grid gap-4 lg:grid-cols-2">
+      {initialRegistrations.map((registration) => {
+        const childName = `${registration.child.firstName} ${registration.child.lastName}`;
+        const canCancel =
+          registration.status !== 'CANCELLED' &&
+          !registration.cancellationRequestedAt &&
+          new Date(registration.camp.startDate) > new Date();
+        return (
+          <ParentRecordCard
+            key={registration.id}
+            title={registration.camp.name}
+            href={`/dashboard/parent/registrations/${registration.id}`}
+            description={childName}
+            status={<StatusBadge type="registration" status={registration.status} />}
+            summary={
+              <>
+                {registration.totalAmount.toLocaleString('fr-FR')} XPF{' '}
+                <span className="text-sm font-normal text-muted-foreground">au total</span>
+              </>
+            }
+            actions={
+              <>
+                <Button asChild>
                   <Link href={`/dashboard/parent/registrations/${registration.id}`}>
-                    Voir le détail
+                    Voir l’inscription
                   </Link>
                 </Button>
-                {registration.status === 'PENDING' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => setCancellingRegistration(registration)}
-                    disabled={cancelMutation.isPending}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Annuler l'inscription
-                  </Button>
+                {canCancel && (
+                  <CancelRegistrationButton
+                    registrationId={registration.id}
+                    childName={childName}
+                    campName={registration.camp.name}
+                  />
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Dialog de confirmation d'annulation */}
-      <AlertDialog
-        open={!!cancellingRegistration}
-        onOpenChange={(open) => !open && setCancellingRegistration(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer l'annulation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir annuler l'inscription de{' '}
-              <strong>
-                {cancellingRegistration?.child.firstName} {cancellingRegistration?.child.lastName}
-              </strong>{' '}
-              au camp <strong>{cancellingRegistration?.camp.name}</strong> ?
-              <br />
-              <br />
-              Cette action est irréversible. Si vous avez déjà payé, un remboursement sera traité.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelMutation.isPending}>Retour</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancel}
-              disabled={cancelMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Annuler l'inscription
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+              </>
+            }
+          >
+            <p className="flex items-start gap-2">
+              <Calendar className="mt-0.5 h-4 w-4 shrink-0" />
+              Du {formatDate(new Date(registration.camp.startDate))} au{' '}
+              {formatDate(new Date(registration.camp.endDate))}
+            </p>
+            {registration.camp.location && (
+              <p className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                {registration.camp.location}
+              </p>
+            )}
+            {registration.cancellationRequestedAt && registration.status !== 'CANCELLED' && (
+              <p className="font-medium text-foreground">
+                Demande d’annulation transmise au secrétariat.
+              </p>
+            )}
+          </ParentRecordCard>
+        );
+      })}
+    </div>
   );
 }

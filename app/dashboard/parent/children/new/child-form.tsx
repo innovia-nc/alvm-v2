@@ -65,9 +65,10 @@ type ChildFormData = z.infer<typeof childFormSchema>;
 // COMPOSANT
 // ============================================================================
 
-export function ChildForm() {
+export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnTo?: string }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const utils = trpc.useUtils();
   const createChildMutation = trpc.children.createByParent.useMutation();
 
   const form = useForm<ChildFormData>({
@@ -108,7 +109,8 @@ export function ChildForm() {
         emergencyContactRelation: values.emergencyContactRelation || undefined,
       });
 
-      router.push('/dashboard/parent/children');
+      await utils.children.list.invalidate(undefined, { refetchType: 'all' });
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
@@ -284,7 +286,7 @@ export function ChildForm() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.back()}
+                  onClick={() => router.push(returnTo)}
                   disabled={createChildMutation.isPending}
                 >
                   Annuler
