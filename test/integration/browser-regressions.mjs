@@ -116,7 +116,7 @@ async function rpc(context, method, input, mutation = false) {
             `${role} overflow ${width}`,
           );
           if (width < 768) {
-            const trigger = page.getByRole('button', { name: 'Ouvrir le menu' });
+            const trigger = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
             await trigger.click();
             await page.getByRole('dialog').waitFor();
             await page.keyboard.press('Escape');

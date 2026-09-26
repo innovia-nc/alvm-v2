@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -57,38 +57,6 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
 
   const cancelMutation = trpc.registrations.updateStatus.useMutation();
 
-  // Status badge variant
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'default';
-      case 'PENDING':
-        return 'secondary';
-      case 'CANCELLED':
-        return 'destructive';
-      case 'WAITLIST':
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
-
-  // Status label
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'Confirmée';
-      case 'PENDING':
-        return 'En attente';
-      case 'CANCELLED':
-        return 'Annulée';
-      case 'WAITLIST':
-        return "Liste d'attente";
-      default:
-        return status;
-    }
-  };
-
   async function handleCancel() {
     if (!cancellingRegistration) return;
 
@@ -101,7 +69,11 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
       setCancellingRegistration(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : "Impossible d'annuler cette inscription");
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Impossible d'annuler cette inscription",
+      );
       setCancellingRegistration(null);
     }
   }
@@ -118,21 +90,17 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
         {initialRegistrations.map((registration) => (
           <Card key={registration.id}>
             <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <CardTitle className="text-lg">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-3">
+                    <CardTitle className="break-words text-lg">
                       {registration.child.firstName} {registration.child.lastName}
                     </CardTitle>
-                    <Badge variant={getStatusVariant(registration.status)}>
-                      {getStatusLabel(registration.status)}
-                    </Badge>
+                    <StatusBadge type="registration" status={registration.status} />
                   </div>
-                  <CardDescription>
-                    Inscription au camp : {registration.camp.name}
-                  </CardDescription>
+                  <CardDescription>Inscription au camp : {registration.camp.name}</CardDescription>
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right">
                   <div className="text-lg font-semibold">
                     {registration.totalAmount.toLocaleString('fr-FR')} XPF
                   </div>
@@ -141,7 +109,7 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Camp details */}
-              <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 {registration.camp.location && (
                   <div className="flex items-center">
                     <MapPin className="mr-2 h-4 w-4" />
@@ -152,25 +120,32 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
 
               {/* Camp period */}
               <div className="text-sm">
-                <p className="text-gray-700">
-                  Du {new Date(registration.camp.startDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })} au{' '}
-                  {new Date(registration.camp.endDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                <p className="text-foreground">
+                  Du{' '}
+                  {new Date(registration.camp.startDate).toLocaleDateString('fr-FR', {
+                    timeZone: 'Pacific/Noumea',
+                  })}{' '}
+                  au{' '}
+                  {new Date(registration.camp.endDate).toLocaleDateString('fr-FR', {
+                    timeZone: 'Pacific/Noumea',
+                  })}
                 </p>
-                <p className="text-gray-600">
-                  {registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''} au total
+                <p className="text-muted-foreground">
+                  {registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''} au
+                  total
                 </p>
               </div>
 
               {/* Special requirements */}
               {registration.specialRequirements && (
                 <div className="text-sm">
-                  <p className="font-medium text-gray-700 mb-1">Besoins spéciaux :</p>
-                  <p className="text-gray-600">{registration.specialRequirements}</p>
+                  <p className="font-medium text-foreground mb-1">Besoins spéciaux :</p>
+                  <p className="text-muted-foreground">{registration.specialRequirements}</p>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/dashboard/parent/registrations/${registration.id}`}>
                     Voir le détail
@@ -180,7 +155,7 @@ export function RegistrationsList({ initialRegistrations }: RegistrationsListPro
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-red-600"
+                    className="text-destructive"
                     onClick={() => setCancellingRegistration(registration)}
                     disabled={cancelMutation.isPending}
                   >

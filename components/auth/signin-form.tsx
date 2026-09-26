@@ -17,15 +17,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 // Schéma validation Zod
 const signInSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'Email requis')
-    .email('Email invalide')
-    .toLowerCase(),
+  email: z.string().min(1, 'Email requis').email('Email invalide').toLowerCase(),
   password: z.string().min(6, 'Mot de passe doit contenir au moins 6 caractères'),
 });
 
@@ -38,6 +34,7 @@ export function SignInForm() {
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -63,9 +60,9 @@ export function SignInForm() {
       if (result?.error) {
         // Messages d'erreur localisés
         const errorMessages: Record<string, string> = {
-          'CredentialsSignin': 'Email ou mot de passe incorrect',
-          'Configuration': 'Erreur de configuration du serveur',
-          'AccessDenied': 'Accès refusé',
+          CredentialsSignin: 'Email ou mot de passe incorrect',
+          Configuration: 'Erreur de configuration du serveur',
+          AccessDenied: 'Accès refusé',
         };
 
         setError(errorMessages[result.error] || 'Erreur de connexion. Veuillez réessayer.');
@@ -87,7 +84,7 @@ export function SignInForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" aria-busy={isLoading}>
         {/* Erreur globale */}
         {error && (
           <Alert variant="destructive">
@@ -108,6 +105,8 @@ export function SignInForm() {
                   type="email"
                   placeholder="votre.email@exemple.com"
                   autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   autoFocus
                   disabled={isLoading}
                   {...field}
@@ -125,15 +124,30 @@ export function SignInForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Mot de passe</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
+              <div className="relative">
+                <FormControl>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    className="pr-12"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    disabled={isLoading}
+                    {...field}
+                  />
+                </FormControl>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0"
                   disabled={isLoading}
-                  {...field}
-                />
-              </FormControl>
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}

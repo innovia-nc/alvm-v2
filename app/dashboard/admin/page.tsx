@@ -1,13 +1,7 @@
 import { DashboardSummary } from '@/components/shared/dashboard-summary';
 import { requireRole } from '@/lib/auth';
 import { PageHeader } from '@/components/shared/page-header';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Settings } from 'lucide-react';
 import Link from 'next/link';
 
@@ -18,12 +12,10 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Dashboard Admin"
-        description="Administration et supervision du système"
+        title="Tableau de bord"
+        description="Vos priorités et les prochaines activités en un coup d’œil"
       />
       <DashboardSummary role="admin" />
-
-
 
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -33,9 +25,7 @@ export default async function AdminDashboardPage() {
               <Users className="h-5 w-5" />
               Gestion des Utilisateurs
             </CardTitle>
-            <CardDescription>
-              Gérer les parents et le personnel
-            </CardDescription>
+            <CardDescription>Gérer les parents et le personnel</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <Link
@@ -59,9 +49,7 @@ export default async function AdminDashboardPage() {
               <Settings className="h-5 w-5" />
               Paramètres Système
             </CardTitle>
-            <CardDescription>
-              Configuration et paramétrage
-            </CardDescription>
+            <CardDescription>Configuration et paramétrage</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <a

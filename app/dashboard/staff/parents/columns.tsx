@@ -32,7 +32,7 @@ export type StaffParentType = {
 
 export const staffParentColumns: ColumnDef<StaffParentType>[] = [
   {
-    accessorKey: 'fullName',
+    accessorKey: 'lastName',
     header: 'Parent',
     cell: ({ row }) => {
       const parent = row.original;

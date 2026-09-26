@@ -52,10 +52,10 @@ export default async function ParentInvoicesPage({ searchParams }: { searchParam
           {invoices.map((invoice) => (
             <Card key={invoice.id}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <CardTitle className="text-lg">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <CardTitle className="break-words text-lg">
                         Facture #{invoice.invoiceNumber}
                       </CardTitle>
                       <StatusBadge type="invoice" status={invoice.status} />
@@ -67,7 +67,7 @@ export default async function ParentInvoicesPage({ searchParams }: { searchParam
                       )}
                     </CardDescription>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <div className="text-2xl font-bold">
                       {invoice.totalAmount.toLocaleString('fr-FR')} XPF
                     </div>

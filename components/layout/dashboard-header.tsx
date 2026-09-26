@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 
 export function DashboardHeader() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -51,7 +51,9 @@ export function DashboardHeader() {
     return (
       <header className="sticky top-0 z-30 border-b bg-background">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex-1"></div>
+          <div className="min-w-0 flex-1 pl-12 text-sm font-medium text-muted-foreground md:pl-0">
+            Espace ALVM
+          </div>
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-full bg-muted animate-pulse"></div>
           </div>
@@ -63,7 +65,9 @@ export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
-        <div className="flex-1"></div>
+        <div className="min-w-0 flex-1 pl-12 text-sm font-medium text-muted-foreground md:pl-0">
+          Espace ALVM
+        </div>
 
         {/* Actions header */}
         <div className="flex items-center gap-2">
@@ -84,7 +88,7 @@ export function DashboardHeader() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           >
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -94,7 +98,11 @@ export function DashboardHeader() {
           {/* Menu utilisateur */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Button
+                variant="ghost"
+                aria-label="Ouvrir le menu du compte"
+                className="relative h-10 w-10 rounded-full"
+              >
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {user?.initials || 'U'}
@@ -107,7 +115,7 @@ export function DashboardHeader() {
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user?.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
+                  <p className="break-all text-xs leading-normal text-muted-foreground">
                     {user?.email}
                   </p>
                 </div>
@@ -115,18 +123,12 @@ export function DashboardHeader() {
 
               <DropdownMenuSeparator />
 
-              {/* Pas d'entrée « Mon Profil » : aucun écran ni aucune procédure
-                  tRPC ne permet à un utilisateur d'éditer son propre compte
-                  (users.update / users.resetPassword sont admin/staff). Le lien
-                  vers /dashboard/profile tombait sur un 404.
-                  « Paramètres » n'est proposé qu'aux ADMIN, seuls habilités par
-                  settings.updateBulk, et pointe sur l'écran réel. */}
-              <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>Mon compte</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/account')}>
+                Mon compte
+              </DropdownMenuItem>
               {isAdmin && (
                 <>
-                  <DropdownMenuItem
-                    onClick={() => router.push('/dashboard/admin/settings')}
-                  >
+                  <DropdownMenuItem onClick={() => router.push('/dashboard/admin/settings')}>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Paramètres</span>
                   </DropdownMenuItem>
