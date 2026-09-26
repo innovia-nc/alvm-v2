@@ -1,139 +1,121 @@
-# Déploiement — staging puis srv-ovh (Coolify)
+# Déploiement — staging srv-innovia, prod srv-ovh
 
-> Créé le 2026-09-27. Complète `docs/deploiement.md` (topologie Vercel + Neon,
-> toujours valable pour la prod actuelle). Procédure Coolify générale : skill
-> `srv-ovh`.
+> Créé le 2026-09-27. **Remplace Vercel + Neon** (décision du 2026-09-27) :
+> l'application est auto-hébergée, avec une **base neuve** — aucune reprise
+> de données Neon. `docs/deploiement.md` décrit l'ancienne topologie.
 
-## Ce qui part
+| Environnement | Hôte                          | Orchestration                                 | Accès                        |
+| ------------- | ----------------------------- | --------------------------------------------- | ---------------------------- |
+| Staging       | srv-innovia (`192.168.0.252`) | Docker Compose — `deploy/staging/compose.yml` | LAN / WireGuard uniquement   |
+| Production    | srv-ovh (`51.68.127.157`)     | Coolify v4 — `Dockerfile`                     | Public, Cloudflare → Traefik |
 
-La branche `improve/ui-ux-2026-09-26` embarque, par rapport à `master` :
-correctifs d'audit (2026-09-22), refonte UI/UX, **super administration**
-(rôle `SUPER_ADMIN`, intégrations chiffrées, branding) et l'outillage Docker.
-Le schéma de base change : **les migrations SQL ci-dessous doivent être
-appliquées avant que le nouveau code ne serve du trafic**, sur chaque base.
+Les deux exécutent **la même image** (`Dockerfile` à la racine).
 
-## 1. Migrations SQL — ordre imposé
+## 1. L'image
 
-Répété le 2026-09-27 sur une copie de la base d'audit (état pré-migrations) :
-les cinq fichiers passent, dans cet ordre, sans erreur.
+| Commande               | Effet                                                                                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serve` (défaut)       | `exec node server.js` — **aucune** migration au démarrage                                                                                                                                                                                                           |
+| `db-init`              | Base **neuve** : `prisma db push` + invariants SQL (trigger de statut de paiement, séquences de numérotation, index partiel d'inscription, CHECK code postal) + réglages `pricing` (TGC = 0, exonération LP 492). **Refuse une base qui contient déjà des tables.** |
+| `seed-payment-methods` | Les 6 moyens de paiement système — idempotent, obligatoire (sans `CREDIT_NOTE`, la validation d'une facture d'un client avec avoir est refusée)                                                                                                                     |
+| `create-super-admin`   | Premier compte `SUPER_ADMIN` — requiert `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` (12+ caractères, majuscule, minuscule, chiffre)                                                                                                                                 |
 
-```bash
-for f in 2026-09-22-00-schema 2026-09-22-account-access \
-         2026-09-22-business-invariants 2026-09-26-super-admin 2026-09-26-platform; do
-  psql "$URL_DIRECTE" -v ON_ERROR_STOP=1 -f prisma/migrations-manual/$f.sql || break
-done
-```
+Sonde : `GET /api/health` (liveness, utilisée par le `HEALTHCHECK`) ;
+`/api/health?db=1` ajoute un `SELECT 1` (503 si la base est KO).
 
-- `00-schema` **d'abord** : il ajoute des colonnes sans `IF NOT EXISTS` ; les
-  deux suivants sont idempotents et le rejouent sans dommage, l'inverse échoue.
-- Les trois premiers portent leur propre `BEGIN/COMMIT` — ne pas ajouter `-1`.
-- `super-admin` (`ALTER TYPE … ADD VALUE`) est hors transaction.
-- Diff résiduel attendu après application (`prisma migrate diff --from-url …
---to-schema-datamodel prisma/schema.prisma`) : **uniquement** le
-  `DROP CONSTRAINT refunds_credit_note_id_fkey` et le `DROP INDEX
-login_attempts_window_start_idx` — objets posés volontairement par le SQL,
-  que Prisma ne modélise pas. **Ne pas appliquer ce diff.**
-- Toujours : `pg_dump` de sauvegarde avant, et répétition sur clone
-  (procédure `docs/deploiement.md` § Migrations).
+**Évolutions de schéma ensuite** : `db-init` ne sert qu'une fois. Une base en
+service évolue par SQL relu et répété sur clone, archivé dans
+`prisma/migrations-manual/` et appliqué avec `psql -v ON_ERROR_STOP=1` avant
+de déployer le code qui en dépend.
+
+Vérifié le 2026-09-27 sur un Postgres 17 vierge : les trois commandes
+passent, `db-init` rejoué est refusé, l'application démarre et la connexion
+super admin fonctionne.
+
+Hors dépôt, donc **absent d'une base neuve** : le trigger legacy « dernier
+parent d'un enfant » (TD-005). `parents.delete` fait la vérification lui-même
+avant toute écriture ; seule une écriture SQL directe pourrait laisser un
+enfant sans parent.
 
 ## 2. Variables d'environnement
 
-| Variable                        | Staging   | srv-ovh | Note                                                                                                                                     |
-| ------------------------------- | --------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `AUTH_SECRET`                   | ✅        | ✅      | `openssl rand -base64 32`, **distinct** par environnement                                                                                |
-| `AUTH_URL`                      | ✅        | ✅      | URL publique sans slash final — liens de réinitialisation de mot de passe                                                                |
-| `POSTGRES_PRISMA_URL`           | ✅        | ✅      | srv-ovh : `postgresql://<user>:<mdp>@<conteneur-postgres>:5432/<db>` (nom du **conteneur** Docker, pas le nom Coolify)                   |
-| `POSTGRES_URL_NON_POOLING`      | ✅        | ✅      | srv-ovh : même valeur que ci-dessus (pas de pgbouncer)                                                                                   |
-| `PLATFORM_ENCRYPTION_KEY`       | ✅        | ✅      | **Nouveau.** `openssl rand -base64 32`. À conserver : la perdre rend illisibles les clés API saisies dans la super administration        |
-| `BLOB_READ_WRITE_TOKEN`         | ✅        | ✅      | Vercel Blob fonctionne hors Vercel par jeton. Surchargeable depuis la super administration                                               |
-| `BLOB_PRIVATE_READ_WRITE_TOKEN` | ✅        | ✅      | Store privé (documents, PDF)                                                                                                             |
-| `RESEND_API_KEY`                | optionnel | ✅      | Absente : envoi désactivé et expliqué à l'écran                                                                                          |
-| `TRUSTED_PROXY_HOPS`            | —         | ✅      | **Contrôle de sécurité.** Cloudflare proxy + Traefik : `2`. Absent : toutes les connexions partagent un quota de 100 tentatives / 15 min |
+| Variable                                                 | Requise           | Note                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_PRISMA_URL`                                    | ✅                | `postgresql://<user>:<mdp>@<hôte>:5432/<db>`                                                                                                                                                                          |
+| `POSTGRES_URL_NON_POOLING`                               | ✅                | même valeur (pas de pgbouncer)                                                                                                                                                                                        |
+| `AUTH_SECRET`                                            | ✅                | `openssl rand -base64 32`, **distinct** par environnement                                                                                                                                                             |
+| `AUTH_URL`                                               | ✅                | URL publique sans slash final — liens de réinitialisation de mot de passe                                                                                                                                             |
+| `PLATFORM_ENCRYPTION_KEY`                                | ✅                | `openssl rand -base64 32`. **À sauvegarder** : la perdre rend illisibles les clés API saisies dans la super administration                                                                                            |
+| `TRUSTED_PROXY_HOPS`                                     | prod              | **Contrôle de sécurité.** Cloudflare proxy + Traefik : `2` ; staging sans proxy : `0`. Mal réglé, un appelant choisit son IP et contourne la limitation des connexions                                                |
+| `BLOB_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | pour les fichiers | Le stockage reste **Vercel Blob** (API par jeton, fonctionne hors Vercel). Sans jeton : pas de logo ni de documents téléversés. Surchargeables depuis la super administration. Stores **distincts** par environnement |
+| `RESEND_API_KEY`                                         | pour l'email      | Absente : envoi désactivé et expliqué à l'écran                                                                                                                                                                       |
 
-Staging et srv-ovh : **bases et stores Blob distincts de la prod** — un staging
-branché sur le store de prod supprimerait de vrais documents (TD-006).
+## 3. Staging — srv-innovia
 
-## 3. Staging — srv-innovia (Docker Compose, réseau local)
-
-Choix du 2026-09-27 : staging temporaire sur srv-innovia, joignable
-uniquement sur le LAN / WireGuard (la règle d'infra réserve ce serveur aux
-services IA — à démonter après la bascule srv-ovh). Fichiers :
-`deploy/staging/compose.yml` + `deploy/staging/.env.example` (pile testée en
-local : `/api/health?db=1` à 200).
-
-1. **Code** : sur srv-innovia, `cd /srv && git clone git@github.com:innovia-nc/alvm-v2.git alvm-staging`
-   (ou `git pull` si déjà cloné), sur la branche à valider.
-2. **Environnement** : `cp deploy/staging/.env.example deploy/staging/.env`,
-   remplir (`openssl rand -base64 32` pour `AUTH_SECRET`,
-   `PLATFORM_ENCRYPTION_KEY`, `DB_PASSWORD`). Stores Blob **dédiés** au staging.
-3. **Base seule d'abord** :
-   `docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env up -d db`
-4. **Clone de prod** (depuis un poste qui a l'URL Neon directe) :
-   `pg_dump --no-owner --no-acl --exclude-schema=neon_auth -Fc "$NEON_URL" > prod.dump`,
-   copier sur le serveur, puis
-   `docker compose … exec -T db pg_restore -U alvm -d alvm --no-owner < prod.dump`.
-5. **Migrations** (§ 1) : `docker compose … exec -T db psql -U alvm -d alvm -v ON_ERROR_STOP=1 < prisma/migrations-manual/<fichier>.sql`
-   dans l'ordre. Puis moyens de paiement et super admin depuis un poste de dev
-   via `ssh -N -L 5440:127.0.0.1:5440 innovia-admin@192.168.0.252` (§ 5).
-6. **Application** : `docker compose … up -d --build app`, vérifier
-   `curl http://192.168.0.252:3100/api/health?db=1`.
-7. **Recette** : connexion ADMIN / PARENT / super admin, facture PDF,
-   téléversement ; `SMOKE_BASE_URL=http://192.168.0.252:3100 SMOKE_DB_URL=postgresql://alvm:<mdp>@127.0.0.1:5440/alvm pnpm smoke` (tunnel ouvert, base jetable).
-
-## 4. srv-ovh (Coolify v4)
-
-L'image se construit depuis le `Dockerfile` à la racine (build validé en
-local le 2026-09-27 avec le builder Docker historique, sans BuildKit).
-
-| Réglage Coolify     | Valeur                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Base                | PostgreSQL **17** (`postgres:17-alpine`) — la prod Neon est en 17, un dump 17 ne se restaure pas en 16. Port public : non |
-| Application         | GitHub `innovia-nc/alvm-v2`, branche `master` (après merge), build pack **Dockerfile**                                    |
-| Port                | `3000`                                                                                                                    |
-| Health check        | `GET /api/health` (liveness, sans base). Readiness : `/api/health?db=1` (503 si la base est KO)                           |
-| Stockage persistant | aucun — les fichiers sont dans Vercel Blob                                                                                |
-| Domaine             | `https://<domaine>` dans Coolify, enregistrement A Cloudflare → `51.68.127.157`, proxy actif, SSL Full (Strict)           |
-| Rétention           | Keep N images = 3                                                                                                         |
-| Sauvegardes         | planifiées dans Coolify dès la mise en service ; **restauration vérifiée** avant d'ouvrir                                 |
-
-Bascule depuis Neon :
-
-1. Geler les écritures (prévenir les utilisateurs), `pg_dump` final Neon
-   (`--no-owner --no-acl --exclude-schema=neon_auth`).
-2. Restaurer dans le Postgres Coolify (`sudo docker exec -i <conteneur> psql …`).
-   Les triggers legacy (« dernier parent », `payment_status`, TD-005) viennent
-   avec le dump — une base recréée par `db push` ne les aurait pas.
-3. Appliquer les migrations (§ 1) si la prod Neon ne les a pas déjà reçues.
-4. Déployer, vérifier `/api/health?db=1`, connexion ADMIN, une facture PDF.
-5. Basculer le DNS, puis mettre à jour `AUTH_URL`.
-6. Garder Neon en lecture seule quelques jours, comme retour arrière.
-
-Vérifier `TRUSTED_PROXY_HOPS` sur place plutôt que de le déduire : l'IP lue
-doit être celle du client, pas celle de Cloudflare ni de Traefik.
-
-## 5. Premier super administrateur
-
-Le script `pnpm db:create-super-admin` (tsx) n'est pas dans l'image. Le lancer
-depuis un poste de dev, à travers un tunnel SSH vers la base :
+Staging temporaire, joignable uniquement sur le LAN / WireGuard (la règle
+d'infra réserve srv-innovia aux services IA). Tout se lance depuis la racine
+du dépôt cloné ; `dc` abrège
+`docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env`.
 
 ```bash
-# IP du conteneur Postgres sur le réseau coolify
-ssh ubuntu@51.68.127.157 "sudo docker inspect <conteneur> --format '{{(index .NetworkSettings.Networks \"coolify\").IPAddress}}'"
-ssh -N -L 5439:<ip-conteneur>:5432 ubuntu@51.68.127.157 &
+ssh innovia-admin@192.168.0.252
+cd /srv && git clone git@github.com:innovia-nc/alvm-v2.git alvm-staging && cd alvm-staging
+cp deploy/staging/.env.example deploy/staging/.env && nano deploy/staging/.env
+alias dc='docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env'
 
-export POSTGRES_PRISMA_URL=postgresql://<user>:<mdp>@127.0.0.1:5439/<db>
-export POSTGRES_URL_NON_POOLING=$POSTGRES_PRISMA_URL
-SUPER_ADMIN_EMAIL=… SUPER_ADMIN_PASSWORD=… pnpm db:create-super-admin
-pnpm db:seed:payment-methods   # base neuve seulement — idempotent
+dc build app
+dc up -d db
+dc run --rm app db-init
+dc run --rm app seed-payment-methods
+dc run --rm -e SUPER_ADMIN_EMAIL=… -e SUPER_ADMIN_PASSWORD=… app create-super-admin
+dc up -d app
+curl -s "http://192.168.0.252:3100/api/health?db=1"
 ```
 
-Adresse dédiée : le script refuse de promouvoir un compte existant.
+Mise à jour : `git pull && dc up -d --build app` — en appliquant d'abord tout
+nouveau fichier de `prisma/migrations-manual/` :
+`dc exec -T db psql -U alvm -d alvm -v ON_ERROR_STOP=1 < prisma/migrations-manual/<f>.sql`.
 
-## 6. Vérifié en local le 2026-09-27
+Recette : connexion super admin (`/auth/super-admin`), création d'un ADMIN,
+paramétrage (organisation, branding, intégrations), puis parcours camp →
+inscription → facture → paiement → PDF. Campagne automatique possible,
+base jetable uniquement :
+`SMOKE_BASE_URL=http://192.168.0.252:3100 SMOKE_DB_URL=… pnpm smoke`.
 
-Image construite puis lancée contre la base répétée (§ 1) : `next-server` en
-PID 1, `/api/health` et `/api/health?db=1` à 200, connexion réelle SUPER_ADMIN
-(`/auth/super-admin`) et ADMIN, `platform.configuration` via tRPC, tableau de
-bord et liste des factures à 200, PDF de facture et fiche enfant générés dans
-le conteneur. Non vérifié : téléversement (nécessite un jeton Blob),
-envoi d'email, comportement derrière Traefik/Cloudflare.
+## 4. Production — srv-ovh (Coolify v4)
+
+| Réglage Coolify     | Valeur                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Base                | PostgreSQL 17 (`postgres:17-alpine`), port public : **non**                                                          |
+| Application         | GitHub `innovia-nc/alvm-v2`, branche `master`, build pack **Dockerfile**, port `3000`                                |
+| Health check        | `/api/health`                                                                                                        |
+| Stockage persistant | aucun (fichiers dans Vercel Blob)                                                                                    |
+| Hôte de la base     | **nom du conteneur** Docker, pas le nom Coolify : `sudo docker ps --format '{{.Names}} {{.Image}}' \| grep postgres` |
+| Domaine             | `https://<domaine>` dans Coolify ; A Cloudflare → `51.68.127.157`, proxy actif, SSL Full (Strict)                    |
+| Rétention           | Keep N images = 3                                                                                                    |
+
+Premier déploiement :
+
+1. Créer la base, puis l'application ; poser les variables.
+2. Déployer (build). Sur une base vide l'application répond, mais personne ne
+   peut se connecter — sans risque.
+3. Initialiser depuis le VPS, avec l'image tout juste construite :
+   ```bash
+   ssh ubuntu@51.68.127.157
+   IMG=$(sudo docker inspect <conteneur-app> --format '{{.Config.Image}}')
+   E="-e POSTGRES_PRISMA_URL=… -e POSTGRES_URL_NON_POOLING=…"
+   sudo docker run --rm --network coolify $E $IMG db-init
+   sudo docker run --rm --network coolify $E $IMG seed-payment-methods
+   sudo docker run --rm --network coolify $E -e SUPER_ADMIN_EMAIL=… -e SUPER_ADMIN_PASSWORD=… $IMG create-super-admin
+   ```
+4. Vérifier `https://<domaine>/api/health?db=1`, se connecter en super admin.
+5. Vérifier `TRUSTED_PROXY_HOPS` sur place : l'IP retenue doit être celle du
+   client, ni celle de Cloudflare ni celle de Traefik.
+6. **Sauvegardes** PostgreSQL planifiées dans Coolify dès la mise en service,
+   et une restauration vérifiée avant d'ouvrir aux familles. Sauvegarder aussi
+   `PLATFORM_ENCRYPTION_KEY` hors du serveur.
+
+## 5. Pas encore vérifié
+
+Téléversement (jeton Blob requis), envoi d'email (clé Resend), comportement
+réel derrière Cloudflare + Traefik.

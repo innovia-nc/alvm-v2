@@ -2,7 +2,8 @@
 # Usage (depuis la racine du dépôt cloné sur le serveur) :
 #   cp deploy/staging/.env.example deploy/staging/.env   # puis remplir
 #   docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env up -d --build
-# Procédure complète : docs/deploiement-ovh.md § 3.
+# Base neuve : `... run --rm app db-init`, puis seed-payment-methods et
+# create-super-admin. Procédure complète : docs/deploiement-ovh.md § 3.
 name: alvm-staging
 
 services:

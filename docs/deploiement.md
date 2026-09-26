@@ -2,7 +2,8 @@
 
 > Dernière mise à jour : 2026-08-19 (§ Échecs de déploiement en preview ; version pnpm figée)
 >
-> **Staging puis srv-ovh (Coolify)** : voir `docs/deploiement-ovh.md` (2026-09-27).
+> ⚠️ **Topologie abandonnée le 2026-09-27** : staging srv-innovia, prod srv-ovh,
+> base neuve — voir `docs/deploiement-ovh.md`. Ce document reste pour l'historique.
 
 ## Topologie
 

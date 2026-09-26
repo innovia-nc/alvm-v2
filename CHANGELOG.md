@@ -5,7 +5,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
-### Added — déploiement staging puis srv-ovh (2026-09-27)
+### Added — déploiement staging srv-innovia, prod srv-ovh (2026-09-27)
+
+Vercel + Neon abandonnés : l'application est auto-hébergée sur base neuve.
+L'image embarque trois commandes one-shot — `db-init` (schéma + invariants
+SQL + réglages pricing, refuse une base non vide), `seed-payment-methods`,
+`create-super-admin` — et le staging srv-innovia a son compose
+(`deploy/staging/`).
 
 - **`Dockerfile`** multi-étapes (pnpm, sortie Next `standalone` activée par
   `NEXT_OUTPUT=standalone` au build seulement — Vercel inchangé),
