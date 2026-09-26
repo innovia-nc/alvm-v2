@@ -1,11 +1,9 @@
 'use client';
+import { BackButton } from '@/components/shared/back-button';
 
-import { use } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { AttendancePageClient } from '@/components/staff/attendances/attendance-page-client';
+import { use } from 'react';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -19,14 +17,7 @@ export default function StaffAttendancePage({ params }: PageProps) {
       <PageHeader
         title="Présences"
         description="Gérer les présences des enfants inscrits"
-        actions={
-          <Link href={`/dashboard/staff/camps/${id}`}>
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour à l&apos;ACM
-            </Button>
-          </Link>
-        }
+        actions={<BackButton href={`/dashboard/staff/camps/${id}`} label="Retour à l'ACM" />}
       />
 
       <AttendancePageClient campId={id} />

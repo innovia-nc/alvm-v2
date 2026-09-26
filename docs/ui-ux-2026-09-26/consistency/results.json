@@ -1,0 +1,1170 @@
+{
+  "results": [
+    {
+      "role": "admin",
+      "route": "/dashboard/account",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/account",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps/09f99d6a-0dd7-404f-8297-04de8e941c81/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps/09f99d6a-0dd7-404f-8297-04de8e941c81/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps/09f99d6a-0dd7-404f-8297-04de8e941c81",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps/09f99d6a-0dd7-404f-8297-04de8e941c81",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/camps",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/parents",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/parents",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/adult",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/adult",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/children",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/credit-notes/7e21a616-4f6c-4089-91d5-0ee07c6569a3",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/credit-notes/7e21a616-4f6c-4089-91d5-0ee07c6569a3",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/credit-notes/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/credit-notes/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/credit-notes",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/credit-notes",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/fec/export",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/fec/export",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices/fb63563d-d714-4511-90dd-33935de8402b/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices/fb63563d-d714-4511-90dd-33935de8402b/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/invoices",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/payments/3b871331-1895-4bb6-b528-f0b0b21fc8d4",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/payments/3b871331-1895-4bb6-b528-f0b0b21fc8d4",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/payments/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/payments/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/payments",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/payments",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/refunds/ca88a9e7-cd85-4118-97eb-aeed5e5360db",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/refunds/ca88a9e7-cd85-4118-97eb-aeed5e5360db",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/refunds/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/refunds/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/refunds",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/refunds",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/registrations",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/settings/camp-types",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/settings/camp-types",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/settings",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/settings",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/settings/payment-methods",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/settings/payment-methods",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/aa43e282-2d49-4e50-ab3d-4a2bae5a56af/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/aa43e282-2d49-4e50-ab3d-4a2bae5a56af/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/aa43e282-2d49-4e50-ab3d-4a2bae5a56af",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/aa43e282-2d49-4e50-ab3d-4a2bae5a56af",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/parents",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "admin",
+      "route": "/dashboard/admin/users/staff",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "admin",
+      "interaction": "mobile table labels remain readable"
+    },
+    {
+      "role": "admin",
+      "interaction": "dialog fits viewport and restores focus"
+    },
+    {
+      "role": "admin",
+      "interaction": "reset filters clears the visible applied search"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/account",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/account",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/09f99d6a-0dd7-404f-8297-04de8e941c81/attendance",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/09f99d6a-0dd7-404f-8297-04de8e941c81/attendance",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/09f99d6a-0dd7-404f-8297-04de8e941c81/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/09f99d6a-0dd7-404f-8297-04de8e941c81/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/09f99d6a-0dd7-404f-8297-04de8e941c81",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/09f99d6a-0dd7-404f-8297-04de8e941c81",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/camps",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/parents",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/parents",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/adult",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/adult",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/children",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/credit-notes/7e21a616-4f6c-4089-91d5-0ee07c6569a3",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/credit-notes/7e21a616-4f6c-4089-91d5-0ee07c6569a3",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/credit-notes/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/credit-notes/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/credit-notes",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/credit-notes",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices/fb63563d-d714-4511-90dd-33935de8402b/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices/fb63563d-d714-4511-90dd-33935de8402b/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/invoices",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents/aa43e282-2d49-4e50-ab3d-4a2bae5a56af",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/parents",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/payments/3b871331-1895-4bb6-b528-f0b0b21fc8d4",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/payments/3b871331-1895-4bb6-b528-f0b0b21fc8d4",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/payments/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/payments/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/payments",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/payments",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/refunds/ca88a9e7-cd85-4118-97eb-aeed5e5360db",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/refunds/ca88a9e7-cd85-4118-97eb-aeed5e5360db",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/refunds/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/refunds/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/refunds",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/refunds",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/registrations",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff/7eddd3a2-55f0-49eb-b5c6-e23d90e3e73f",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "staff",
+      "route": "/dashboard/staff/users/staff",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/account",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/account",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/camps/09f99d6a-0dd7-404f-8297-04de8e941c81",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/camps/09f99d6a-0dd7-404f-8297-04de8e941c81",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/camps",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/camps",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6/edit",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/5aa8ee1a-1570-46d9-970e-35ac69bebfe6",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/adult",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/adult",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/new",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children/new",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/children",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/invoices/fb63563d-d714-4511-90dd-33935de8402b",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/invoices",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/invoices",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/registrations/c0fa62d9-1457-425c-914f-e506d7e7c08a",
+      "width": 1440,
+      "theme": "dark"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/registrations",
+      "width": 390,
+      "theme": "light"
+    },
+    {
+      "role": "parent",
+      "route": "/dashboard/parent/registrations",
+      "width": 1440,
+      "theme": "dark"
+    }
+  ],
+  "failures": [],
+  "errors": []
+}

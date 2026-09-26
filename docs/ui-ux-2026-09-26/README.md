@@ -11,13 +11,22 @@ Analyse effectuée dans Chromium après connexion réelle aux comptes ADMIN, STA
 - **Connexion** : carte avec marges sur mobile, identité ALVM, couleurs compatibles avec le thème sombre, affichage/masquage du mot de passe sans soumission du formulaire.
 - **Présentation et accessibilité** : fond de page léger, surfaces et en-têtes de tableau distincts, titres adaptés au mobile, focus visible des liens, accès direct au contenu, noms accessibles du compte et du fil d’Ariane, respect des préférences de réduction des animations. Les couleurs d’action sont harmonisées ; les huit paires texte/fond mesurées dépassent 4,5:1 (voir `contrast.json`). Cela ne constitue pas un audit WCAG exhaustif de l’application.
 
+## Harmonisation des écrans
+
+La seconde passe étend ces améliorations aux formulaires, fiches de détail, filtres, documents, compte et paramètres des trois espaces. Les en-têtes, cartes, actions de formulaire, boutons de retour et états vides/chargement/erreur s’appuient sur des composants communs. Les dialogues gardent leurs marges sur mobile et rendent le focus à leur bouton d’ouverture ; les champs et dépôts de documents sont accessibles au clavier. Les badges métier des fiches parent sont centralisés.
+
+La recette a également permis de corriger le retour à la ligne des longs noms d’exports, la compression excessive des cellules de tableau et le lien d’édition des fiches personnel. Les filtres réinitialisés effacent désormais aussi la recherche affichée, sans modifier sa validation explicite.
+
+Voir les [conventions des composants et captures complémentaires](consistency/README.md).
+
 ## Vérification
 
-- Suite unitaire : **1 006 tests passants**, dont 12 nouveaux tests de navigation, recherche, tri, pagination et conservation du focus.
+- Suite unitaire : **1 013 tests passants**, dont 19 nouveaux tests des composants, de navigation, recherche, tri, pagination et conservation du focus.
 - TypeScript : aucune erreur.
-- ESLint : aucune erreur ; 40 avertissements historiques.
+- ESLint : aucune erreur ; 39 avertissements historiques.
 - Build Next.js de production : réussi, avec génération du client Prisma.
 - Campagne existante `test/integration/browser-regressions.mjs` : **58 contrôles réussis**, y compris droits, PDF, formulaires, erreurs réseau et révocation des sessions (voir `regressions.json`).
+- Inventaire des écrans : `test/integration/ui-consistency.mjs`, **195 contrôles réussis** ; détails et limites dans [consistency/README.md](consistency/README.md).
 - Recette navigateur : `test/integration/ui-ux.mjs`, sur le build de production local. **46 contrôles réussis**, aucune erreur JavaScript. Les résultats détaillés et captures sont joints à ce dossier.
 
 Les tests utilisent des données fictives et n’envoient aucun email. Aucun changement de schéma, de règle métier ou de calcul comptable. Les services externes (email, stockage, déploiement) ne sont pas couverts par cette recette UI.
@@ -32,9 +41,10 @@ pnpm typecheck
 pnpm lint
 pnpm build
 UI_UX_OUTPUT=/private/tmp/alvm-ux/browser node test/integration/ui-ux.mjs
+UI_CONSISTENCY_OUTPUT=/private/tmp/alvm-consistency/browser node test/integration/ui-consistency.mjs
 ```
 
-`CHROMIUM_PATH` permet de fournir le chemin d’un Chromium installé. Sans cette variable, le script utilise le Chromium de Playwright. `LOCAL_TEST_URL` accepte uniquement localhost:3026 ou localhost:3027. Les fichiers de session et les identifiants de test restent hors dépôt.
+`CHROMIUM_PATH` permet de fournir le chemin d’un Chromium installé. Sans cette variable, le script utilise le Chromium de Playwright. `LOCAL_TEST_URL` accepte uniquement localhost:3026 ou localhost:3027. Les fichiers de session et mots de passe de test restent hors dépôt.
 
 ## Captures après correction
 

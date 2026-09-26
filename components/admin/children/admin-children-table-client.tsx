@@ -1,12 +1,6 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { adminChildColumns, type AdminChildType, AdminChildActions } from './columns';
+import { FilterBar } from '@/components/shared/filter-bar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +11,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -24,10 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import { AdminChildActions, adminChildColumns, type AdminChildType } from './columns';
 
 type AgeFilter = 'all' | '3-5' | '6-8' | '9-11' | '12-14' | '15-17';
 
@@ -44,7 +45,12 @@ export function AdminChildrenTableClient() {
   const ageRange = ageFilter !== 'all' ? ageFilter.split('-').map(Number) : null;
 
   // Query tRPC avec pagination, recherche et filtre âge côté serveur
-  const { data, isLoading, error: listError, refetch: retryList } = trpc.children.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.children.list.useQuery({
     sortBy: pagination.sortBy as 'lastName' | 'firstName' | 'birthDate' | 'createdAt' | undefined,
     sortOrder: pagination.sortOrder,
     limit: pagination.limit,
@@ -104,15 +110,18 @@ export function AdminChildrenTableClient() {
   return (
     <div className="space-y-4">
       {/* Filtres */}
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[200px]">
+      <FilterBar>
+        <div className="w-full sm:w-56">
           <Label htmlFor="age-filter" className="mb-2 block">
             Filtrer par âge
           </Label>
-          <Select value={ageFilter} onValueChange={(val) => {
-            setAgeFilter(val as AgeFilter);
-            pagination.resetToFirstPage();
-          }}>
+          <Select
+            value={ageFilter}
+            onValueChange={(val) => {
+              setAgeFilter(val as AgeFilter);
+              pagination.resetToFirstPage();
+            }}
+          >
             <SelectTrigger id="age-filter">
               <SelectValue placeholder="Tous les âges" />
             </SelectTrigger>
@@ -135,11 +144,13 @@ export function AdminChildrenTableClient() {
             </Button>
           </div>
         )}
-      </div>
+      </FilterBar>
 
       {/* Table avec pagination */}
       <DataTableServer
-        error={listError} onRetry={retryList} sortableColumns={['lastName', 'firstName', 'birthDate', 'createdAt']}
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['lastName', 'firstName', 'birthDate', 'createdAt']}
         columns={columnsWithActions}
         data={children}
         totalCount={data?.total || 0}
@@ -147,6 +158,7 @@ export function AdminChildrenTableClient() {
         pagination={pagination}
         searchKey="firstName"
         searchPlaceholder="Rechercher par nom ou parent..."
+        search={searchTerm}
         onSearchChange={handleSearchChange}
       />
 
@@ -159,7 +171,10 @@ export function AdminChildrenTableClient() {
               Êtes-vous sûr de vouloir supprimer cet enfant ?
               <br />
               <br />
-              Nom : <strong>{deletingItem?.firstName} {deletingItem?.lastName}</strong>
+              Nom :{' '}
+              <strong>
+                {deletingItem?.firstName} {deletingItem?.lastName}
+              </strong>
               <br />
               <br />
               Cette action est irréversible et supprimera également toutes les inscriptions
@@ -175,7 +190,7 @@ export function AdminChildrenTableClient() {
                 }
               }}
               disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
             </AlertDialogAction>

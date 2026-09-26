@@ -1,19 +1,24 @@
+import { EmptyState } from '@/components/shared/empty-state';
 import { ListPagination } from '@/components/shared/list-pagination';
-import { auth } from '@/lib/auth/config';
-import { redirect } from 'next/navigation';
-import { createServerTRPC } from '@/lib/trpc';
 import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Users, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { auth } from '@/lib/auth/config';
+import { createServerTRPC } from '@/lib/trpc';
+import { Calendar, DollarSign, MapPin, Users } from 'lucide-react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 /**
  * Parent Camps List Page
  * Displays available camps for registration
  */
-export default async function ParentCampsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function ParentCampsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.user || session.user.role !== 'PARENT') {
@@ -26,9 +31,7 @@ export default async function ParentCampsPage({ searchParams }: { searchParams: 
   const camps = campsData.camps;
 
   // Filter only published camps
-  const availableCamps = camps.filter(
-    (camp) => camp.status === 'PUBLISHED'
-  );
+  const availableCamps = camps.filter((camp) => camp.status === 'PUBLISHED');
 
   return (
     <div className="space-y-6">
@@ -38,17 +41,11 @@ export default async function ParentCampsPage({ searchParams }: { searchParams: 
       />
 
       {availableCamps.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-lg font-medium text-gray-900">Aucun camp disponible</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Aucun camp n'est actuellement ouvert aux inscriptions.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Aucun camp disponible"
+          description={<>Aucun camp n'est actuellement ouvert aux inscriptions.</>}
+          icon={Calendar}
+        />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {availableCamps.map((camp) => (
@@ -64,14 +61,14 @@ export default async function ParentCampsPage({ searchParams }: { searchParams: 
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Days count */}
-                <div className="flex items-center text-sm text-gray-600">
+                <div className="flex items-center text-sm text-muted-foreground">
                   <Calendar className="mr-2 h-4 w-4" />
                   {camp.daysCount} jour{camp.daysCount > 1 ? 's' : ''}
                 </div>
 
                 {/* Location */}
                 {camp.location && (
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-sm text-muted-foreground">
                     <MapPin className="mr-2 h-4 w-4" />
                     {camp.location}
                   </div>
@@ -79,14 +76,14 @@ export default async function ParentCampsPage({ searchParams }: { searchParams: 
 
                 {/* Camp Type */}
                 {camp.campType.description && (
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-sm text-muted-foreground">
                     <Users className="mr-2 h-4 w-4" />
                     {camp.campType.description}
                   </div>
                 )}
 
                 {/* Price */}
-                <div className="flex items-center text-sm font-medium text-gray-900">
+                <div className="flex items-center text-sm font-medium text-foreground">
                   <DollarSign className="mr-2 h-4 w-4" />
                   {camp.pricePerDay.toLocaleString('fr-FR')} XPF / jour
                 </div>

@@ -1,34 +1,34 @@
 'use client';
 
-import * as React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Home,
-  Users,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useMediaQuery } from '@/lib/hooks/use-media-query';
+import { cn } from '@/lib/utils';
+import {
   CalendarDays,
-  FileText,
-  Receipt,
-  Settings,
-  Menu,
-  X,
   ChevronLeft,
   CreditCard,
   FileCheck,
-  Tag,
+  FileText,
+  Home,
+  Menu,
+  Receipt,
   RefreshCcw,
+  Settings,
+  Tag,
+  Users,
+  X,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { useMediaQuery } from '@/lib/hooks/use-media-query';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import * as React from 'react';
 
 interface NavItem {
   title: string;
@@ -386,7 +386,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
             <Menu className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="left-0 top-0 h-dvh w-72 translate-x-0 translate-y-0 rounded-none p-0 gap-0 [&>button]:hidden">
+        <DialogContent className="left-0 top-0 h-dvh max-h-dvh w-72 translate-x-0 translate-y-0 rounded-none p-0 gap-0 [&>button]:hidden">
           <DialogTitle className="sr-only">Navigation principale</DialogTitle>
           <DialogDescription className="sr-only">
             Accéder aux rubriques de votre espace

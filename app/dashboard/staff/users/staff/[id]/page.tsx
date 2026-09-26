@@ -4,30 +4,24 @@ import { PageHeader } from '@/components/shared/page-header';
 import { UsersDetails } from '@/components/admin/users/user-details';
 import { notFound } from 'next/navigation';
 
-export default async function StaffUserDetailPage({
-    params,
-    }: {
-    params: Promise<{ id: string }>;
-    }) {
-    await requireRole(['STAFF', 'ADMIN']);
+export default async function StaffUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRole(['STAFF', 'ADMIN']);
 
-    const { id } = await params;
+  const { id } = await params;
 
-    const trpc = await createServerTRPC();
+  const trpc = await createServerTRPC();
 
-    const user = await trpc.users.getById({ id });
+  const user = await trpc.users.getById({ id });
 
-    if (!user) {
-        notFound();
-    }
+  if (!user) {
+    notFound();
+  }
 
-    return (
-        <div className="space-y-8">
-        <PageHeader
-            title="Détails du personnel ALVM"
-        />
+  return (
+    <div className="space-y-8">
+      <PageHeader title="Détails du personnel ALVM" />
 
-        <UsersDetails user={user} />
-        </div>
-    );
+      <UsersDetails user={user} staffDirectory />
+    </div>
+  );
 }

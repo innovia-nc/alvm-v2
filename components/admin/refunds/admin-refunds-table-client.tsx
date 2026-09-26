@@ -1,10 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { adminRefundColumns, type AdminRefundType, AdminRefundActions } from './columns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,10 +11,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { AdminRefundActions, adminRefundColumns, type AdminRefundType } from './columns';
 
 export function AdminRefundsTableClient() {
   const router = useRouter();
@@ -30,7 +30,12 @@ export function AdminRefundsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination + recherche server-side
-  const { data, isLoading, error: listError, refetch: retryList } = trpc.refunds.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.refunds.list.useQuery({
     sortBy: pagination.sortBy as 'refundDate' | 'amount' | 'createdAt' | undefined,
     sortOrder: pagination.sortOrder,
     limit: pagination.limit,
@@ -75,10 +80,7 @@ export function AdminRefundsTableClient() {
       return {
         ...col,
         cell: ({ row }: { row: { original: AdminRefundType } }) => (
-          <AdminRefundActions
-            item={row.original}
-            onDelete={setDeletingItem}
-          />
+          <AdminRefundActions item={row.original} onDelete={setDeletingItem} />
         ),
       };
     }
@@ -94,7 +96,9 @@ export function AdminRefundsTableClient() {
       )}
 
       <DataTableServer
-        error={listError} onRetry={retryList} sortableColumns={['refundDate', 'amount', 'createdAt']}
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['refundDate', 'amount', 'createdAt']}
         columns={columnsWithActions}
         data={data?.refunds || []}
         totalCount={data?.total || 0}
@@ -102,14 +106,12 @@ export function AdminRefundsTableClient() {
         pagination={pagination}
         searchKey="reference"
         searchPlaceholder="Rechercher par numéro, facture, parent ou référence..."
+        search={searchTerm}
         onSearchChange={handleSearchChange}
       />
 
       {/* Dialog de confirmation de suppression */}
-      <AlertDialog
-        open={!!deletingItem}
-        onOpenChange={(open) => !open && setDeletingItem(null)}
-      >
+      <AlertDialog open={!!deletingItem} onOpenChange={(open) => !open && setDeletingItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
@@ -117,7 +119,11 @@ export function AdminRefundsTableClient() {
               Êtes-vous sûr de vouloir supprimer ce remboursement ?
               <br />
               <br />
-              Montant : <strong>{deletingItem && parseFloat(deletingItem.amount.toString()).toLocaleString('fr-FR')} XPF</strong>
+              Montant :{' '}
+              <strong>
+                {deletingItem && parseFloat(deletingItem.amount.toString()).toLocaleString('fr-FR')}{' '}
+                XPF
+              </strong>
               <br />
               Facture : <strong>{deletingItem?.payment.invoice.invoiceNumber}</strong>
               <br />
@@ -126,17 +132,13 @@ export function AdminRefundsTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>

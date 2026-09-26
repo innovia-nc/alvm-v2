@@ -1,5 +1,5 @@
-import * as React from 'react';
 import { cn } from '@/lib/utils';
+import * as React from 'react';
 
 interface PageHeaderProps {
   title: string;
@@ -17,7 +17,7 @@ export function PageHeader({ title, description, actions, className }: PageHeade
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
         {description && <p className="text-muted-foreground mt-2">{description}</p>}
       </div>
 

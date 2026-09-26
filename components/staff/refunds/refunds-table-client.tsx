@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
 import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import { useState } from 'react';
 import { staffRefundColumns } from './columns';
 
 export function RefundsTableClient() {
@@ -14,7 +14,12 @@ export function RefundsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination
-  const { data, isLoading, error: listError, refetch: retryList } = trpc.refunds.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.refunds.list.useQuery({
     sortBy: pagination.sortBy as 'refundDate' | 'amount' | 'createdAt' | undefined,
     sortOrder: pagination.sortOrder,
     limit: pagination.limit,
@@ -25,7 +30,9 @@ export function RefundsTableClient() {
   return (
     <div className="space-y-4">
       <DataTableServer
-        error={listError} onRetry={retryList} sortableColumns={['refundDate', 'amount', 'createdAt']}
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['refundDate', 'amount', 'createdAt']}
         columns={staffRefundColumns}
         data={data?.refunds || []}
         totalCount={data?.total || 0}
@@ -33,6 +40,7 @@ export function RefundsTableClient() {
         pagination={pagination}
         searchKey="reference"
         searchPlaceholder="Rechercher par avoir, parent ou méthode..."
+        search={search}
         onSearchChange={setSearch}
       />
     </div>

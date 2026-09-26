@@ -1,20 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -32,10 +20,22 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { trpc } from '@/lib/trpc/client';
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 
 // ============================================================================
 // TYPES & SCHEMAS
@@ -148,11 +148,16 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
       await deleteMutation.mutateAsync({ id });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : 'Impossible de supprimer cette méthode de paiement');
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Impossible de supprimer cette méthode de paiement',
+      );
     }
   }
 
-  const isLoading = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const isLoading =
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
     <>
@@ -219,6 +224,7 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
                       size="icon"
                       onClick={() => openEditDialog(method)}
                       disabled={isLoading}
+                      aria-label="Modifier"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -227,7 +233,10 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
                       size="icon"
                       onClick={() => handleDelete(method.id)}
                       disabled={isLoading || method.isSystem}
-                      title={method.isSystem ? 'Impossible de supprimer une méthode système' : undefined}
+                      title={
+                        method.isSystem ? 'Impossible de supprimer une méthode système' : undefined
+                      }
+                      aria-label="Supprimer"
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -244,7 +253,9 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingMethod ? 'Modifier la méthode de paiement' : 'Ajouter une méthode de paiement'}
+              {editingMethod
+                ? 'Modifier la méthode de paiement'
+                : 'Ajouter une méthode de paiement'}
             </DialogTitle>
             <DialogDescription>
               {editingMethod
@@ -276,10 +287,7 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
                   <FormItem>
                     <FormLabel>Description (optionnel)</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Description de la méthode de paiement..."
-                        {...field}
-                      />
+                      <Textarea placeholder="Description de la méthode de paiement..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

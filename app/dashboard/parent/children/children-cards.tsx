@@ -1,9 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,10 +11,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { trpc } from '@/lib/trpc/client';
-import { Calendar, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Calendar, Edit, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 // ============================================================================
 // TYPES
@@ -74,7 +74,9 @@ export function ChildrenCards({ initialChildren }: ChildrenCardsProps) {
       setDeletingChild(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : 'Impossible de supprimer cet enfant');
+      setError(
+        err instanceof Error && err.message ? err.message : 'Impossible de supprimer cet enfant',
+      );
       setDeletingChild(null);
     }
   }
@@ -104,24 +106,29 @@ export function ChildrenCards({ initialChildren }: ChildrenCardsProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Date of birth */}
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="mr-2 h-4 w-4" />
-                Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                Né(e) le{' '}
+                {new Date(child.birthDate).toLocaleDateString('fr-FR', {
+                  timeZone: 'Pacific/Noumea',
+                })}
               </div>
 
               {/* Medical info (if any) */}
               {child.medicalInfo?.notes && (
                 <div className="text-sm">
-                  <p className="font-medium text-gray-700 mb-1">Notes médicales :</p>
-                  <p className="text-gray-600 line-clamp-2">{child.medicalInfo.notes}</p>
+                  <p className="font-medium text-foreground mb-1">Notes médicales :</p>
+                  <p className="text-muted-foreground line-clamp-2">{child.medicalInfo.notes}</p>
                 </div>
               )}
 
               {/* Allergies (if any) */}
               {child.medicalInfo?.allergies && child.medicalInfo.allergies.length > 0 && (
                 <div className="text-sm">
-                  <p className="font-medium text-gray-700 mb-1">Allergies :</p>
-                  <p className="text-gray-600 line-clamp-2">{child.medicalInfo.allergies.join(', ')}</p>
+                  <p className="font-medium text-foreground mb-1">Allergies :</p>
+                  <p className="text-muted-foreground line-clamp-2">
+                    {child.medicalInfo.allergies.join(', ')}
+                  </p>
                 </div>
               )}
 
@@ -140,6 +147,7 @@ export function ChildrenCards({ initialChildren }: ChildrenCardsProps) {
                   onClick={() => setDeletingChild(child)}
                   disabled={deleteMutation.isPending}
                   title="Supprimer"
+                  aria-label="Supprimer"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -162,7 +170,8 @@ export function ChildrenCards({ initialChildren }: ChildrenCardsProps) {
               ?
               <br />
               <br />
-              Cette action est irréversible. Toutes les inscriptions associées à cet enfant seront également supprimées.
+              Cette action est irréversible. Toutes les inscriptions associées à cet enfant seront
+              également supprimées.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

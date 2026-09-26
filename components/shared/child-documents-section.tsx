@@ -1,3 +1,6 @@
+'use client';
+
+import { LoadingState } from '@/components/shared/loading-state';
 /**
  * Child Documents Section Component
  *
@@ -11,15 +14,13 @@
  * - STAFF/ADMIN: peut uploader, voir et supprimer tous les documents
  */
 
-'use client';
-
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { DocumentUpload } from '@/components/ui/document-upload';
 import { ChildDocumentsTable } from '@/components/shared/child-documents-table';
-import { FileText, Download, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DocumentUpload } from '@/components/ui/document-upload';
 import { trpc } from '@/lib/trpc/client';
+import { Download, FileText, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 // ============================================================================
@@ -65,10 +66,9 @@ export function ChildDocumentsSection({
     refetch: refetchDocuments,
   } = trpc.childDocuments.list.useQuery({ childId });
 
-  const {
-    data: count = 0,
-    refetch: refetchCount,
-  } = trpc.childDocuments.count.useQuery({ childId });
+  const { data: count = 0, refetch: refetchCount } = trpc.childDocuments.count.useQuery({
+    childId,
+  });
 
   // --------------------------------------------------------------------------
   // HANDLERS
@@ -90,7 +90,7 @@ export function ChildDocumentsSection({
       const response = await fetch(`/api/generate/child-profile/${childId}`);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Téléchargement impossible" }));
+        const error = await response.json().catch(() => ({ error: 'Téléchargement impossible' }));
         throw new Error(error.error || 'Erreur lors de la génération du PDF');
       }
 
@@ -142,9 +142,7 @@ export function ChildDocumentsSection({
               <FileText className="h-5 w-5" />
               Documents
             </CardTitle>
-            <CardDescription>
-              Documents PDF liés à cet enfant ({count})
-            </CardDescription>
+            <CardDescription>Documents PDF liés à cet enfant ({count})</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button
@@ -171,20 +169,13 @@ export function ChildDocumentsSection({
       <CardContent className="space-y-4">
         {/* Zone d'upload */}
         {!showUpload ? (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => setShowUpload(true)}
-          >
+          <Button variant="outline" className="w-full" onClick={() => setShowUpload(true)}>
             <FileText className="mr-2 h-4 w-4" />
             Ajouter un document PDF
           </Button>
         ) : (
           <div className="space-y-2">
-            <DocumentUpload
-              childId={childId}
-              onUploadComplete={handleUploadComplete}
-            />
+            <DocumentUpload childId={childId} onUploadComplete={handleUploadComplete} />
             <Button
               variant="ghost"
               size="sm"
@@ -198,9 +189,7 @@ export function ChildDocumentsSection({
 
         {/* Liste des documents */}
         {isLoadingDocs ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
+          <LoadingState />
         ) : (
           <ChildDocumentsTable
             childId={childId}

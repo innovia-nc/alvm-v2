@@ -1,3 +1,7 @@
+'use client';
+
+import { EmptyState } from '@/components/shared/empty-state';
+import { ErrorState } from '@/components/shared/error-state';
 /**
  * Data Table Component avec Server-Side Pagination
  *
@@ -28,9 +32,6 @@
  * ```
  */
 
-'use client';
-
-import * as React from 'react';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -41,18 +42,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ArrowUpDown, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
+import * as React from 'react';
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import {
   Pagination,
   PaginationContent,
@@ -69,8 +62,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PAGINATION_DEFAULTS } from '@/lib/constants/pagination';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { UseServerPaginationReturn } from '@/hooks/use-server-pagination';
+import { PAGINATION_DEFAULTS } from '@/lib/constants/pagination';
+import { cn } from '@/lib/utils';
 
 // ============================================================================
 // TYPES
@@ -123,6 +125,8 @@ interface DataTableServerProps<TData, TValue> {
    * ou bouton « Rechercher »). Jamais appelé pendant la frappe.
    */
   onSearchChange?: (search: string) => void;
+  /** Applied query; synchronizes external filter resets without submitting draft input. */
+  search?: string;
 
   /**
    * Composant personnalisé pour l'empty state
@@ -159,15 +163,11 @@ function DataTableSkeleton({ columns }: { columns: number }) {
 
 function DataTableEmpty() {
   return (
-    <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-        <Search className="h-6 w-6 text-muted-foreground" />
-      </div>
-      <h3 className="mt-4 text-lg font-semibold">Aucune donnée</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Aucun résultat ne correspond à votre recherche.
-      </p>
-    </div>
+    <EmptyState
+      title="Aucune donnée"
+      description="Les éléments ajoutés apparaîtront ici. Si un filtre est actif, essayez de le modifier."
+      icon={Search}
+    />
   );
 }
 
@@ -355,6 +355,7 @@ export function DataTableServer<TData, TValue>({
   searchKey,
   pagination,
   onSearchChange,
+  search,
   emptyState,
   className,
 }: DataTableServerProps<TData, TValue>) {
@@ -367,8 +368,15 @@ export function DataTableServer<TData, TValue>({
   // bouton « Rechercher » (US-UX-01). Aucun debounce, donc aucun appel réseau
   // pendant la frappe. `submittedSearch` porte le dernier terme réellement
   // soumis : c'est lui qui pilote l'empty state et le message « aucun résultat ».
-  const [searchValue, setSearchValue] = React.useState('');
-  const [submittedSearch, setSubmittedSearch] = React.useState('');
+  const [searchValue, setSearchValue] = React.useState(search ?? '');
+  const [submittedSearch, setSubmittedSearch] = React.useState(search ?? '');
+
+  React.useEffect(() => {
+    if (search !== undefined) {
+      setSearchValue(search);
+      setSubmittedSearch(search);
+    }
+  }, [search]);
 
   const submitSearch = React.useCallback(() => {
     const term = searchValue.trim();
@@ -470,12 +478,7 @@ export function DataTableServer<TData, TValue>({
       )}
 
       {error ? (
-        <div role="alert" className="rounded border p-6">
-          Impossible de charger les données.{' '}
-          <Button variant="outline" onClick={() => onRetry?.()}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState onRetry={onRetry} />
       ) : totalCount === 0 && !submittedSearch && !isLoading ? (
         (emptyState ?? <DataTableEmpty />)
       ) : (

@@ -1,9 +1,8 @@
-import { auth } from '@/lib/auth/config';
-import { redirect } from 'next/navigation';
+import { BackButton } from '@/components/shared/back-button';
 import { PageHeader } from '@/components/shared/page-header';
-import { ArrowLeft } from 'lucide-react';
+import { auth } from '@/lib/auth/config';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { redirect } from 'next/navigation';
 import { ChildForm } from './child-form';
 
 /**
@@ -19,13 +18,11 @@ export default async function NewChildPage() {
 
   return (
     <div className="space-y-6">
-      <Link className="block underline mb-4" href="/dashboard/parent/children/adult">Inscrire un participant adulte autonome</Link>
+      <Link className="block underline mb-4" href="/dashboard/parent/children/adult">
+        Inscrire un participant adulte autonome
+      </Link>
       <div className="flex items-center gap-4">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/dashboard/parent/children">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton href="/dashboard/parent/children" />
         <PageHeader
           title="Ajouter un enfant"
           description="Enregistrez un nouvel enfant pour l'inscrire aux camps"

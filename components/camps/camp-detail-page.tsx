@@ -1,19 +1,20 @@
 'use client';
+import { BackButton } from '@/components/shared/back-button';
 
-import { useSearchParams } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Pencil, Users } from 'lucide-react';
+import { trpc } from '@/lib/trpc/client';
+import { Pencil, Users } from 'lucide-react';
 import Link from 'next/link';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { useSearchParams } from 'next/navigation';
+import { CampAttendanceTab } from './camp-attendance-tab';
 import { CampDetailTab } from './camp-detail-tab';
 import { CampRegistrationsTab } from './camp-registrations-tab';
-import { CampAttendanceTab } from './camp-attendance-tab';
 
 interface CampDetailPageProps {
   campId: string;
@@ -76,12 +77,7 @@ export function CampDetailPage({ campId, basePath }: CampDetailPageProps) {
                 Modifier
               </Button>
             </Link>
-            <Link href={basePath}>
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour
-              </Button>
-            </Link>
+            <BackButton href={basePath} label="Retour" />
           </div>
         }
       />
@@ -90,9 +86,7 @@ export function CampDetailPage({ campId, basePath }: CampDetailPageProps) {
       <Tabs defaultValue={initialTab}>
         <TabsList>
           <TabsTrigger value="details">Détails</TabsTrigger>
-          <TabsTrigger value="inscriptions">
-            Inscriptions ({camp.registrationsCount})
-          </TabsTrigger>
+          <TabsTrigger value="inscriptions">Inscriptions ({camp.registrationsCount})</TabsTrigger>
           <TabsTrigger value="presences">Présences</TabsTrigger>
         </TabsList>
 

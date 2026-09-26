@@ -1,24 +1,21 @@
 'use client';
+
+import { FormActions } from '@/components/shared/form-actions';
+import { LoadingState } from '@/components/shared/loading-state';
 import { usePagedOptions } from '@/hooks/use-paged-options';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import type { inferRouterOutputs } from '@trpc/server';
-import type { AppRouter } from '@/server/trpc/router';
-import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -26,13 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Check, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { cn } from '@/lib/utils';
+import type { AppRouter } from '@/server/trpc/router';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { inferRouterOutputs } from '@trpc/server';
+import { AlertCircle, Check, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 const registrationFormSchema = z.object({
   parentId: z.string().uuid('Sélectionnez un parent'),
@@ -44,8 +47,7 @@ const registrationFormSchema = z.object({
 
 type RegistrationFormValues = z.infer<typeof registrationFormSchema>;
 
-type CampListItem =
-  inferRouterOutputs<AppRouter>['camps']['list']['camps'][number];
+type CampListItem = inferRouterOutputs<AppRouter>['camps']['list']['camps'][number];
 
 export function RegistrationForm() {
   const router = useRouter();
@@ -70,21 +72,36 @@ export function RegistrationForm() {
   const watchParentId = form.watch('parentId');
 
   // Récupérer les camps publiés
-  const optionsPage0 = usePagedOptions("un camp");
-  const { data: campsData, isLoading: isLoadingCamps , error: optionsError0, refetch: optionsRetry0} = trpc.camps.list.useQuery({
+  const optionsPage0 = usePagedOptions('un camp');
+  const {
+    data: campsData,
+    isLoading: isLoadingCamps,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.camps.list.useQuery({
     ...optionsPage0.params,
     status: 'PUBLISHED',
   });
 
   // Récupérer les parents
-  const optionsPage1 = usePagedOptions("un client");
-  const { data: parentsData, isLoading: isLoadingParents , error: optionsError1, refetch: optionsRetry1} = trpc.parents.list.useQuery({
+  const optionsPage1 = usePagedOptions('un client');
+  const {
+    data: parentsData,
+    isLoading: isLoadingParents,
+    error: optionsError1,
+    refetch: optionsRetry1,
+  } = trpc.parents.list.useQuery({
     ...optionsPage1.params,
   });
 
   // Récupérer les enfants
-  const optionsPage2 = usePagedOptions("un participant");
-  const { data: childrenData, isLoading: isLoadingChildren , error: optionsError2, refetch: optionsRetry2} = trpc.children.list.useQuery({
+  const optionsPage2 = usePagedOptions('un participant');
+  const {
+    data: childrenData,
+    isLoading: isLoadingChildren,
+    error: optionsError2,
+    refetch: optionsRetry2,
+  } = trpc.children.list.useQuery({
     ...optionsPage2.params,
     parentId: watchParentId || undefined,
   });
@@ -96,7 +113,7 @@ export function RegistrationForm() {
       router.refresh();
     },
     onError: (error) => {
-      toast.error(error.message || 'Erreur lors de la création de l\'inscription');
+      toast.error(error.message || "Erreur lors de la création de l'inscription");
       setIsSubmitting(false);
     },
   });
@@ -108,7 +125,7 @@ export function RegistrationForm() {
     // Filtrer par parent si un parent est sélectionné
     const children = watchParentId
       ? childrenData.children.filter((child) =>
-          child.parents.some((parent) => parent.parentId === watchParentId)
+          child.parents.some((parent) => parent.parentId === watchParentId),
         )
       : childrenData.children;
 
@@ -117,7 +134,7 @@ export function RegistrationForm() {
 
     const searchLower = childSearch.toLowerCase();
     return children.filter((child) =>
-      `${child.firstName} ${child.lastName}`.toLowerCase().includes(searchLower)
+      `${child.firstName} ${child.lastName}`.toLowerCase().includes(searchLower),
     );
   }, [childrenData, childSearch, watchParentId]);
 
@@ -164,17 +181,32 @@ export function RegistrationForm() {
   };
 
   if (isLoadingCamps || isLoadingChildren || isLoadingParents) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-3">{optionsPage0.controls(campsData?.total ?? 0, isLoadingCamps, optionsError0, optionsRetry0)}{optionsPage1.controls(parentsData?.total ?? 0, isLoadingParents, optionsError1, optionsRetry1)}{optionsPage2.controls(childrenData?.total ?? 0, isLoadingChildren, optionsError2, optionsRetry2)}</div>
+        <div className="space-y-3">
+          {optionsPage0.controls(
+            campsData?.total ?? 0,
+            isLoadingCamps,
+            optionsError0,
+            optionsRetry0,
+          )}
+          {optionsPage1.controls(
+            parentsData?.total ?? 0,
+            isLoadingParents,
+            optionsError1,
+            optionsRetry1,
+          )}
+          {optionsPage2.controls(
+            childrenData?.total ?? 0,
+            isLoadingChildren,
+            optionsError2,
+            optionsRetry2,
+          )}
+        </div>
 
         {/* Informations de l'inscription */}
         <Card>
@@ -224,7 +256,8 @@ export function RegistrationForm() {
                     <SelectContent>
                       {campsData?.camps.map((camp) => (
                         <SelectItem key={camp.id} value={camp.id}>
-                          {camp.name} - {camp.location} ({camp.pricePerDay.toLocaleString('fr-FR')} XPF/jour)
+                          {camp.name} - {camp.location} ({camp.pricePerDay.toLocaleString('fr-FR')}{' '}
+                          XPF/jour)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -281,7 +314,7 @@ export function RegistrationForm() {
               control={form.control}
               name="childId"
               render={({ field }) => {
-                const selectedChild = childrenData?.children.find(c => c.id === field.value);
+                const selectedChild = childrenData?.children.find((c) => c.id === field.value);
 
                 return (
                   <FormItem className="relative" data-child-search>
@@ -309,7 +342,10 @@ export function RegistrationForm() {
                     {selectedChild && (
                       <FormDescription className="text-xs">
                         Sélectionné: {selectedChild.firstName} {selectedChild.lastName} (
-                        {new Date(selectedChild.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })})
+                        {new Date(selectedChild.birthDate).toLocaleDateString('fr-FR', {
+                          timeZone: 'Pacific/Noumea',
+                        })}
+                        )
                       </FormDescription>
                     )}
 
@@ -327,7 +363,7 @@ export function RegistrationForm() {
                             }}
                             className={cn(
                               'w-full px-3 py-2 text-left text-sm hover:bg-muted focus:bg-muted focus:outline-none',
-                              field.value === child.id && 'bg-muted'
+                              field.value === child.id && 'bg-muted',
                             )}
                           >
                             <div className="flex items-center justify-between">
@@ -339,7 +375,10 @@ export function RegistrationForm() {
                               )}
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              Né(e) le {new Date(child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                              Né(e) le{' '}
+                              {new Date(child.birthDate).toLocaleDateString('fr-FR', {
+                                timeZone: 'Pacific/Noumea',
+                              })}
                             </span>
                           </button>
                         ))}
@@ -377,7 +416,9 @@ export function RegistrationForm() {
                     <div>
                       <span className="text-muted-foreground">Date limite: </span>
                       <span className="font-medium">
-                        {new Date(selectedCamp.registrationDeadline).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                        {new Date(selectedCamp.registrationDeadline).toLocaleDateString('fr-FR', {
+                          timeZone: 'Pacific/Noumea',
+                        })}
                       </span>
                     </div>
                     <div>
@@ -387,8 +428,19 @@ export function RegistrationForm() {
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Période: </span>
                       <span className="font-medium">
-                        Du {selectedCamp.startDate ? new Date(selectedCamp.startDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' }) : '—'} au{' '}
-                        {selectedCamp.endDate ? new Date(selectedCamp.endDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' }) : '—'} ({selectedCamp.daysCount} jours)
+                        Du{' '}
+                        {selectedCamp.startDate
+                          ? new Date(selectedCamp.startDate).toLocaleDateString('fr-FR', {
+                              timeZone: 'Pacific/Noumea',
+                            })
+                          : '—'}{' '}
+                        au{' '}
+                        {selectedCamp.endDate
+                          ? new Date(selectedCamp.endDate).toLocaleDateString('fr-FR', {
+                              timeZone: 'Pacific/Noumea',
+                            })
+                          : '—'}{' '}
+                        ({selectedCamp.daysCount} jours)
                       </span>
                     </div>
                   </div>
@@ -402,7 +454,9 @@ export function RegistrationForm() {
                     </span>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Montant total</p>
-                      <p className="text-2xl font-bold">{calculateTotalAmount().toLocaleString('fr-FR')} XPF</p>
+                      <p className="text-2xl font-bold">
+                        {calculateTotalAmount().toLocaleString('fr-FR')} XPF
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -430,7 +484,7 @@ export function RegistrationForm() {
         </Card>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -443,7 +497,7 @@ export function RegistrationForm() {
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Créer l'inscription
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

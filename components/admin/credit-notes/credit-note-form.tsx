@@ -1,25 +1,20 @@
 'use client';
+
+import { FormActions } from '@/components/shared/form-actions';
 import { usePagedOptions } from '@/hooks/use-paged-options';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { trpc } from '@/lib/trpc/client';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -27,9 +22,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useFieldArray, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ============================================================================
 // SCHEMA
@@ -47,7 +49,7 @@ const creditNoteFormSchema = z.object({
         description: z.string().min(3, 'La description doit contenir au moins 3 caractères'),
         quantity: z.number().min(1, 'La quantité doit être au moins 1'),
         unitPrice: z.number().min(0, 'Le prix unitaire ne peut pas être négatif'),
-      })
+      }),
     )
     .min(1, 'Au moins une ligne est requise'),
 });
@@ -74,11 +76,14 @@ export function CreditNoteForm() {
   // NB : `limit` est plafonné à 100 côté routeur — au-delà, la requête est
   // rejetée par Zod et la liste revenait vide sans le moindre message
   // (US-FACT-02-bis : cause exacte du bug constaté en recette).
-  const optionsPage0 = usePagedOptions("une facture");
+  const optionsPage0 = usePagedOptions('une facture');
   const {
     data: invoicesData,
     isLoading: loadingInvoices,
-    error: invoicesError, error: optionsError0, refetch: optionsRetry0} = trpc.invoices.list.useQuery({
+    error: invoicesError,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.invoices.list.useQuery({
     ...optionsPage0.params,
     statuses: ['SENT', 'PAID', 'OVERDUE'],
   });
@@ -88,7 +93,7 @@ export function CreditNoteForm() {
   // Récupérer les détails de la facture sélectionnée
   const { data: invoiceDetails } = trpc.invoices.getById.useQuery(
     { id: selectedInvoice! },
-    { enabled: !!selectedInvoice }
+    { enabled: !!selectedInvoice },
   );
 
   const form = useForm<CreditNoteFormValues>({
@@ -136,7 +141,7 @@ export function CreditNoteForm() {
 
   const handleCopyFromInvoice = () => {
     if (!invoiceDetails?.lines || invoiceDetails.lines.length === 0) {
-      toast.error('Cette facture n\'a pas de lignes');
+      toast.error("Cette facture n'a pas de lignes");
       return;
     }
 
@@ -148,7 +153,7 @@ export function CreditNoteForm() {
         description: line.description,
         quantity: line.quantity,
         unitPrice: parseFloat(line.unitPrice.toString()),
-      }))
+      })),
     );
 
     // Remplir automatiquement le parentId depuis la facture
@@ -166,7 +171,14 @@ export function CreditNoteForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-3">{optionsPage0.controls(invoicesData?.total ?? 0, loadingInvoices, optionsError0, optionsRetry0)}</div>
+        <div className="space-y-3">
+          {optionsPage0.controls(
+            invoicesData?.total ?? 0,
+            loadingInvoices,
+            optionsError0,
+            optionsRetry0,
+          )}
+        </div>
 
         {/* Sélection de la facture */}
         <Card>
@@ -214,8 +226,8 @@ export function CreditNoteForm() {
                     </FormDescription>
                   ) : !loadingInvoices && eligibleInvoices.length === 0 ? (
                     <FormDescription>
-                      Aucune facture éligible à un avoir. Seules les factures émises
-                      (envoyée, payée, en retard) peuvent faire l&apos;objet d&apos;un avoir.
+                      Aucune facture éligible à un avoir. Seules les factures émises (envoyée,
+                      payée, en retard) peuvent faire l&apos;objet d&apos;un avoir.
                     </FormDescription>
                   ) : null}
                   <FormMessage />
@@ -239,7 +251,8 @@ export function CreditNoteForm() {
                   <div className="flex justify-between">
                     <span className="font-medium">Montant total :</span>
                     <span>
-                      {parseFloat(invoiceDetails.totalAmount.toString()).toLocaleString('fr-FR')} XPF
+                      {parseFloat(invoiceDetails.totalAmount.toString()).toLocaleString('fr-FR')}{' '}
+                      XPF
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -310,6 +323,7 @@ export function CreditNoteForm() {
                       variant="ghost"
                       size="sm"
                       onClick={() => remove(index)}
+                      aria-label="Supprimer"
                     >
                       <Trash2 className="h-4 w-4 text-red-600" />
                     </Button>
@@ -415,7 +429,7 @@ export function CreditNoteForm() {
         </Card>
 
         {/* Actions */}
-        <div className="flex gap-4">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -428,7 +442,7 @@ export function CreditNoteForm() {
             {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Créer l'avoir
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

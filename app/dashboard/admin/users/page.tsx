@@ -1,15 +1,7 @@
 'use client';
 
-import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { useServerPagination } from '@/hooks/use-server-pagination';
 import { getUsersColumns } from '@/components/admin/users/users-table-columns';
-import { trpc } from '@/lib/trpc/client';
-import { useRouter } from 'next/navigation';
-import { useState, useMemo, useCallback } from 'react';
+import { PageHeader } from '@/components/shared/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +12,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import { UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -62,10 +62,13 @@ export default function AdminUsersPage() {
   });
 
   // Handlers
-  const handleResetPassword = useCallback((userId: string) => {
-    setResetPasswordUserId(userId);
-    resetPasswordMutation.mutate({ userId });
-  }, [resetPasswordMutation]);
+  const handleResetPassword = useCallback(
+    (userId: string) => {
+      setResetPasswordUserId(userId);
+      resetPasswordMutation.mutate({ userId });
+    },
+    [resetPasswordMutation],
+  );
 
   const handleDelete = useCallback((userId: string) => {
     setDeleteUserId(userId);
@@ -79,11 +82,12 @@ export default function AdminUsersPage() {
 
   // Columns with callbacks
   const columns = useMemo(
-    () => getUsersColumns({
-      onResetPassword: handleResetPassword,
-      onDelete: handleDelete,
-    }),
-    [handleResetPassword, handleDelete]
+    () =>
+      getUsersColumns({
+        onResetPassword: handleResetPassword,
+        onDelete: handleDelete,
+      }),
+    [handleResetPassword, handleDelete],
   );
 
   return (
@@ -113,7 +117,11 @@ export default function AdminUsersPage() {
               pagination={pagination}
               error={error}
               onRetry={refetch}
-              onSearchChange={value => { setSearch(value); pagination.resetToFirstPage(); }}
+              search={search}
+              onSearchChange={(value) => {
+                setSearch(value);
+                pagination.resetToFirstPage();
+              }}
             />
           </CardContent>
         </Card>
@@ -125,7 +133,8 @@ export default function AdminUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Le compte sera désactivé et ses sessions seront révoquées. Les pièces comptables et les liens familiaux seront conservés.
+              Le compte sera désactivé et ses sessions seront révoquées. Les pièces comptables et
+              les liens familiaux seront conservés.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -152,7 +161,8 @@ export default function AdminUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Mot de passe temporaire</AlertDialogTitle>
             <AlertDialogDescription>
-              Le mot de passe de l'utilisateur a été réinitialisé. Voici le mot de passe temporaire :
+              Le mot de passe de l'utilisateur a été réinitialisé. Voici le mot de passe temporaire
+              :
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="rounded-lg bg-muted p-4">

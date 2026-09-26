@@ -1,16 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { trpc } from '@/lib/trpc/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { EmptyState } from '@/components/shared/empty-state';
 import { ParentSearchDialog } from '@/components/shared/parent-search-dialog';
 import type { SelectedParent } from '@/components/shared/selected-parents-list';
-import { Star, User, Mail, Phone, Plus, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +14,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { trpc } from '@/lib/trpc/client';
+import { AlertCircle, CheckCircle, Mail, Phone, Plus, Star, Trash2, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 // ============================================================================
 // TYPES
@@ -77,7 +78,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
     {
       initialData: initialParents,
       refetchOnMount: true,
-    }
+    },
   );
 
   const parents = parentsData || [];
@@ -91,7 +92,7 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
       router.refresh();
     },
     onError: (error) => {
-      toast.error('Erreur lors de l\'ajout du parent', {
+      toast.error("Erreur lors de l'ajout du parent", {
         description: error.message,
       });
     },
@@ -129,11 +130,21 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
 
   // Narrow the lenient `string | null` relationship from the API back to the
   // strict mutation enum. Unknown legacy values are dropped (sent as undefined).
-  const KNOWN_RELATIONSHIPS = ['mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other'] as const;
-  type KnownRelationship = typeof KNOWN_RELATIONSHIPS[number];
+  const KNOWN_RELATIONSHIPS = [
+    'mother',
+    'father',
+    'guardian',
+    'step_mother',
+    'step_father',
+    'grandparent',
+    'other',
+  ] as const;
+  type KnownRelationship = (typeof KNOWN_RELATIONSHIPS)[number];
   const narrowRelationship = (r: string | null | undefined): KnownRelationship | undefined => {
     if (!r) return undefined;
-    return (KNOWN_RELATIONSHIPS as readonly string[]).includes(r) ? (r as KnownRelationship) : undefined;
+    return (KNOWN_RELATIONSHIPS as readonly string[]).includes(r)
+      ? (r as KnownRelationship)
+      : undefined;
   };
 
   // Handler pour ajouter un parent
@@ -195,8 +206,8 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Vous pouvez associer de 1 à 3 parents maximum à cet enfant.
-          Le parent principal sera utilisé par défaut pour la facturation et la communication.
+          Vous pouvez associer de 1 à 3 parents maximum à cet enfant. Le parent principal sera
+          utilisé par défaut pour la facturation et la communication.
         </AlertDescription>
       </Alert>
 
@@ -206,16 +217,10 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Parents / Clients associés ({parents.length}/3)</CardTitle>
-              <CardDescription>
-                Gérez les parents de cet enfant
-              </CardDescription>
+              <CardDescription>Gérez les parents de cet enfant</CardDescription>
             </div>
             {parents.length < 3 && (
-              <Button
-                onClick={() => setDialogOpen(true)}
-                disabled={isPending}
-                className="gap-2"
-              >
+              <Button onClick={() => setDialogOpen(true)} disabled={isPending} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Ajouter un parent
               </Button>
@@ -224,12 +229,10 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
         </CardHeader>
         <CardContent>
           {parents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
-              <User className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-              <p className="text-sm text-muted-foreground">
-                Aucun parent associé. Ajoutez au moins un parent pour continuer.
-              </p>
-            </div>
+            <EmptyState
+              title="Aucun parent associé. Ajoutez au moins un parent pour continuer."
+              icon={User}
+            />
           ) : (
             <div className="grid gap-4">
               {sortedParents.map((parent) => (
@@ -310,14 +313,19 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
             <p className="text-xs text-muted-foreground mt-4 p-3 bg-muted rounded-md">
               \ℹ\️ Cet enfant a {parents.length} parents associés.
               {sortedParents[0]?.isPrimary && (
-                <> {sortedParents[0].firstName} {sortedParents[0].lastName} est le parent principal et sera utilisé par défaut pour la facturation et la communication.</>
+                <>
+                  {' '}
+                  {sortedParents[0].firstName} {sortedParents[0].lastName} est le parent principal
+                  et sera utilisé par défaut pour la facturation et la communication.
+                </>
               )}
             </p>
           )}
 
           {parents.length === 1 && (
             <p className="text-xs text-muted-foreground mt-4 p-3 bg-muted rounded-md">
-              \⚠\️ Cet enfant doit avoir au moins 1 parent. Vous ne pouvez pas retirer le dernier parent.
+              \⚠\️ Cet enfant doit avoir au moins 1 parent. Vous ne pouvez pas retirer le dernier
+              parent.
             </p>
           )}
         </CardContent>
@@ -339,14 +347,12 @@ export function ManageParents({ childId, initialParents }: ManageParentsProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Retirer ce parent ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir retirer ce parent de cet enfant ?
-              Cette action ne supprimera pas le compte parent, mais seulement l'association avec cet enfant.
+              Êtes-vous sûr de vouloir retirer ce parent de cet enfant ? Cette action ne supprimera
+              pas le compte parent, mais seulement l'association avec cet enfant.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setParentToRemove(null)}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setParentToRemove(null)}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmRemove}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
