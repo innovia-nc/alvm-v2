@@ -38,7 +38,7 @@ export const authEdgeConfig = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as 'PARENT' | 'STAFF' | 'ADMIN';
+        session.user.role = token.role as 'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN';
       }
       return session;
     },

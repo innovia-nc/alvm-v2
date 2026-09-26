@@ -641,7 +641,7 @@ export const invoicesRouter = router({
         escapeHtml,
       } = await import('@/server/services/email.service');
 
-      if (!isEmailConfigured()) {
+      if (!(await isEmailConfigured())) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
           message:

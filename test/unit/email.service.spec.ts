@@ -1,3 +1,4 @@
+vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
 /**
  * TD-008 — service d'envoi d'emails transactionnels.
  *
@@ -47,11 +48,11 @@ describe('email.service (TD-008)', () => {
   });
 
   describe('isEmailConfigured', () => {
-    it('reflects the presence of the provider key', () => {
-      expect(isEmailConfigured()).toBe(true);
+    it('reflects the presence of the provider key', async () => {
+      expect(await isEmailConfigured()).toBe(true);
 
       delete process.env.RESEND_API_KEY;
-      expect(isEmailConfigured()).toBe(false);
+      expect(await isEmailConfigured()).toBe(false);
     });
   });
 
@@ -156,7 +157,7 @@ describe('email.service (TD-008)', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('reports the provider error status and body', async () => {
+    it('reports the provider error status without leaking its response body', async () => {
       fetchMock.mockResolvedValue({
         ok: false,
         status: 422,
@@ -166,7 +167,7 @@ describe('email.service (TD-008)', () => {
 
       await expect(
         sendEmail({ to: 'parent@example.nc', subject: 'S', html: '<p>C</p>' }, SENDER),
-      ).rejects.toThrow(/422.*domain is not verified/s);
+      ).rejects.toThrow(/422/);
     });
   });
 

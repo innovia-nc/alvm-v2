@@ -11,24 +11,31 @@ export type { Session } from 'next-auth';
 
 import type { Session } from 'next-auth';
 
-export async function requireAuth(): Promise<Session> {
+export async function requireAuth(signInPath = '/auth/signin'): Promise<Session> {
   const { auth } = await import('./config');
   const session = await auth();
 
   if (!session?.user) {
     const { redirect } = await import('next/navigation');
-    redirect('/auth/signin');
+    redirect(signInPath);
   }
 
   return session as Session;
 }
 
 export async function requireRole(
-  allowedRoles: Array<'PARENT' | 'STAFF' | 'ADMIN'>,
+  allowedRoles: Array<'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN'>,
 ) {
-  const session = await requireAuth();
+  const session = await requireAuth(
+    allowedRoles.length === 1 && allowedRoles[0] === 'SUPER_ADMIN'
+      ? '/auth/super-admin'
+      : '/auth/signin',
+  );
 
-  if (!session.user.role || !allowedRoles.includes(session.user.role)) {
+  if (
+    !session.user.role ||
+    !allowedRoles.includes(session.user.role)
+  ) {
     const { redirect } = await import('next/navigation');
     redirect('/dashboard');
   }

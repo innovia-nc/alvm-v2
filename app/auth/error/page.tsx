@@ -1,3 +1,4 @@
+import { SupportLink } from '@/components/providers/branding-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
@@ -80,9 +81,7 @@ export default async function AuthErrorPage({
       <div className="text-center text-sm text-muted-foreground">
         <p>
           Besoin d'aide ?{' '}
-          <a href="mailto:support@alvm.nc" className="text-primary hover:underline font-medium">
-            Contactez le support
-          </a>
+          <SupportLink />
         </p>
       </div>
     </div>

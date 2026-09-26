@@ -1,3 +1,4 @@
+import { featureResponse } from '@/server/helpers/feature-response';
 /**
  * Documents PDF d'un enfant — televersement (TD-025).
  *
@@ -15,22 +16,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/server/db';
-import {
-  uploadToStorage,
-  deleteFromStorageBestEffort,
-} from '@/lib/storage/blob-storage';
+import { uploadToStorage, deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
 import { hasChildAccess } from '@/server/helpers/child-access.helper';
 
 // Memes valeurs que `components/ui/document-upload.tsx`.
 const MAX_SIZE = 5 * 1024 * 1024; // 5 Mo
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  const unavailable = await featureResponse(session.user.role, ['documents', 'children']);
+  if (unavailable) return unavailable;
 
   let file: File | null = null;
   let childId = '';
@@ -42,9 +41,7 @@ export async function POST(req: NextRequest) {
     childId = String(formData.get('childId') ?? '');
     const rawDescription = formData.get('description');
     description =
-      typeof rawDescription === 'string' && rawDescription.trim()
-        ? rawDescription.trim()
-        : null;
+      typeof rawDescription === 'string' && rawDescription.trim() ? rawDescription.trim() : null;
   } catch {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
@@ -80,10 +77,7 @@ export async function POST(req: NextRequest) {
     childId,
   );
   if (!allowed) {
-    return NextResponse.json(
-      { error: 'Enfant non trouvé ou accès refusé' },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: 'Enfant non trouvé ou accès refusé' }, { status: 404 });
   }
 
   const filename = `${randomUUID()}.pdf`;
@@ -101,7 +95,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[upload/child-documents] Televersement impossible', error);
     return NextResponse.json(
-      { error: "Le téléversement a échoué. Le stockage est-il configuré ?" },
+      { error: 'Le téléversement a échoué. Le stockage est-il configuré ?' },
       { status: 500 },
     );
   }
@@ -130,14 +124,8 @@ export async function POST(req: NextRequest) {
       description: document.description,
     });
   } catch (error) {
-    console.error(
-      '[upload/child-documents] Enregistrement impossible, blob annule',
-      error,
-    );
+    console.error('[upload/child-documents] Enregistrement impossible, blob annule', error);
     await deleteFromStorageBestEffort(uploadedUrl, 'document enfant orphelin');
-    return NextResponse.json(
-      { error: "L'enregistrement du document a échoué" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "L'enregistrement du document a échoué" }, { status: 500 });
   }
 }

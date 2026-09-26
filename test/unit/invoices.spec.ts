@@ -1,3 +1,4 @@
+vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
 

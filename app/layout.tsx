@@ -1,3 +1,5 @@
+import { BrandingProvider } from '@/components/providers/branding-provider';
+import { getBranding } from '@/server/services/platform-config.service';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -8,30 +10,34 @@ import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
-  title: 'ALVM - Gestion de Camps de Vacances',
-  description: 'Application de gestion de camps de vacances pour enfants',
-};
+export const dynamic = 'force-dynamic';
+export async function generateMetadata(): Promise<Metadata> {
+  const branding = await getBranding();
+  return { title: branding.name, description: branding.description };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const branding = await getBranding();
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={inter.className}>
         <NextAuthSessionProvider>
           <TRPCProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="light"
-              enableSystem={false}
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster richColors position="top-right" />
-            </ThemeProvider>
+            <BrandingProvider initial={branding}>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="light"
+                enableSystem={false}
+                disableTransitionOnChange
+              >
+                {children}
+                <Toaster richColors position="top-right" />
+              </ThemeProvider>
+            </BrandingProvider>
           </TRPCProvider>
         </NextAuthSessionProvider>
       </body>

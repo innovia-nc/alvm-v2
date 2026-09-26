@@ -10,7 +10,7 @@ import { prisma, type ExtendedPrismaClient } from '@/server/db';
  */
 export interface AuthUser {
   id: string;
-  role: 'PARENT' | 'STAFF' | 'ADMIN';
+  role: 'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN';
 }
 
 export interface Context {

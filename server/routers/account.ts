@@ -1,3 +1,5 @@
+import { getBranding } from '@/server/services/platform-config.service';
+import { recordPlatformAudit } from '@/server/services/platform-audit.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { compare, hash } from 'bcryptjs';
@@ -67,13 +69,14 @@ export const accountRouter = router({
             data: { providerAccountId: newHash },
           });
         await tx.verificationToken.deleteMany({ where: { identifier: `password:${ctx.user.id}` } });
+        await recordPlatformAudit(tx, ctx.user.id, 'account.updated', ctx.user.id);
       });
       return { success: true };
     }),
   requestReset: publicProcedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ ctx, input }) => {
-      if (!isEmailConfigured() || !process.env.AUTH_URL)
+      if (!(await isEmailConfigured()) || !process.env.AUTH_URL)
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
           message: 'La récupération par email est indisponible. Contactez le secrétariat.',
@@ -96,10 +99,11 @@ export const accountRouter = router({
       });
       const url = new URL('/auth/reset-password', process.env.AUTH_URL);
       url.searchParams.set('token', token);
+      const branding = await getBranding(ctx.prisma);
       await sendEmail(
         {
           to: user.email,
-          subject: 'Réinitialiser votre mot de passe ALVM',
+          subject: `Réinitialiser votre mot de passe ${branding.name}`,
           text: `Lien valable 30 minutes : ${url}`,
           html: `<p><a href="${escapeHtml(url.toString())}">Réinitialiser mon mot de passe</a> (30 minutes)</p>`,
         },
@@ -139,6 +143,7 @@ export const accountRouter = router({
             },
           });
         await tx.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+        await recordPlatformAudit(tx, userId, 'account.password_reset', userId);
       });
       return { success: true };
     }),

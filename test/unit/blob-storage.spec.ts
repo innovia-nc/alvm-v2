@@ -1,3 +1,4 @@
+vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
 /**
  * TD-006 — suppression des objets Vercel Blob.
  *

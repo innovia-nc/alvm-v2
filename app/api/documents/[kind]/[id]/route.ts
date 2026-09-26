@@ -1,3 +1,5 @@
+import { getIntegrationSecret } from '@/server/services/platform-config.service';
+import { featureResponse } from '@/server/helpers/feature-response';
 import { NextResponse } from 'next/server';
 import { get } from '@vercel/blob';
 import { auth } from '@/lib/auth';
@@ -13,6 +15,18 @@ export async function GET(
   const session = await auth();
   if (!session?.user) return new NextResponse('Non authentifié', { status: 401 });
   const { kind, id } = await params;
+  const unavailable = await featureResponse(session.user.role, [
+    'documents',
+    ...(kind === 'invoice'
+      ? ['invoices' as const]
+      : kind === 'credit'
+        ? ['creditNotes' as const]
+        : kind === 'child'
+          ? ['children' as const]
+          : ['staff' as const]),
+  ]);
+  if (unavailable) return unavailable;
+
   if (!/^[0-9a-f-]{36}$/i.test(id)) return new NextResponse('Non trouvé', { status: 404 });
   const role = session.user.role ?? 'PARENT';
   const headers = {
@@ -79,13 +93,18 @@ export async function GET(
   if (!url) return new NextResponse('Non trouvé', { status: 404 });
   // Legacy public objects must be migrated before they can be served here.
   const source = URL.canParse(url) ? new URL(url) : null;
-  if (source?.protocol !== 'https:' || !source.hostname.endsWith('.private.blob.vercel-storage.com'))
+  if (
+    source?.protocol !== 'https:' ||
+    !source.hostname.endsWith('.private.blob.vercel-storage.com')
+  )
     return new NextResponse('Document en cours de migration. Contactez le secrétariat.', {
       status: 409,
     });
+  const token = await getIntegrationSecret('blobPrivate');
+  if (!token) return new NextResponse('Stockage privé indisponible', { status: 503 });
   const blob = await get(url, {
     access: 'private',
-    token: process.env.BLOB_PRIVATE_READ_WRITE_TOKEN,
+    token,
     useCache: false,
   });
   if (!blob || blob.statusCode !== 200) return new NextResponse('Non trouvé', { status: 404 });

@@ -26,8 +26,7 @@ vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
 
 vi.mock('@/lib/storage/blob-storage', () => ({
   uploadToStorage: (...args: unknown[]) => uploadToStorage(...args),
-  deleteFromStorageBestEffort: (...args: unknown[]) =>
-    deleteFromStorageBestEffort(...args),
+  deleteFromStorageBestEffort: (...args: unknown[]) => deleteFromStorageBestEffort(...args),
 }));
 
 vi.mock('@/server/db', () => ({
@@ -74,6 +73,7 @@ function deleteRequest(body: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  appSettingFindUnique.mockResolvedValue(null);
   uploadToStorage.mockResolvedValue({
     pathname: 'organization/logo.png',
     url: 'https://blob.vercel-storage.com/organization/logo.png',
@@ -182,13 +182,9 @@ describe('DELETE /api/upload/logo', () => {
 
   it('refuse une URL qui n’est pas le logo enregistré', async () => {
     authMock.mockResolvedValue(ADMIN);
-    appSettingFindUnique.mockResolvedValue({
-      value: JSON.stringify('https://blob/organization/logo-1.png'),
-    });
+    appSettingFindUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: JSON.stringify('https://blob/organization/logo-1.png') });
 
-    const res = await logoDelete(
-      deleteRequest({ url: 'https://blob/invoices/FA-2026-0001.pdf' }),
-    );
+    const res = await logoDelete(deleteRequest({ url: 'https://blob/invoices/FA-2026-0001.pdf' }));
 
     expect(res.status).toBe(400);
     expect(deleteFromStorageBestEffort).not.toHaveBeenCalled();
@@ -196,13 +192,9 @@ describe('DELETE /api/upload/logo', () => {
 
   it('supprime le blob du logo enregistré', async () => {
     authMock.mockResolvedValue(ADMIN);
-    appSettingFindUnique.mockResolvedValue({
-      value: JSON.stringify('https://blob/organization/logo-1.png'),
-    });
+    appSettingFindUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: JSON.stringify('https://blob/organization/logo-1.png') });
 
-    const res = await logoDelete(
-      deleteRequest({ url: 'https://blob/organization/logo-1.png' }),
-    );
+    const res = await logoDelete(deleteRequest({ url: 'https://blob/organization/logo-1.png' }));
 
     expect(res.status).toBe(200);
     expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
@@ -319,15 +311,58 @@ describe('POST /api/upload/child-documents', () => {
   });
 });
 
-
 describe('POST /api/upload/staff-documents', () => {
-  function form() { const data=new FormData();data.set('staffId',CHILD_ID);data.set('file',pdfFile());return postRequest(data); }
-  it('refuses a parent before uploading', async () => { authMock.mockResolvedValue(PARENT);expect((await staffPost(form())).status).toBe(404);expect(uploadToStorage).not.toHaveBeenCalled(); });
+  function form() {
+    const data = new FormData();
+    data.set('staffId', CHILD_ID);
+    data.set('file', pdfFile());
+    return postRequest(data);
+  }
+  it('refuses a parent before uploading', async () => {
+    authMock.mockResolvedValue(PARENT);
+    expect((await staffPost(form())).status).toBe(404);
+    expect(uploadToStorage).not.toHaveBeenCalled();
+  });
   it('stores a staff PDF privately and returns only its authenticated route', async () => {
-    authMock.mockResolvedValue(ADMIN);staffFindFirst.mockResolvedValue({userId:CHILD_ID});staffDocumentCreate.mockImplementation(async ({data}: {data: Record<string,unknown>})=>({id:CHILD_ID,...data}));
-    const response=await staffPost(form());expect(response.status).toBe(200);expect((await response.json()).fileUrl).toBe(`/api/documents/staff/${CHILD_ID}`);expect(uploadToStorage).toHaveBeenCalledWith(expect.any(Buffer),expect.objectContaining({access:'private'}));
+    authMock.mockResolvedValue(ADMIN);
+    staffFindFirst.mockResolvedValue({ userId: CHILD_ID });
+    staffDocumentCreate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: CHILD_ID,
+      ...data,
+    }));
+    const response = await staffPost(form());
+    expect(response.status).toBe(200);
+    expect((await response.json()).fileUrl).toBe(`/api/documents/staff/${CHILD_ID}`);
+    expect(uploadToStorage).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.objectContaining({ access: 'private' }),
+    );
   });
   it('cleans up the private blob after a failed database insert', async () => {
-    authMock.mockResolvedValue(ADMIN);staffFindFirst.mockResolvedValue({userId:CHILD_ID});staffDocumentCreate.mockRejectedValue(new Error('rollback'));expect((await staffPost(form())).status).toBe(500);expect(deleteFromStorageBestEffort).toHaveBeenCalled();
+    authMock.mockResolvedValue(ADMIN);
+    staffFindFirst.mockResolvedValue({ userId: CHILD_ID });
+    staffDocumentCreate.mockRejectedValue(new Error('rollback'));
+    expect((await staffPost(form())).status).toBe(500);
+    expect(deleteFromStorageBestEffort).toHaveBeenCalled();
+  });
+});
+
+describe('Restrictions super admin et fonctionnalités HTTP', () => {
+  it('refuse le super admin sur le logo de l’entreprise', async () => {
+    authMock.mockResolvedValue({ user: { ...ADMIN.user, role: 'SUPER_ADMIN' } });
+    const form = new FormData();
+    form.append('file', pngFile());
+    expect((await logoPost(postRequest(form))).status).toBe(403);
+    expect(uploadToStorage).not.toHaveBeenCalled();
+  });
+  it('bloque les uploads lorsque les documents sont désactivés', async () => {
+    authMock.mockResolvedValue(ADMIN);
+    appSettingFindUnique.mockResolvedValue({ value: '{"documents":false}' });
+    const form = new FormData();
+    form.append('file', pdfFile());
+    form.append('childId', CHILD_ID);
+    expect((await documentPost(postRequest(form))).status).toBe(403);
+    expect(uploadToStorage).not.toHaveBeenCalled();
+    expect(childDocumentCreate).not.toHaveBeenCalled();
   });
 });

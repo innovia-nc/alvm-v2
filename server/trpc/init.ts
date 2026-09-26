@@ -7,6 +7,7 @@
  */
 
 import { initTRPC, TRPCError } from '@trpc/server';
+import { assertProcedureEnabled } from '@/server/helpers/features';
 import superjson from 'superjson';
 import { type Context } from './context';
 
@@ -18,9 +19,7 @@ const t = initTRPC.context<Context>().create({
       data: {
         ...shape.data,
         zodError:
-          error.cause instanceof Error && error.cause.name === 'ZodError'
-            ? error.cause
-            : null,
+          error.cause instanceof Error && error.cause.name === 'ZodError' ? error.cause : null,
       },
     };
   },
@@ -40,7 +39,7 @@ const requireAuth = t.middleware(async ({ ctx, next }) => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-const requireRole = (allowedRoles: Array<'PARENT' | 'STAFF' | 'ADMIN'>) =>
+const requireRole = (allowedRoles: Array<'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN'>) =>
   t.middleware(async ({ ctx, next }) => {
     if (!ctx.user) {
       throw new TRPCError({
@@ -65,8 +64,14 @@ const requireRole = (allowedRoles: Array<'PARENT' | 'STAFF' | 'ADMIN'>) =>
 
 export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;
-export const publicProcedure = t.procedure;
-export const protectedProcedure = t.procedure.use(requireAuth);
-export const parentProcedure = t.procedure.use(requireRole(['PARENT']));
-export const staffProcedure = t.procedure.use(requireRole(['STAFF', 'ADMIN']));
-export const adminProcedure = t.procedure.use(requireRole(['ADMIN']));
+const featureProcedure = t.procedure.use(async ({ ctx, path, next }) => {
+  await assertProcedureEnabled(ctx.prisma, ctx.user?.role, path);
+  return next();
+});
+export const publicProcedure = featureProcedure;
+export const protectedProcedure = featureProcedure.use(requireAuth);
+export const parentProcedure = featureProcedure.use(requireRole(['PARENT']));
+export const staffProcedure = featureProcedure.use(requireRole(['STAFF', 'ADMIN']));
+export const adminProcedure = featureProcedure.use(requireRole(['ADMIN']));
+
+export const superAdminProcedure = t.procedure.use(requireRole(['SUPER_ADMIN']));

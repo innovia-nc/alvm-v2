@@ -5,6 +5,8 @@
  * progressively from the original NestJS backend.
  */
 
+import { platformRouter } from '@/server/routers/platform';
+import { featuresRouter } from '@/server/routers/features';
 import { dashboardRouter } from '@/server/routers/dashboard';
 import { accountRouter } from '@/server/routers/account';
 import { router, publicProcedure, createCallerFactory } from './init';
@@ -27,6 +29,8 @@ import { refundsRouter } from '@/server/routers/refunds';
 import { fecRouter } from '@/server/routers/fec';
 
 export const appRouter = router({
+  platform: platformRouter,
+  features: featuresRouter,
   account: accountRouter,
   dashboard: dashboardRouter,
   health: publicProcedure.query(() => ({

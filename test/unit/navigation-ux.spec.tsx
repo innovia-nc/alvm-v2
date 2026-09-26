@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 const state = vi.hoisted(() => ({ pathname: '/dashboard/admin', mobile: false }));
 vi.mock('next/navigation', () => ({ usePathname: () => state.pathname }));
 vi.mock('@/lib/hooks/use-media-query', () => ({ useMediaQuery: () => state.mobile }));
+import { defaultFeatures } from '@/lib/features/catalog';
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
 
 afterEach(() => {
@@ -45,4 +46,17 @@ describe('Navigation — repérage et changement de taille', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Ouvrir le menu' }));
   });
+});
+
+
+it('affiche la navigation dédiée du super admin', () => {
+  state.pathname = '/dashboard/super-admin';
+  render(<DashboardSidebar role="super-admin" />);
+  expect(screen.getByRole('link', { name: 'Fonctionnalités' }).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByRole('link', { name: 'Configuration globale' }).getAttribute('href')).toBe('/dashboard/super-admin/settings');
+});
+it('masque les rubriques désactivées', () => {
+  render(<DashboardSidebar role="admin" features={{ ...defaultFeatures, invoices: false }} />);
+  expect(screen.queryByRole('link', { name: 'Factures' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Paiements' })).toBeTruthy();
 });

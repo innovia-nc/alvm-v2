@@ -1,20 +1,4 @@
-/**
- * Service d'envoi d'emails transactionnels (TD-008).
- *
- * Fournisseur : Resend, appelé via son API REST (`fetch`) — aucun SDK à
- * embarquer dans le bundle serverless.
- *
- * Configuration en deux morceaux, volontairement séparés :
- * - la **clé d'API** vient de l'environnement (`RESEND_API_KEY`), comme tout
- *   secret du projet — elle n'a rien à faire dans `app_settings` ;
- * - l'**identité d'expédition** (nom, adresse, reply-to) vient des settings
- *   `email` administrables depuis /dashboard/admin/settings.
- *
- * Si la clé est absente, `isEmailConfigured()` retourne `false` et les
- * appelants doivent le dire explicitement à l'utilisateur : une action qui
- * échoue en silence (ou avec un code d'erreur inventé) est pire que pas
- * d'action du tout.
- */
+import { getIntegrationSecret } from '@/server/services/platform-config.service';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
@@ -62,8 +46,8 @@ interface HasAppSettingFindMany {
  * Exposé au front (`settings.isEmailConfigured`) pour que les boutons d'envoi
  * ne proposent pas une action vouée à l'échec.
  */
-export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+export async function isEmailConfigured(): Promise<boolean> {
+  return Boolean(await getIntegrationSecret('resend'));
 }
 
 /** Parse un setting JSON-stringified (cf. router settings.update). */
@@ -81,9 +65,7 @@ function parseSetting(raw: string | null | undefined): string | undefined {
  * Lit l'identité d'expédition dans les settings `email`.
  * Fallbacks alignés sur le seed (`prisma/seed.ts`).
  */
-export async function getEmailSender(
-  prisma: HasAppSettingFindMany,
-): Promise<EmailSender> {
+export async function getEmailSender(prisma: HasAppSettingFindMany): Promise<EmailSender> {
   const rows = await prisma.appSetting.findMany({
     where: { category: 'email' },
     select: { key: true, value: true },
@@ -129,11 +111,9 @@ export async function sendEmail(
   input: SendEmailInput,
   sender: EmailSender,
 ): Promise<{ id: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = await getIntegrationSecret('resend');
   if (!apiKey) {
-    throw new Error(
-      "Envoi d'email non configuré : RESEND_API_KEY absent de l'environnement.",
-    );
+    throw new Error("Envoi d'email non configuré : RESEND_API_KEY absent de l'environnement.");
   }
 
   const response = await fetch(RESEND_ENDPOINT, {
@@ -163,10 +143,8 @@ export async function sendEmail(
   if (!response.ok) {
     // Le corps d'erreur Resend est du JSON `{ name, message }`, mais on ne peut
     // pas en dépendre (proxy, 502 HTML…) : on retombe sur le texte brut.
-    const detail = await response.text().catch(() => '');
-    throw new Error(
-      `Le fournisseur d'email a refusé l'envoi (HTTP ${response.status}). ${detail}`.trim(),
-    );
+
+    throw new Error(`Le fournisseur d'email a refusé l'envoi (HTTP ${response.status}).`.trim());
   }
 
   const payload = (await response.json().catch(() => ({}))) as { id?: string };

@@ -1,5 +1,6 @@
 'use client';
 
+import { ApplicationName } from '@/components/providers/branding-provider';
 import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,8 @@ export function DashboardHeader() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  const isAdmin = session?.user?.role === 'ADMIN';
+  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN';
+  const isAdmin = isSuperAdmin || session?.user?.role === 'ADMIN';
 
   // Récupérer info utilisateur depuis session
   const user = React.useMemo(() => {
@@ -42,7 +44,7 @@ export function DashboardHeader() {
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
-    router.push('/auth/signin');
+    router.push(isSuperAdmin ? '/auth/super-admin' : '/auth/signin');
     router.refresh();
   };
 
@@ -52,7 +54,7 @@ export function DashboardHeader() {
       <header className="sticky top-0 z-30 border-b bg-background">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="min-w-0 flex-1 pl-12 text-sm font-medium text-muted-foreground md:pl-0">
-            Espace ALVM
+            Espace <ApplicationName />
           </div>
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-full bg-muted animate-pulse"></div>
@@ -66,7 +68,7 @@ export function DashboardHeader() {
     <header className="sticky top-0 z-30 border-b bg-background">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         <div className="min-w-0 flex-1 pl-12 text-sm font-medium text-muted-foreground md:pl-0">
-          Espace ALVM
+          Espace <ApplicationName />
         </div>
 
         {/* Actions header */}
@@ -77,10 +79,10 @@ export function DashboardHeader() {
             <Badge
               variant="outline"
               className="border-primary text-primary bg-primary/10"
-              aria-label="Mode administrateur"
+              aria-label={isSuperAdmin ? 'Mode super administrateur' : 'Mode administrateur'}
             >
               <ShieldCheck className="mr-1 h-3 w-3" aria-hidden="true" />
-              Admin
+              {isSuperAdmin ? 'Super admin' : 'Admin'}
             </Badge>
           )}
 
@@ -128,7 +130,15 @@ export function DashboardHeader() {
               </DropdownMenuItem>
               {isAdmin && (
                 <>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/admin/settings')}>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push(
+                        isSuperAdmin
+                          ? '/dashboard/super-admin/settings'
+                          : '/dashboard/admin/settings',
+                      )
+                    }
+                  >
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Paramètres</span>
                   </DropdownMenuItem>

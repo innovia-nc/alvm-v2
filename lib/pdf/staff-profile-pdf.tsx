@@ -18,7 +18,7 @@ type StaffProfileData = {
         userId: string;
         email: string;
         name: string | null;
-        role: 'PARENT' | 'STAFF' | 'ADMIN';
+        role: 'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN';
         emailVerified: Date | string | null;
         createdAt: Date | string;
         updatedAt: Date | string;
@@ -142,6 +142,7 @@ export const StaffProfilePDF: React.FC<{ data: StaffProfileData }> = ({ data }) 
     const formatRole = (role: string) => {
         switch (role) {
             case 'STAFF': return 'Personnel';
+            case 'SUPER_ADMIN': return 'Super administrateur';
             case 'ADMIN': return 'Administrateur';
             default: return 'Utilisateur';
         }

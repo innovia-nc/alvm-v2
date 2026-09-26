@@ -14,7 +14,9 @@ export async function deactivateAccount(tx: Tx, id: string, actorRole: UserRole)
   await lockAdministrators(tx);
   const user = await tx.user.findUnique({ where: { id } });
   if (!user) throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
-  if (actorRole !== 'ADMIN' && user.role !== 'PARENT')
+  if (user.role === 'SUPER_ADMIN')
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
+  if (!['ADMIN', 'SUPER_ADMIN'].includes(actorRole) && user.role !== 'PARENT')
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'Seul un administrateur peut désactiver ce compte',

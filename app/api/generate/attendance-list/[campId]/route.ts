@@ -1,3 +1,4 @@
+import { featureResponse } from '@/server/helpers/feature-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderToStream } from '@react-pdf/renderer';
 import React from 'react';
@@ -13,10 +14,7 @@ import { getPdfSettings } from '@/server/helpers/pdf-settings.helper';
 // La génération PDF (@react-pdf/renderer) peut dépasser le timeout serverless par défaut.
 export const maxDuration = 60;
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ campId: string }> },
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ campId: string }> }) {
   const { campId } = await params;
 
   // AuthN + AuthZ : staff / admin uniquement
@@ -24,7 +22,9 @@ export async function GET(
   if (!session?.user) {
     return new NextResponse('Non authentifié', { status: 401 });
   }
-  if (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN') {
+  const unavailable = await featureResponse(session.user.role, ['documents', 'attendances']);
+  if (unavailable) return unavailable;
+  if (!['STAFF', 'ADMIN'].includes(session.user.role ?? '')) {
     return new NextResponse('Non autorisé', { status: 403 });
   }
 
@@ -109,7 +109,10 @@ export async function GET(
     footerMention: settings.mentions.attendance || undefined,
   };
 
-  const element = React.createElement(AttendanceListPDF as React.ComponentType<{ data: AttendanceListData }>, { data });
+  const element = React.createElement(
+    AttendanceListPDF as React.ComponentType<{ data: AttendanceListData }>,
+    { data },
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stream = await renderToStream(element as any);
 

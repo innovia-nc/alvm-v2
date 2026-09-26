@@ -341,7 +341,7 @@ export const parentsRouter = router({
         if (updates.email) {
           await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(20260922, 1)::text');
           const target = await tx.user.findUnique({ where: { id } });
-          if (target?.role !== 'PARENT' && ctx.user.role !== 'ADMIN') throw new TRPCError({ code: 'FORBIDDEN', message: 'Seul un administrateur peut modifier cette adresse de connexion' });
+          if (target?.role === 'SUPER_ADMIN' || (target?.role !== 'PARENT' && !['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role))) throw new TRPCError({ code: 'FORBIDDEN', message: 'Seul un administrateur peut modifier cette adresse de connexion' });
           data.email = updates.email;
           await tx.user.update({
             where: { id },

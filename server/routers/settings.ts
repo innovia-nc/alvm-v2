@@ -5,7 +5,12 @@ import { deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
 import { parseLogoValue } from '@/server/helpers/settings';
 
 const settingCategories = z.enum([
-  'organization', 'pricing', 'email', 'accounting', 'maintenance', 'documents',
+  'organization',
+  'pricing',
+  'email',
+  'accounting',
+  'maintenance',
+  'documents',
 ]);
 
 type SettingCategory = z.infer<typeof settingCategories>;
@@ -38,13 +43,17 @@ export const settingsRouter = router({
     }),
 
   updateBulk: adminProcedure
-    .input(z.object({
-      settings: z.array(z.object({
-        category: settingCategories,
-        key: z.string().min(1),
-        value: z.unknown(),
-      })),
-    }))
+    .input(
+      z.object({
+        settings: z.array(
+          z.object({
+            category: settingCategories,
+            key: z.string().min(1),
+            value: z.unknown(),
+          }),
+        ),
+      }),
+    )
     .output(z.object({ success: z.boolean(), count: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.$transaction(
@@ -79,11 +88,9 @@ export const settingsRouter = router({
   isEmailConfigured: staffProcedure
     .output(z.object({ configured: z.boolean(), fromEmail: z.string().nullable() }))
     .query(async ({ ctx }) => {
-      const { isEmailConfigured, getEmailSender } = await import(
-        '@/server/services/email.service'
-      );
+      const { isEmailConfigured, getEmailSender } = await import('@/server/services/email.service');
 
-      const configured = isEmailConfigured();
+      const configured = await isEmailConfigured();
       if (!configured) {
         return { configured: false, fromEmail: null };
       }
@@ -126,16 +133,14 @@ export const settingsRouter = router({
       return { success: true };
     }),
 
-  getLogoUrl: staffProcedure
-    .output(z.string().url().nullable())
-    .query(async ({ ctx }) => {
-      const setting = await ctx.prisma.appSetting.findUnique({
-        where: {
-          category_key: { category: 'organization', key: 'logo_url' },
-        },
-      });
-      return parseLogoValue(setting?.value) ?? null;
-    }),
+  getLogoUrl: staffProcedure.output(z.string().url().nullable()).query(async ({ ctx }) => {
+    const setting = await ctx.prisma.appSetting.findUnique({
+      where: {
+        category_key: { category: 'organization', key: 'logo_url' },
+      },
+    });
+    return parseLogoValue(setting?.value) ?? null;
+  }),
 
   deleteLogoUrl: adminProcedure
     .output(z.object({ success: z.boolean() }))

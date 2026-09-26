@@ -1,5 +1,7 @@
 'use client';
 
+import { ApplicationName } from '@/components/providers/branding-provider';
+import { featuresForPage, type FeatureState } from '@/lib/features/catalog';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,11 +45,24 @@ interface NavSection {
 }
 
 interface DashboardSidebarProps {
-  role: 'parent' | 'staff' | 'admin';
+  role: 'parent' | 'staff' | 'admin' | 'super-admin';
+  features?: FeatureState;
 }
 
 // Configuration navigation par rôle
 const navigationConfig: Record<string, NavSection[]> = {
+  'super-admin': [
+    {
+      title: 'Super administration',
+      items: [
+        { title: 'Fonctionnalités', href: '/dashboard/super-admin', icon: Settings },
+        { title: 'Configuration globale', href: '/dashboard/super-admin/settings', icon: Settings },
+        { title: 'Intégrations et clés API', href: '/dashboard/super-admin/integrations', icon: Settings },
+        { title: 'Comptes et accès', href: '/dashboard/super-admin/accounts', icon: Users },
+        { title: 'Journal d’audit', href: '/dashboard/super-admin/audit', icon: FileText },
+      ],
+    },
+  ],
   parent: [
     {
       title: '',
@@ -105,7 +120,7 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Users,
         },
         {
-          title: 'Personnel ALVM',
+          title: 'Personnel',
           href: '/dashboard/staff/users/staff',
           icon: Users,
         },
@@ -182,7 +197,7 @@ const navigationConfig: Record<string, NavSection[]> = {
           icon: Users,
         },
         {
-          title: 'Personnel ALVM',
+          title: 'Personnel',
           href: '/dashboard/admin/users/staff',
           icon: Users,
         },
@@ -256,13 +271,23 @@ const navigationConfig: Record<string, NavSection[]> = {
   ],
 };
 
-export function DashboardSidebar({ role }: DashboardSidebarProps) {
+export function DashboardSidebar({ role, features }: DashboardSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
 
-  const navSections = navigationConfig[role] || [];
+  const navSections = (navigationConfig[role] || [])
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) =>
+          role === 'super-admin' ||
+          !features ||
+          featuresForPage(item.href).every((key) => features[key]),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
   const compact = collapsed && !isMobile;
   // Only the most specific matching destination represents the current page.
   const activeHref = navSections
@@ -276,7 +301,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!compact && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-primary">ALVM</span>
+            <span className="min-w-0 break-words text-xl font-bold text-primary"><ApplicationName /></span>
           </Link>
         )}
 
@@ -362,9 +387,15 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
           <div className="text-xs text-muted-foreground">
             <p className="font-medium">
               Espace{' '}
-              {role === 'parent' ? 'Parent' : role === 'staff' ? 'Personnel' : 'Administrateur'}
+              {role === 'super-admin'
+                ? 'Super administrateur'
+                : role === 'parent'
+                  ? 'Parent'
+                  : role === 'staff'
+                    ? 'Personnel'
+                    : 'Administrateur'}
             </p>
-            <p className="mt-1">Gestion des camps et activités</p>
+            <p className="mt-1">{role === 'super-admin' ? 'Administration de la plateforme' : 'Gestion des camps et activités'}</p>
           </div>
         </div>
       )}

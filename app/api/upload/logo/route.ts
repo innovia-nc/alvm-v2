@@ -1,3 +1,4 @@
+import { featureResponse } from '@/server/helpers/feature-response';
 /**
  * Logo de l'association — televersement et suppression du blob (TD-025).
  *
@@ -14,10 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/server/db';
-import {
-  uploadToStorage,
-  deleteFromStorageBestEffort,
-} from '@/lib/storage/blob-storage';
+import { uploadToStorage, deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
 import { parseLogoValue } from '@/server/helpers/settings';
 
 // Memes valeurs que `components/ui/image-upload.tsx` : la validation client
@@ -37,6 +35,8 @@ export async function POST(req: NextRequest) {
   if (session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
+  const unavailable = await featureResponse(session.user.role, []);
+  if (unavailable) return unavailable;
 
   let file: File | null = null;
   try {
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[upload/logo] Televersement impossible', error);
     return NextResponse.json(
-      { error: "Le téléversement a échoué. Le stockage est-il configuré ?" },
+      { error: 'Le téléversement a échoué. Le stockage est-il configuré ?' },
       { status: 500 },
     );
   }
@@ -98,6 +98,8 @@ export async function DELETE(req: NextRequest) {
   if (session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
+  const unavailable = await featureResponse(session.user.role, []);
+  if (unavailable) return unavailable;
 
   let url: unknown;
   try {

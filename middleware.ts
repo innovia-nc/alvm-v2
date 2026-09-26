@@ -13,8 +13,7 @@ export default auth((req) => {
   const isApiRoute = nextUrl.pathname.startsWith('/api');
   // Pas de branche `/public` : Next sert les fichiers de `public/` à la racine
   // du site, jamais sous `/public` — et le dépôt n'a même pas ce dossier.
-  const isPublicPage =
-    nextUrl.pathname === '/' || nextUrl.pathname.startsWith('/_next');
+  const isPublicPage = nextUrl.pathname === '/' || nextUrl.pathname.startsWith('/_next');
 
   if (isApiRoute) return NextResponse.next();
   if (isPublicPage) return NextResponse.next();
@@ -26,7 +25,10 @@ export default auth((req) => {
   if (isDashboard && !isLoggedIn) {
     const callbackUrl = encodeURIComponent(nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(
-      new URL(`/auth/signin?callbackUrl=${callbackUrl}`, nextUrl.origin),
+      new URL(
+        `${nextUrl.pathname.startsWith('/dashboard/super-admin') ? '/auth/super-admin' : '/auth/signin'}?callbackUrl=${callbackUrl}`,
+        nextUrl.origin,
+      ),
     );
   }
 
@@ -34,7 +36,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth).*)'],
 };

@@ -1,3 +1,4 @@
+vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
 
@@ -6,8 +7,7 @@ const deleteFromStorageBestEffort = vi.fn().mockResolvedValue(true);
 vi.mock('@/lib/storage/blob-storage', () => ({
   uploadToStorage: vi.fn(),
   deleteFromStorage: vi.fn(),
-  deleteFromStorageBestEffort: (...args: unknown[]) =>
-    deleteFromStorageBestEffort(...args),
+  deleteFromStorageBestEffort: (...args: unknown[]) => deleteFromStorageBestEffort(...args),
 }));
 
 import {
@@ -42,16 +42,16 @@ describe('settings router', () => {
 
   it('should deny unauthenticated access to getByCategory', async () => {
     const { caller } = createTestCaller(null);
-    await expect(
-      caller.settings.getByCategory({ category: 'organization' }),
-    ).rejects.toThrow(TRPCError);
+    await expect(caller.settings.getByCategory({ category: 'organization' })).rejects.toThrow(
+      TRPCError,
+    );
   });
 
   it('should deny PARENT access to getByCategory', async () => {
     const { caller } = createTestCaller(PARENT_USER);
-    await expect(
-      caller.settings.getByCategory({ category: 'organization' }),
-    ).rejects.toThrow(TRPCError);
+    await expect(caller.settings.getByCategory({ category: 'organization' })).rejects.toThrow(
+      TRPCError,
+    );
   });
 
   it('should return settings filtered by category', async () => {
@@ -76,9 +76,7 @@ describe('settings router', () => {
   it('should allow ADMIN to bulk update settings', async () => {
     admin.mockPrisma.$transaction.mockResolvedValue([fakeSetting]);
     const result = await admin.caller.settings.updateBulk({
-      settings: [
-        { category: 'organization', key: 'name', value: 'Test' },
-      ],
+      settings: [{ category: 'organization', key: 'name', value: 'Test' }],
     });
     expect(result.success).toBe(true);
     expect(result.count).toBe(1);
@@ -91,9 +89,11 @@ describe('settings router', () => {
   });
 
   it('should get logo URL', async () => {
-    staff.mockPrisma.appSetting.findUnique.mockResolvedValue({
-      value: '"https://example.com/logo.png"',
-    });
+    staff.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) =>
+      where.category_key.category === 'features'
+        ? null
+        : { value: '"https://example.com/logo.png"' },
+    );
     const result = await staff.caller.settings.getLogoUrl();
     expect(result).toBe('https://example.com/logo.png');
   });
@@ -148,9 +148,7 @@ describe('settings router', () => {
   // TD-006 — blobs orphelins
   describe('logo — nettoyage du blob (TD-006)', () => {
     it('should delete the blob when the logo is removed', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
-        value: '"https://store.blob.vercel-storage.com/logo.png"',
-      });
+      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: '"https://store.blob.vercel-storage.com/logo.png"' });
       admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
 
       await admin.caller.settings.deleteLogoUrl();
@@ -171,9 +169,7 @@ describe('settings router', () => {
     });
 
     it('should delete the previous blob when the logo is replaced', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
-        value: '"https://store.blob.vercel-storage.com/old-logo.png"',
-      });
+      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: '"https://store.blob.vercel-storage.com/old-logo.png"' });
       admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
 
       await admin.caller.settings.setLogoUrl({
@@ -188,9 +184,7 @@ describe('settings router', () => {
 
     it('should not delete the blob when the same URL is re-saved', async () => {
       const url = 'https://store.blob.vercel-storage.com/logo.png';
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
-        value: JSON.stringify(url),
-      });
+      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: JSON.stringify(url) });
       admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
 
       await admin.caller.settings.setLogoUrl({ url });
@@ -199,9 +193,7 @@ describe('settings router', () => {
     });
 
     it('should still succeed when the blob store fails', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({
-        value: '"https://store.blob.vercel-storage.com/logo.png"',
-      });
+      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: '"https://store.blob.vercel-storage.com/logo.png"' });
       admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
       deleteFromStorageBestEffort.mockResolvedValue(false);
 

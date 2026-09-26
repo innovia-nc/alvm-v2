@@ -1,3 +1,4 @@
+import { featureResponse } from '@/server/helpers/feature-response';
 /**
  * Documents PDF du personnel — televersement (TD-025).
  *
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  const unavailable = await featureResponse(session.user.role, ['documents', 'staff']);
+  if (unavailable) return unavailable;
 
   let file: File | null = null;
   let staffId = '';
@@ -68,7 +71,10 @@ export async function POST(req: NextRequest) {
     ['STAFF', 'ADMIN'].includes(session.user.role ?? '') &&
     (await prisma.staffMember.findFirst({ where: { userId: staffId, deletedAt: null } }));
   if (!allowed) {
-    return NextResponse.json({ error: 'Membre du personnel non trouvé ou accès refusé' }, { status: 404 });
+    return NextResponse.json(
+      { error: 'Membre du personnel non trouvé ou accès refusé' },
+      { status: 404 },
+    );
   }
 
   const filename = `${randomUUID()}.pdf`;

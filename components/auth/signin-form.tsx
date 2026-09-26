@@ -27,10 +27,15 @@ const signInSchema = z.object({
 
 type SignInFormValues = z.infer<typeof signInSchema>;
 
-export function SignInForm() {
+export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const requestedUrl = searchParams.get('callbackUrl');
+  const callbackUrl = superAdmin
+    ? '/dashboard/super-admin'
+    : requestedUrl?.startsWith('/dashboard') && !requestedUrl.startsWith('//')
+      ? requestedUrl
+      : '/dashboard';
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +57,7 @@ export function SignInForm() {
     try {
       // Utiliser NextAuth signIn
       const result = await signIn('credentials', {
+        portal: superAdmin ? 'super-admin' : 'standard',
         email: data.email,
         password: data.password,
         redirect: false, // Gérer la redirection manuellement

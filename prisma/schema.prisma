@@ -2,6 +2,30 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Platform credentials are encrypted by the application; never returned to clients.
+model PlatformIntegration {
+  id              String   @id
+  enabled         Boolean  @default(false)
+  encryptedSecret String?  @map("encrypted_secret")
+  updatedBy       String?  @map("updated_by") @db.Uuid
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("platform_integrations")
+}
+
+model PlatformAuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  target    String?
+  outcome   String   @default("SUCCESS")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([createdAt, id])
+  @@index([actorId, createdAt])
+  @@map("platform_audit_logs")
+}
+
 datasource db {
   provider  = "postgresql"
   // Runtime via le pooler pgbouncer Neon ; migrations/introspection en direct.
@@ -17,6 +41,7 @@ enum UserRole {
   PARENT
   STAFF
   ADMIN
+  SUPER_ADMIN
 
   @@map("user_role")
 }

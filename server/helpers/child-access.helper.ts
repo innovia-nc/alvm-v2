@@ -18,6 +18,7 @@ export async function hasChildAccess(
   role: string,
   childId: string,
 ): Promise<boolean> {
+  if (role === 'SUPER_ADMIN') return false;
   if (role === 'STAFF' || role === 'ADMIN') {
     const child = await prisma.child.findFirst({
       where: { id: childId, deletedAt: null },

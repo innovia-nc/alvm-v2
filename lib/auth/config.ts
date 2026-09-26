@@ -1,3 +1,4 @@
+import { recordPlatformAudit } from '@/server/services/platform-audit.service';
 import NextAuth, { DefaultSession, type NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
@@ -10,18 +11,19 @@ declare module 'next-auth' {
   interface Session {
     user: {
       id: string;
-      role?: 'PARENT' | 'STAFF' | 'ADMIN';
+      role?: 'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN';
     } & DefaultSession['user'];
   }
 
   interface User {
-    role?: 'PARENT' | 'STAFF' | 'ADMIN';
+    role?: 'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN';
     sessionVersion?: number;
   }
 }
 
 const signInSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().toLowerCase(),
+  portal: z.enum(['standard', 'super-admin']).default('standard'),
   password: z.string().min(1).max(128),
 });
 
@@ -49,6 +51,7 @@ const authConfig: NextAuthConfig = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        portal: { label: 'Portal', type: 'text' },
       },
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
@@ -58,7 +61,7 @@ const authConfig: NextAuthConfig = {
         const parsed = signInSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { email, password, portal } = parsed.data;
         if (!(await consumeLoginAttempt(email, request.headers))) return null;
 
         const user = await prisma.user.findUnique({
@@ -73,8 +76,14 @@ const authConfig: NextAuthConfig = {
 
         if (!user || user.disabledAt || user.accounts.length === 0) return null;
 
+        if ((user.role === 'SUPER_ADMIN') !== (portal === 'super-admin')) return null;
+
         const isValid = await compare(password, user.accounts[0].providerAccountId);
-        if (!isValid) return null;
+        if (!isValid) {
+          await recordPlatformAudit(prisma, null, 'auth.login_failed', user.id, 'FAILED');
+          return null;
+        }
+        await recordPlatformAudit(prisma, user.id, 'auth.login', user.role);
 
         return {
           id: user.id,
@@ -82,7 +91,7 @@ const authConfig: NextAuthConfig = {
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role as 'PARENT' | 'STAFF' | 'ADMIN',
+          role: user.role as 'PARENT' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN',
         };
       },
     }),
@@ -98,7 +107,13 @@ const authConfig: NextAuthConfig = {
       }
       if (!token.id || typeof token.sessionVersion !== 'number') return null;
       const current = await prisma.user.findUnique({ where: { id: String(token.id) } });
-      if (!current || current.disabledAt || current.sessionVersion !== token.sessionVersion || current.role !== token.role) return null;
+      if (
+        !current ||
+        current.disabledAt ||
+        current.sessionVersion !== token.sessionVersion ||
+        current.role !== token.role
+      )
+        return null;
       return token;
     },
   },

@@ -1,5 +1,6 @@
+import { FeatureBoundary } from '@/components/layout/feature-boundary';
 import { requireAuth } from '@/lib/auth';
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
+import { FeatureSidebar } from '@/components/layout/feature-sidebar';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -10,11 +11,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const userRole = session?.user?.role;
 
   const role =
-    userRole === 'ADMIN'
-      ? ('admin' as const)
-      : userRole === 'STAFF'
-        ? ('staff' as const)
-        : ('parent' as const);
+    userRole === 'SUPER_ADMIN'
+      ? ('super-admin' as const)
+      : userRole === 'ADMIN'
+        ? ('admin' as const)
+        : userRole === 'STAFF'
+          ? ('staff' as const)
+          : ('parent' as const);
 
   return (
     <div className="min-h-screen flex bg-muted/40">
@@ -25,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         Aller au contenu principal
       </a>
       {/* Sidebar responsive */}
-      <DashboardSidebar role={role} />
+      <FeatureSidebar role={role} />
 
       {/* Contenu principal */}
       <div className="min-w-0 flex-1 flex flex-col">
@@ -36,7 +39,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           tabIndex={-1}
           className="min-w-0 flex-1 p-4 outline-none md:p-6 lg:p-8"
         >
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto">
+            <FeatureBoundary role={userRole}>{children}</FeatureBoundary>
+          </div>
         </main>
       </div>
     </div>

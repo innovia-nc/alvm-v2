@@ -1,3 +1,4 @@
+import { getIntegrationSecret } from '@/server/services/platform-config.service';
 import { put, del } from '@vercel/blob';
 import type { Readable } from 'node:stream';
 
@@ -13,7 +14,9 @@ export async function uploadToStorage(
   data: UploadData,
   options: UploadOptions,
 ): Promise<{ pathname: string; url: string }> {
-  const token = options.access === 'private' ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : process.env.BLOB_READ_WRITE_TOKEN;
+  const token = await getIntegrationSecret(
+    options.access === 'private' ? 'blobPrivate' : 'blobPublic',
+  );
   if (!token) {
     throw new Error(
       'Vercel Blob non configuré. BLOB_READ_WRITE_TOKEN absent — connecter le store Blob au projet sur Vercel.',
@@ -32,13 +35,14 @@ export async function uploadToStorage(
 }
 
 export async function deleteFromStorage(url: string): Promise<void> {
-  if (!(url.includes('.private.blob.') ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : process.env.BLOB_READ_WRITE_TOKEN)) {
+  const token = await getIntegrationSecret(
+    new URL(url).hostname.includes('.private.blob.') ? 'blobPrivate' : 'blobPublic',
+  );
+  if (!token)
     throw new Error(
-      'Vercel Blob non configuré. BLOB_READ_WRITE_TOKEN absent — connecter le store Blob au projet sur Vercel.',
+      'Vercel Blob non configuré. BLOB_READ_WRITE_TOKEN absent ou intégration désactivée.',
     );
-  }
-
-  await del(url, { token: url.includes('.private.blob.') ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : process.env.BLOB_READ_WRITE_TOKEN });
+  await del(url, { token });
 }
 
 /**
@@ -68,10 +72,7 @@ export async function deleteFromStorageBestEffort(
   } catch (error) {
     // Blob orphelin : facturé et toujours accessible par URL publique.
     // Tracé pour permettre un nettoyage manuel, jamais propagé à l'appelant.
-    console.error(
-      `[blob-storage] Suppression du blob impossible (${context}) : ${url}`,
-      error,
-    );
+    console.error(`[blob-storage] Suppression du blob impossible (${context}) : ${url}`, error);
     return false;
   }
 }

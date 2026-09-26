@@ -19,6 +19,8 @@ export default async function DashboardPage() {
   const { role } = session.user;
 
   switch (role) {
+    case 'SUPER_ADMIN':
+      redirect('/dashboard/super-admin');
     case 'ADMIN':
       redirect('/dashboard/admin');
     case 'STAFF':

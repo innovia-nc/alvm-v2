@@ -158,7 +158,9 @@ describe('fec router', () => {
     });
 
     it('falls back to accounting.fec_siren when the field is left empty', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({ value: '"987654321"' });
+      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) =>
+        where.category_key.category === 'features' ? null : { value: '"987654321"' },
+      );
 
       const result = await admin.caller.fec.generateFEC({
         startDate: '2025-01-01',
@@ -174,7 +176,9 @@ describe('fec router', () => {
     });
 
     it('prefers the typed SIREN over the stored one', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue({ value: '"987654321"' });
+      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) =>
+        where.category_key.category === 'features' ? null : { value: '"987654321"' },
+      );
 
       const result = await admin.caller.fec.generateFEC({
         startDate: '2025-01-01',

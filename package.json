@@ -17,6 +17,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:create-super-admin": "tsx scripts/create-super-admin.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:payment-methods": "tsx prisma/seed-payment-methods.ts",
     "postinstall": "prisma generate",

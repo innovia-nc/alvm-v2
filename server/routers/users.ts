@@ -19,23 +19,27 @@ const userSchema = z.object({
   emailVerified: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  parentProfile: z.object({
-    id: z.string().uuid(),
-    firstName: z.string(),
-    lastName: z.string(),
-    phone: z.string(),
-    email: z.string(),
-    address: z.string().nullable(),
-    city: z.string().nullable(),
-    postalCode: z.string().nullable(),
-  }).nullable(),
-  staffProfile: z.object({
-    id: z.string().uuid(),
-    firstName: z.string(),
-    lastName: z.string(),
-    phone: z.string().nullable(),
-    email: z.string(),
-  }).nullable(),
+  parentProfile: z
+    .object({
+      id: z.string().uuid(),
+      firstName: z.string(),
+      lastName: z.string(),
+      phone: z.string(),
+      email: z.string(),
+      address: z.string().nullable(),
+      city: z.string().nullable(),
+      postalCode: z.string().nullable(),
+    })
+    .nullable(),
+  staffProfile: z
+    .object({
+      id: z.string().uuid(),
+      firstName: z.string(),
+      lastName: z.string(),
+      phone: z.string().nullable(),
+      email: z.string(),
+    })
+    .nullable(),
 });
 
 function mapUser(u: {
@@ -47,8 +51,23 @@ function mapUser(u: {
   emailVerified: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  parent?: { userId: string; firstName: string; lastName: string; phone: string; email: string; address: string; city: string; postalCode: string } | null;
-  staffMember?: { userId: string; firstName: string; lastName: string; phone: string | null; email: string } | null;
+  parent?: {
+    userId: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+    address: string;
+    city: string;
+    postalCode: string;
+  } | null;
+  staffMember?: {
+    userId: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    email: string;
+  } | null;
 }) {
   return {
     id: u.id,
@@ -86,32 +105,44 @@ function mapUser(u: {
 const includeProfiles = {
   parent: {
     select: {
-      userId: true, firstName: true, lastName: true,
-      phone: true, email: true, address: true, city: true, postalCode: true,
+      userId: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      email: true,
+      address: true,
+      city: true,
+      postalCode: true,
     },
   },
   staffMember: {
     select: {
-      userId: true, firstName: true, lastName: true, phone: true, email: true,
+      userId: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      email: true,
     },
   },
 } as const;
 
 export const usersRouter = router({
   list: staffProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      role: z.enum(['PARENT', 'STAFF', 'ADMIN']).optional(),
-      search: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        role: z.enum(['PARENT', 'STAFF', 'ADMIN']).optional(),
+        search: z.string().optional(),
+      }),
+    )
     .output(z.object({ users: z.array(userSchema), total: z.number() }))
     .query(async ({ ctx, input }) => {
       const { limit, offset, role, search } = input;
 
       const where: Prisma.UserWhereInput = {
         disabledAt: null,
-        ...(role && { role }),
+        role: role ?? { not: 'SUPER_ADMIN' },
         ...(search && {
           OR: [
             { email: { contains: search, mode: 'insensitive' as const } },
@@ -146,44 +177,65 @@ export const usersRouter = router({
         where: { id: input.id },
         include: includeProfiles,
       });
-      return user ? mapUser(user) : null;
+      return user && user.role !== 'SUPER_ADMIN' ? mapUser(user) : null;
     }),
 
   create: adminProcedure
-    .input(z.object({
-      email: z.string().email(),
-      name: z.string().min(2).max(100),
-      role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
-      password: z.string()
-        .min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
-      parentProfile: z.object({
-        firstName: z.string().min(2).max(50),
-        lastName: z.string().min(2).max(50),
-        phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/),
-        address: z.string().optional(),
-        city: z.string().optional(),
-        postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
-      }).optional(),
-      staffProfile: z.object({
-        firstName: z.string().min(2).max(50),
-        lastName: z.string().min(2).max(50),
-        phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/).optional(),
-      }).optional(),
-    }))
+    .input(
+      z.object({
+        email: z.string().email(),
+        name: z.string().min(2).max(100),
+        role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
+        password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
+        parentProfile: z
+          .object({
+            firstName: z.string().min(2).max(50),
+            lastName: z.string().min(2).max(50),
+            phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/),
+            address: z.string().optional(),
+            city: z.string().optional(),
+            postalCode: z
+              .string()
+              .regex(/^\d{5}$/, 'Code postal : 5 chiffres')
+              .optional()
+              .or(z.literal('')),
+          })
+          .optional(),
+        staffProfile: z
+          .object({
+            firstName: z.string().min(2).max(50),
+            lastName: z.string().min(2).max(50),
+            phone: z
+              .string()
+              .regex(/^\+?[0-9\s\-\(\)]+$/)
+              .optional(),
+          })
+          .optional(),
+      }),
+    )
     .output(userSchema)
     .mutation(async ({ ctx, input }) => {
       const existingUser = await ctx.prisma.user.findUnique({
         where: { email: input.email },
       });
       if (existingUser) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Un utilisateur avec cet email existe déjà' });
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Un utilisateur avec cet email existe déjà',
+        });
       }
 
       if (input.role === 'PARENT' && !input.parentProfile) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Le profil parent est requis pour les utilisateurs PARENT' });
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Le profil parent est requis pour les utilisateurs PARENT',
+        });
       }
       if (input.role === 'STAFF' && !input.staffProfile) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Le profil staff est requis pour les utilisateurs STAFF' });
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Le profil staff est requis pour les utilisateurs STAFF',
+        });
       }
 
       const hashedPassword = await hash(input.password, BCRYPT_ROUNDS);
@@ -244,28 +296,46 @@ export const usersRouter = router({
     }),
 
   update: adminProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      name: z.string().min(2).max(100).optional(),
-      email: z.string().email().optional(),
-      role: z.enum(['PARENT', 'STAFF', 'ADMIN']).optional(),
-      parentProfile: z.object({
-        firstName: z.string().min(2).max(50).optional(),
-        lastName: z.string().min(2).max(50).optional(),
-        phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/).optional(),
-        address: z.string().optional(),
-        city: z.string().optional(),
-        postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
-      }).optional(),
-      staffProfile: z.object({
-        firstName: z.string().min(2).max(50).optional(),
-        lastName: z.string().min(2).max(50).optional(),
-        phone: z.string().regex(/^\+?[0-9\s\-\(\)]+$/).optional(),
-      }).optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(2).max(100).optional(),
+        email: z.string().email().optional(),
+        role: z.enum(['PARENT', 'STAFF', 'ADMIN']).optional(),
+        parentProfile: z
+          .object({
+            firstName: z.string().min(2).max(50).optional(),
+            lastName: z.string().min(2).max(50).optional(),
+            phone: z
+              .string()
+              .regex(/^\+?[0-9\s\-\(\)]+$/)
+              .optional(),
+            address: z.string().optional(),
+            city: z.string().optional(),
+            postalCode: z
+              .string()
+              .regex(/^\d{5}$/, 'Code postal : 5 chiffres')
+              .optional()
+              .or(z.literal('')),
+          })
+          .optional(),
+        staffProfile: z
+          .object({
+            firstName: z.string().min(2).max(50).optional(),
+            lastName: z.string().min(2).max(50).optional(),
+            phone: z
+              .string()
+              .regex(/^\+?[0-9\s\-\(\)]+$/)
+              .optional(),
+          })
+          .optional(),
+      }),
+    )
     .output(userSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.user.findUnique({ where: { id: input.id } });
+      if (existing?.role === 'SUPER_ADMIN')
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
@@ -275,27 +345,49 @@ export const usersRouter = router({
           where: { email: input.email, id: { not: input.id } },
         });
         if (emailExists) {
-          throw new TRPCError({ code: 'CONFLICT', message: 'Un utilisateur avec cet email existe déjà' });
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Un utilisateur avec cet email existe déjà',
+          });
         }
       }
 
       await ctx.prisma.$transaction(async (tx) => {
         await lockAdministrators(tx);
-        const current = await tx.user.findUnique({ where: { id: input.id }, include: { parent: true, staffMember: true } });
-        if (!current || current.disabledAt) throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte inactif' });
+        const current = await tx.user.findUnique({
+          where: { id: input.id },
+          include: { parent: true, staffMember: true },
+        });
+        if (!current || current.disabledAt || current.role === 'SUPER_ADMIN')
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte inactif' });
         if (input.role && input.role !== current.role) {
-          if (current.role === 'ADMIN' && await tx.user.count({ where: { role: 'ADMIN', disabledAt: null } }) <= 1) {
-            throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Impossible de rétrograder le dernier administrateur' });
+          if (
+            current.role === 'ADMIN' &&
+            (await tx.user.count({ where: { role: 'ADMIN', disabledAt: null } })) <= 1
+          ) {
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Impossible de rétrograder le dernier administrateur',
+            });
           }
-          if ((input.role === 'PARENT' && (!current.parent || current.parent.deletedAt)) || (input.role === 'STAFF' && (!current.staffMember || current.staffMember.deletedAt))) {
-            throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Créez un profil actif adapté avant de changer le rôle' });
+          if (
+            (input.role === 'PARENT' && (!current.parent || current.parent.deletedAt)) ||
+            (input.role === 'STAFF' && (!current.staffMember || current.staffMember.deletedAt))
+          ) {
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Créez un profil actif adapté avant de changer le rôle',
+            });
           }
         }
         const userData: Prisma.UserUpdateInput = {};
         if (input.role && input.role !== current.role) userData.sessionVersion = { increment: 1 };
         if (input.email !== undefined) {
           await tx.parent.updateMany({ where: { userId: input.id }, data: { email: input.email } });
-          await tx.staffMember.updateMany({ where: { userId: input.id }, data: { email: input.email } });
+          await tx.staffMember.updateMany({
+            where: { userId: input.id },
+            data: { email: input.email },
+          });
         }
         if (input.name !== undefined) userData.name = input.name;
         if (input.email !== undefined) userData.email = input.email;
@@ -307,12 +399,16 @@ export const usersRouter = router({
 
         if (input.parentProfile) {
           const parentData: Prisma.ParentUpdateInput = {};
-          if (input.parentProfile.firstName !== undefined) parentData.firstName = input.parentProfile.firstName;
-          if (input.parentProfile.lastName !== undefined) parentData.lastName = input.parentProfile.lastName;
+          if (input.parentProfile.firstName !== undefined)
+            parentData.firstName = input.parentProfile.firstName;
+          if (input.parentProfile.lastName !== undefined)
+            parentData.lastName = input.parentProfile.lastName;
           if (input.parentProfile.phone !== undefined) parentData.phone = input.parentProfile.phone;
-          if (input.parentProfile.address !== undefined) parentData.address = input.parentProfile.address;
+          if (input.parentProfile.address !== undefined)
+            parentData.address = input.parentProfile.address;
           if (input.parentProfile.city !== undefined) parentData.city = input.parentProfile.city;
-          if (input.parentProfile.postalCode !== undefined) parentData.postalCode = input.parentProfile.postalCode;
+          if (input.parentProfile.postalCode !== undefined)
+            parentData.postalCode = input.parentProfile.postalCode;
 
           if (Object.keys(parentData).length > 0) {
             await tx.parent.updateMany({
@@ -324,9 +420,12 @@ export const usersRouter = router({
 
         if (input.staffProfile) {
           const staffData: Prisma.StaffMemberUpdateInput = {};
-          if (input.staffProfile.firstName !== undefined) staffData.firstName = input.staffProfile.firstName;
-          if (input.staffProfile.lastName !== undefined) staffData.lastName = input.staffProfile.lastName;
-          if (input.staffProfile.phone !== undefined) staffData.phone = input.staffProfile.phone || null;
+          if (input.staffProfile.firstName !== undefined)
+            staffData.firstName = input.staffProfile.firstName;
+          if (input.staffProfile.lastName !== undefined)
+            staffData.lastName = input.staffProfile.lastName;
+          if (input.staffProfile.phone !== undefined)
+            staffData.phone = input.staffProfile.phone || null;
 
           if (Object.keys(staffData).length > 0) {
             await tx.staffMember.updateMany({
@@ -350,6 +449,8 @@ export const usersRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.user.findUnique({ where: { id: input.id } });
+      if (existing?.role === 'SUPER_ADMIN')
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
@@ -415,35 +516,63 @@ export const usersRouter = router({
     }),
 
   resetPassword: staffProcedure
-    .input(z.object({
-      userId: z.string().uuid(),
-      newPassword: z.string()
-        .min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/)
-        .optional(),
-    }))
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        newPassword: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/).optional(),
+      }),
+    )
     .output(z.object({ success: z.boolean(), tempPassword: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.user.findUnique({ where: { id: input.userId } });
+      if (existing?.role === 'SUPER_ADMIN')
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
       }
 
-      if (ctx.user.role !== 'ADMIN' && existing.role !== 'PARENT') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Seul un administrateur peut réinitialiser ce compte' });
+      if (!['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role) && existing.role !== 'PARENT') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Seul un administrateur peut réinitialiser ce compte',
+        });
       }
-      if (existing.disabledAt) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Compte désactivé' });
+      if (existing.disabledAt)
+        throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Compte désactivé' });
       const tempPassword = input.newPassword || generatePassword();
       const hashedPassword = await hash(tempPassword, BCRYPT_ROUNDS);
       await ctx.prisma.$transaction(async (tx) => {
         await lockAdministrators(tx);
         const current = await tx.user.findUnique({ where: { id: input.userId } });
-        if (!current || current.disabledAt || (ctx.user.role !== 'ADMIN' && current.role !== 'PARENT')) {
+        if (
+          !current ||
+          current.disabledAt ||
+          current.role === 'SUPER_ADMIN' ||
+          (!['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role) && current.role !== 'PARENT')
+        ) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Réinitialisation non autorisée' });
         }
-        const account = await tx.account.findFirst({ where: { userId: input.userId, provider: 'credentials' } });
-        if (account) await tx.account.update({ where: { id: account.id }, data: { providerAccountId: hashedPassword } });
-        else await tx.account.create({ data: { userId: input.userId, type: 'credentials', provider: 'credentials', providerAccountId: hashedPassword } });
-        await tx.user.update({ where: { id: input.userId }, data: { sessionVersion: { increment: 1 } } });
+        const account = await tx.account.findFirst({
+          where: { userId: input.userId, provider: 'credentials' },
+        });
+        if (account)
+          await tx.account.update({
+            where: { id: account.id },
+            data: { providerAccountId: hashedPassword },
+          });
+        else
+          await tx.account.create({
+            data: {
+              userId: input.userId,
+              type: 'credentials',
+              provider: 'credentials',
+              providerAccountId: hashedPassword,
+            },
+          });
+        await tx.user.update({
+          where: { id: input.userId },
+          data: { sessionVersion: { increment: 1 } },
+        });
       });
 
       return { success: true, tempPassword };

@@ -11,6 +11,8 @@ vi.mock('@/lib/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/server/helpers/child-access.helper', () => ({ hasChildAccess: mocks.access }));
 vi.mock('@/server/db', () => ({
   prisma: {
+    platformIntegration: { findUnique: vi.fn().mockResolvedValue({ enabled: true, encryptedSecret: null }) },
+    appSetting: { findUnique: vi.fn().mockResolvedValue(null) },
     childDocument: { findFirst: mocks.document },
     staffDocument: { findFirst: mocks.document },
     invoice: { findFirst: mocks.invoice },
@@ -26,6 +28,7 @@ const request = (kind = 'child') =>
   });
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv('BLOB_PRIVATE_READ_WRITE_TOKEN', 'private-test-token');
   mocks.auth.mockResolvedValue({ user: { id, role: 'PARENT' } });
   mocks.document.mockResolvedValue({
     childId: id,
