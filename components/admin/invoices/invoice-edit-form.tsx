@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { trpc } from '@/lib/trpc/client';
+import { EmptyState } from '@/components/shared/empty-state';
+import { FormActions } from '@/components/shared/form-actions';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -16,11 +14,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Trash2, Plus, FileText } from 'lucide-react';
-import { toast } from 'sonner';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { FileText, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useFieldArray, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 const invoiceEditSchema = z.object({
   lines: z
@@ -136,7 +138,9 @@ export function InvoiceEditForm({
             <div>
               <p className="text-muted-foreground">Date d'échéance</p>
               <p className="font-medium">
-                {new Date(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                {new Date(invoice.dueDate).toLocaleDateString('fr-FR', {
+                  timeZone: 'Pacific/Noumea',
+                })}
               </p>
             </div>
             <div>
@@ -174,22 +178,15 @@ export function InvoiceEditForm({
           </CardHeader>
           <CardContent className="space-y-4">
             {fields.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="mx-auto h-12 w-12 mb-3 text-muted-foreground/50" />
-                <p>Aucune ligne — ajoutez-en au moins une</p>
-              </div>
+              <EmptyState title="Aucune ligne — ajoutez-en au moins une" icon={FileText} />
             ) : (
               fields.map((field, index) => {
                 const line = watchLines[index];
-                const lineTotal =
-                  (Number(line?.quantity) || 0) * (Number(line?.unitPrice) || 0);
+                const lineTotal = (Number(line?.quantity) || 0) * (Number(line?.unitPrice) || 0);
                 const isRegLine = !!line?.registrationId;
 
                 return (
-                  <div
-                    key={field.id}
-                    className="rounded-lg border p-4 bg-muted/30 space-y-3"
-                  >
+                  <div key={field.id} className="rounded-lg border p-4 bg-muted/30 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       {isRegLine && (
                         <Badge variant="secondary" className="text-xs">
@@ -204,6 +201,7 @@ export function InvoiceEditForm({
                         onClick={() => remove(index)}
                         className="ml-auto"
                         title="Supprimer cette ligne"
+                        aria-label="Supprimer"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -301,7 +299,7 @@ export function InvoiceEditForm({
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-4">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -314,7 +312,7 @@ export function InvoiceEditForm({
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enregistrer les modifications
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

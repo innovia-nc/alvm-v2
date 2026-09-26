@@ -1,5 +1,6 @@
 'use client';
 
+import { EmptyState } from '@/components/shared/empty-state';
 /**
  * New Camp Page
  *
@@ -7,13 +8,13 @@
  * Accessible au personnel et aux directeurs (camps.create — staffProcedure).
  */
 
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/shared/page-header';
 import { CampForm, CampFormValues } from '@/components/admin/camps/camp-form';
-import { trpc } from '@/lib/trpc/client';
-import { toast } from 'sonner';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { trpc } from '@/lib/trpc/client';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function NewCampPage() {
   const router = useRouter();
@@ -68,12 +69,7 @@ export default function NewCampPage() {
       ) : (
         <Card>
           <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                Aucun type de camp n'est disponible. Veuillez d'abord créer des types de camps
-                dans les paramètres.
-              </p>
-            </div>
+            <EmptyState title="Aucun type de camp n'est disponible. Veuillez d'abord créer des types de camps\n                dans les paramètres." />
           </CardContent>
         </Card>
       )}

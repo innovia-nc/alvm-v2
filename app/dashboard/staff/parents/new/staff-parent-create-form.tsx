@@ -1,14 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { trpc } from '@/lib/trpc/client';
+import { FormActions } from '@/components/shared/form-actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { LoadingButton } from '@/components/ui/loading-button';
-import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Form,
   FormControl,
@@ -19,10 +13,16 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, X } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ============================================================================
 // SCHEMA
@@ -97,7 +97,8 @@ export function StaffParentCreateForm() {
       router.push('/dashboard/staff/parents');
       router.refresh();
     } catch (err) {
-      const errorMessage = err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
+      const errorMessage =
+        err instanceof Error && err.message ? err.message : 'Une erreur est survenue';
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -150,9 +151,7 @@ export function StaffParentCreateForm() {
                 <FormControl>
                   <Input type="email" placeholder="jean.dupont@example.com" {...field} />
                 </FormControl>
-                <FormDescription>
-                  L'email sera utilisé pour se connecter
-                </FormDescription>
+                <FormDescription>L'email sera utilisé pour se connecter</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -210,7 +209,8 @@ export function StaffParentCreateForm() {
                   <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
                 <FormDescription>
-                  Si renseigné : minimum 8 caractères, une majuscule, une minuscule et un chiffre. Si vide, le parent devra définir son mot de passe lors de sa première connexion.
+                  Si renseigné : minimum 8 caractères, une majuscule, une minuscule et un chiffre.
+                  Si vide, le parent devra définir son mot de passe lors de sa première connexion.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -266,22 +266,18 @@ export function StaffParentCreateForm() {
           </div>
         </div>
 
-        <ButtonGroup align="right">
+        <FormActions>
           <Button type="button" variant="outline" asChild>
             <Link href="/dashboard/staff/parents">
               <X className="mr-2 h-4 w-4" />
               Annuler
             </Link>
           </Button>
-
-          <LoadingButton
-            type="submit"
-            loading={createMutation.isPending}
-          >
+          <LoadingButton type="submit" loading={createMutation.isPending}>
             <Save className="mr-2 h-4 w-4" />
             Créer le parent
           </LoadingButton>
-        </ButtonGroup>
+        </FormActions>
       </form>
     </Form>
   );

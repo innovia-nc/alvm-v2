@@ -1,11 +1,7 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import { adminCreditNoteColumns, type AdminCreditNoteType, AdminCreditNoteActions } from './columns';
+import { FilterBar } from '@/components/shared/filter-bar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -24,9 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  AdminCreditNoteActions,
+  adminCreditNoteColumns,
+  type AdminCreditNoteType,
+} from './columns';
 
 export function AdminCreditNotesTableClient() {
   const router = useRouter();
@@ -43,7 +49,12 @@ export function AdminCreditNotesTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, filtre statut et recherche server-side
-  const { data, isLoading, error: listError, refetch: retryList } = trpc.creditNotes.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.creditNotes.list.useQuery({
     sortBy: pagination.sortBy as 'creditNoteNumber' | 'issueDate' | 'totalAmount' | undefined,
     sortOrder: pagination.sortOrder,
     limit: pagination.limit,
@@ -165,25 +176,33 @@ export function AdminCreditNotesTableClient() {
       )}
 
       {/* Filtre par statut */}
-      <div className="flex gap-2">
-        <Select value={statusFilter} onValueChange={(val) => {
-          setStatusFilter(val);
-          pagination.resetToFirstPage();
-        }}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filtrer par statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            <SelectItem value="DRAFT">Brouillons</SelectItem>
-            <SelectItem value="SENT">Émis</SelectItem>
-            <SelectItem value="CANCELLED">Annulés</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterBar>
+        <div className="grid w-full gap-2 sm:w-56">
+          <Label htmlFor="list-status-filter">Statut</Label>
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => {
+              setStatusFilter(val);
+              pagination.resetToFirstPage();
+            }}
+          >
+            <SelectTrigger className="w-full" id="list-status-filter">
+              <SelectValue placeholder="Filtrer par statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="DRAFT">Brouillons</SelectItem>
+              <SelectItem value="SENT">Émis</SelectItem>
+              <SelectItem value="CANCELLED">Annulés</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </FilterBar>
 
       <DataTableServer
-        error={listError} onRetry={retryList} sortableColumns={['creditNoteNumber', 'issueDate', 'totalAmount']}
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['creditNoteNumber', 'issueDate', 'totalAmount']}
         columns={columnsWithActions}
         data={creditNotes}
         totalCount={data?.total || 0}
@@ -191,14 +210,12 @@ export function AdminCreditNotesTableClient() {
         pagination={pagination}
         searchKey="creditNoteNumber"
         searchPlaceholder="Rechercher par numéro, parent ou email..."
+        search={searchTerm}
         onSearchChange={handleSearchChange}
       />
 
       {/* Dialog de confirmation de suppression */}
-      <AlertDialog
-        open={!!deletingItem}
-        onOpenChange={(open) => !open && setDeletingItem(null)}
-      >
+      <AlertDialog open={!!deletingItem} onOpenChange={(open) => !open && setDeletingItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
@@ -213,17 +230,13 @@ export function AdminCreditNotesTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -249,16 +262,12 @@ export function AdminCreditNotesTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={updateStatusMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={updateStatusMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleUpdateStatus}
               disabled={updateStatusMutation.isPending}
             >
-              {updateStatusMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {updateStatusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmer
             </AlertDialogAction>
           </AlertDialogFooter>

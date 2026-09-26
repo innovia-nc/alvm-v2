@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, Users, CheckCircle, Download } from 'lucide-react';
+import { trpc } from '@/lib/trpc/client';
+import { CheckCircle, ChevronLeft, ChevronRight, Download, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AttendanceGrid } from './attendance-grid';
 
@@ -22,7 +22,9 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
   const { data: camp, isLoading: isLoadingCamp } = trpc.camps.getById.useQuery({ id: campId });
 
   // Fetch attendance grid
-  const { data: grid, isLoading: isLoadingGrid } = trpc.attendances.getGridForCamp.useQuery({ campId });
+  const { data: grid, isLoading: isLoadingGrid } = trpc.attendances.getGridForCamp.useQuery({
+    campId,
+  });
 
   // Mark single attendance
   const markMutation = trpc.attendances.markAttendance.useMutation({
@@ -58,7 +60,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
   // Format date for display
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('fr-FR', {
-    timeZone: 'Pacific/Noumea',
+      timeZone: 'Pacific/Noumea',
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -94,13 +96,13 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
 
   // Count present children
   const presentCount = childrenForDate.filter(
-    (c) => c.status === 'PRESENT' || c.status === 'LATE'
+    (c) => c.status === 'PRESENT' || c.status === 'LATE',
   ).length;
 
   // Handle mark single attendance
   const handleMarkAttendance = (
     registrationId: string,
-    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'
+    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED',
   ) => {
     if (!selectedDate) return;
     markMutation.mutate({
@@ -147,9 +149,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground">
-            Aucune date configurée pour ce camp
-          </p>
+          <p className="text-center text-muted-foreground">Aucune date configurée pour ce camp</p>
         </CardContent>
       </Card>
     );
@@ -174,6 +174,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
             size="icon"
             onClick={() => setSelectedDateIndex(Math.max(0, currentDateIndex - 1))}
             disabled={currentDateIndex === 0}
+            aria-label="Précédent"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -192,6 +193,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
             size="icon"
             onClick={() => setSelectedDateIndex(Math.min(dates.length - 1, currentDateIndex + 1))}
             disabled={currentDateIndex === dates.length - 1}
+            aria-label="Suivant"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -234,9 +236,7 @@ export function AttendancePageClient({ campId, showHeader = true }: AttendancePa
       {childrenForDate.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              Aucun enfant inscrit à ce camp
-            </p>
+            <p className="text-center text-muted-foreground">Aucun enfant inscrit à ce camp</p>
           </CardContent>
         </Card>
       ) : (

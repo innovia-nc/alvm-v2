@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    --primary: 203 89% 53%;
+    --primary: 203 89% 36%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 142 71% 45%;
+    --secondary: 142 71% 29%;
     --secondary-foreground: 0 0% 100%;
-    --accent: 27 96% 61%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --accent: 203 60% 94%;
+    --accent-foreground: 203 89% 26%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
@@ -20,7 +20,7 @@
     --muted-foreground: 215 16% 47%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 203 89% 53%;
+    --ring: 203 89% 36%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
     --radius: 0.5rem;
@@ -31,10 +31,10 @@
     --primary-foreground: 222 47% 11%;
     --secondary: 142 71% 55%;
     --secondary-foreground: 222 47% 11%;
-    --accent: 27 96% 71%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 217 33% 22%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 70%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 222 47% 11%;
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 222 47% 11%;
@@ -55,7 +55,9 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
   }
 }
 
@@ -172,5 +174,21 @@
   .status-badge-future-credit {
     @apply bg-purple-200 text-purple-900 border-purple-300
       dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
+  }
+}
+
+@layer base {
+  a:focus-visible {
+    @apply rounded-sm outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

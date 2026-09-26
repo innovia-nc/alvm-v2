@@ -1,5 +1,6 @@
 'use client';
 
+import { FormActions } from '@/components/shared/form-actions';
 /**
  * Formulaire de création d'un membre du personnel.
  *
@@ -20,12 +21,18 @@
  * le champ arrive vide.
  */
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
 import { PageHeader } from '@/components/shared/page-header';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -38,27 +45,16 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { trpc } from '@/lib/trpc/client';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { generatePassword } from '@/lib/password';
 import { PASSWORD_MIN_LENGTH } from '@/lib/password-policy';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Copy, KeyRound, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 
 const staffSchema = z.object({
   firstName: z.string().min(2, 'Minimum 2 caractères').max(50),
@@ -125,7 +121,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
       // Presse-papier indisponible (contexte non sécurisé) : le mot de passe
       // reste affiché en clair et sélectionnable à la main.
       setError(
-        'Copie automatique indisponible. Sélectionnez le mot de passe pour le copier manuellement.'
+        'Copie automatique indisponible. Sélectionnez le mot de passe pour le copier manuellement.',
       );
     }
   }
@@ -184,7 +180,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="firstName"
@@ -285,23 +281,17 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                     </Button>
 
                     <FormDescription>
-                      {PASSWORD_MIN_LENGTH} caractères minimum pour un mot de passe
-                      généré (majuscules, minuscules, chiffres et caractère spécial,
-                      sans caractère ambigu). Saisie manuelle : 8 caractères minimum
-                      avec majuscule, minuscule et chiffre.
+                      {PASSWORD_MIN_LENGTH} caractères minimum pour un mot de passe généré
+                      (majuscules, minuscules, chiffres et caractère spécial, sans caractère
+                      ambigu). Saisie manuelle : 8 caractères minimum avec majuscule, minuscule et
+                      chiffre.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="flex gap-4">
-                <Button type="submit" disabled={createStaffMutation.isPending}>
-                  {createStaffMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Créer le compte
-                </Button>
+              <FormActions>
                 <Button
                   type="button"
                   variant="outline"
@@ -310,7 +300,13 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                 >
                   Annuler
                 </Button>
-              </div>
+                <Button type="submit" disabled={createStaffMutation.isPending}>
+                  {createStaffMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Créer le compte
+                </Button>
+              </FormActions>
             </form>
           </Form>
         </CardContent>
@@ -328,10 +324,9 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Avez-vous noté le mot de passe ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ce mot de passe ne sera plus affiché après la création du compte.
-              Merci de le copier ou de le noter avant de continuer. Aucune
-              récupération ultérieure n&apos;est possible : il faudrait alors
-              réinitialiser le mot de passe du membre.
+              Ce mot de passe ne sera plus affiché après la création du compte. Merci de le copier
+              ou de le noter avant de continuer. Aucune récupération ultérieure n&apos;est possible
+              : il faudrait alors réinitialiser le mot de passe du membre.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -368,9 +363,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
               }}
               disabled={createStaffMutation.isPending}
             >
-              {createStaffMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {createStaffMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               J&apos;ai noté le mot de passe, créer le compte
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -31,6 +31,8 @@ type UserRow = {
   name: string | null;
   role: 'PARENT' | 'STAFF' | 'ADMIN';
   createdAt: Date;
+  parentProfile?: { firstName: string; lastName: string } | null;
+  staffProfile?: { firstName: string; lastName: string } | null;
 };
 
 // ============================================================================
@@ -113,10 +115,11 @@ export const getUsersColumns = (options?: GetColumnsOptions): ColumnDef<UserRow>
     accessorKey: 'name',
     header: 'Nom',
     cell: ({ row }) => {
-      const name = row.getValue('name') as string | null;
-      return (
-        <div className="font-medium">{name || 'Non renseigné'}</div>
-      );
+      const profile = row.original.parentProfile ?? row.original.staffProfile;
+      const name =
+        row.original.name?.trim() ||
+        (profile ? `${profile.firstName} ${profile.lastName}`.trim() : '');
+      return <div className="font-medium">{name || 'Non renseigné'}</div>;
     },
   },
   {
@@ -136,7 +139,7 @@ export const getUsersColumns = (options?: GetColumnsOptions): ColumnDef<UserRow>
       const roleConfig = {
         PARENT: { label: 'Parent', variant: 'default' as const },
         STAFF: { label: 'Personnel', variant: 'secondary' as const },
-        ADMIN: { label: 'Admin', variant: 'destructive' as const },
+        ADMIN: { label: 'Administrateur', variant: 'outline' as const },
       };
 
       const config = roleConfig[role];
@@ -152,7 +155,7 @@ export const getUsersColumns = (options?: GetColumnsOptions): ColumnDef<UserRow>
       return (
         <div className="text-sm text-muted-foreground">
           {new Date(date).toLocaleDateString('fr-FR', {
-    timeZone: 'Pacific/Noumea',
+            timeZone: 'Pacific/Noumea',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',

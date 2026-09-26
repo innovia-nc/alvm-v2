@@ -1,27 +1,27 @@
-import { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { BackButton } from '@/components/shared/back-button';
+import { PageHeader } from '@/components/shared/page-header';
+import { StatusBadge } from '@/components/shared/status-badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { auth } from '@/lib/auth/config';
 import { createServerTRPC } from '@/lib/trpc';
-import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/utils';
 import {
-  Download,
-  Calendar,
-  User,
-  MapPin,
-  DollarSign,
-  CreditCard,
-  ArrowLeft,
   AlertCircle,
+  Calendar,
   CheckCircle2,
   Clock,
+  CreditCard,
+  Download,
+  MapPin,
+  User,
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
 
 // ============================================================================
 // METADATA
@@ -52,49 +52,11 @@ export async function generateMetadata({
 // HELPER FUNCTIONS
 // ============================================================================
 
-const getStatusVariant = (status: string) => {
-  switch (status) {
-    case 'PAID':
-      return 'default' as const;
-    case 'SENT':
-      return 'secondary' as const;
-    case 'OVERDUE':
-      return 'destructive' as const;
-    case 'CANCELLED':
-      return 'outline' as const;
-    case 'DRAFT':
-      return 'outline' as const;
-    default:
-      return 'secondary' as const;
-  }
-};
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'PAID':
-      return 'Payée';
-    case 'SENT':
-      return 'Envoyée';
-    case 'OVERDUE':
-      return 'En retard';
-    case 'CANCELLED':
-      return 'Annulée';
-    case 'DRAFT':
-      return 'Brouillon';
-    default:
-      return status;
-  }
-};
-
 // ============================================================================
 // PAGE COMPONENT
 // ============================================================================
 
-export default async function InvoiceDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
 
@@ -113,9 +75,10 @@ export default async function InvoiceDetailPage({
   const isPaid = invoice.status === 'PAID';
   const isOverdue = invoice.status === 'OVERDUE';
   const canPay = invoice.status === 'SENT' || invoice.status === 'OVERDUE';
-  const lastPayment = invoice.payments && invoice.payments.length > 0
-    ? invoice.payments[invoice.payments.length - 1]
-    : null;
+  const lastPayment =
+    invoice.payments && invoice.payments.length > 0
+      ? invoice.payments[invoice.payments.length - 1]
+      : null;
 
   return (
     <div className="space-y-6">
@@ -123,22 +86,13 @@ export default async function InvoiceDetailPage({
       <PageHeader
         title={`Facture ${invoice.invoiceNumber}`}
         description={`Émise le ${formatDate(invoice.issueDate)}`}
-        actions={
-          <Link href="/dashboard/parent/invoices">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour
-            </Button>
-          </Link>
-        }
+        actions={<BackButton href="/dashboard/parent/invoices" label="Retour" />}
       />
 
       {/* Status and alerts */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Badge variant={getStatusVariant(invoice.status)} className="text-base px-3 py-1">
-            {getStatusLabel(invoice.status)}
-          </Badge>
+          <StatusBadge type="invoice" status={invoice.status} />
         </div>
 
         {isPaid && (
@@ -146,9 +100,7 @@ export default async function InvoiceDetailPage({
             <CheckCircle2 className="h-4 w-4" />
             <AlertDescription>
               Cette facture a été payée intégralement
-              {lastPayment && (
-                <> le {formatDate(lastPayment.paymentDate)}</>
-              )}
+              {lastPayment && <> le {formatDate(lastPayment.paymentDate)}</>}
             </AlertDescription>
           </Alert>
         )}
@@ -176,9 +128,7 @@ export default async function InvoiceDetailPage({
             </CardHeader>
             <CardContent>
               {!invoice.lines || invoice.lines.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Aucune ligne de facturation
-                </p>
+                <p className="text-sm text-muted-foreground">Aucune ligne de facturation</p>
               ) : (
                 <div className="space-y-4">
                   {/* Table header */}
@@ -206,16 +156,24 @@ export default async function InvoiceDetailPage({
                           )}
                         </div>
                         <div className="md:col-span-2 md:text-right">
-                          <span className="text-sm md:hidden text-muted-foreground">Quantité : </span>
+                          <span className="text-sm md:hidden text-muted-foreground">
+                            Quantité :{' '}
+                          </span>
                           <span className="text-sm">{line.quantity}</span>
                         </div>
                         <div className="md:col-span-2 md:text-right">
-                          <span className="text-sm md:hidden text-muted-foreground">Prix unitaire : </span>
-                          <span className="text-sm">{line.unitPrice.toLocaleString('fr-FR')} XPF</span>
+                          <span className="text-sm md:hidden text-muted-foreground">
+                            Prix unitaire :{' '}
+                          </span>
+                          <span className="text-sm">
+                            {line.unitPrice.toLocaleString('fr-FR')} XPF
+                          </span>
                         </div>
                         <div className="md:col-span-2 md:text-right">
                           <span className="text-sm md:hidden text-muted-foreground">Total : </span>
-                          <span className="font-medium">{line.totalPrice.toLocaleString('fr-FR')} XPF</span>
+                          <span className="font-medium">
+                            {line.totalPrice.toLocaleString('fr-FR')} XPF
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -241,7 +199,8 @@ export default async function InvoiceDetailPage({
               <CardHeader>
                 <CardTitle>Historique des paiements</CardTitle>
                 <CardDescription>
-                  {invoice.payments.length} paiement{invoice.payments.length > 1 ? 's' : ''} enregistré{invoice.payments.length > 1 ? 's' : ''}
+                  {invoice.payments.length} paiement{invoice.payments.length > 1 ? 's' : ''}{' '}
+                  enregistré{invoice.payments.length > 1 ? 's' : ''}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -322,7 +281,9 @@ export default async function InvoiceDetailPage({
               <Separator />
               <div className="flex justify-between">
                 <span className="font-semibold">Reste à payer</span>
-                <span className={`text-xl font-bold ${invoice.remainingAmount > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                <span
+                  className={`text-xl font-bold ${invoice.remainingAmount > 0 ? 'text-destructive' : 'text-green-600'}`}
+                >
                   {invoice.remainingAmount.toLocaleString('fr-FR')} XPF
                 </span>
               </div>
@@ -346,7 +307,9 @@ export default async function InvoiceDetailPage({
                 <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div className="flex-1 text-sm">
                   <p className="font-medium">Date d'échéance</p>
-                  <p className={`${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                  <p
+                    className={`${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
+                  >
                     {formatDate(invoice.dueDate)}
                   </p>
                 </div>
@@ -355,22 +318,25 @@ export default async function InvoiceDetailPage({
           </Card>
 
           {/* Actions */}
-          <Card>
+          <Card id="reglement" className="scroll-mt-24">
             <CardHeader>
-              <CardTitle className="text-base">Actions</CardTitle>
+              <CardTitle>Règlement et document</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {invoice.pdfUrl && (
-                <Button variant="outline" className="w-full" asChild>
-                  <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
-                    <Download className="mr-2 h-4 w-4" />
-                    Télécharger PDF
-                  </a>
-                </Button>
-              )}
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href={`/api/documents/invoice/${invoice.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Télécharger PDF
+                </a>
+              </Button>
               {canPay && invoice.remainingAmount > 0 && (
                 <p className="text-sm text-muted-foreground">
-                  Pour régler cette facture, contactez le secrétariat ALVM afin de convenir du moyen de paiement. Indiquez la référence {invoice.invoiceNumber}.
+                  Pour régler cette facture, contactez le secrétariat ALVM afin de convenir du moyen
+                  de paiement. Indiquez la référence {invoice.invoiceNumber}.
                 </p>
               )}
             </CardContent>

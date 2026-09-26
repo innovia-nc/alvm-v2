@@ -1,15 +1,11 @@
 'use client';
+
+import { FormActions } from '@/components/shared/form-actions';
+import { LoadingState } from '@/components/shared/loading-state';
 import { usePagedOptions } from '@/hooks/use-paged-options';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import type { inferRouterOutputs } from '@trpc/server';
-import type { AppRouter } from '@/server/trpc/router';
-import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -19,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -26,12 +23,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import type { AppRouter } from '@/server/trpc/router';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { inferRouterOutputs } from '@trpc/server';
+import { Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 const refundFormSchema = z.object({
   paymentId: z.string().uuid('Sélectionnez un paiement'),
@@ -45,8 +48,7 @@ const refundFormSchema = z.object({
 
 type RefundFormValues = z.infer<typeof refundFormSchema>;
 
-type PaymentListItem =
-  inferRouterOutputs<AppRouter>['payments']['list']['payments'][number];
+type PaymentListItem = inferRouterOutputs<AppRouter>['payments']['list']['payments'][number];
 
 export function RefundForm() {
   const router = useRouter();
@@ -58,8 +60,13 @@ export function RefundForm() {
   const paymentIdParam = searchParams.get('paymentId');
 
   // Récupérer les paiements (on peut rembourser n'importe quel paiement)
-  const optionsPage0 = usePagedOptions("un paiement");
-  const { data: paymentsData, isLoading: isLoadingPayments , error: optionsError0, refetch: optionsRetry0} = trpc.payments.list.useQuery({
+  const optionsPage0 = usePagedOptions('un paiement');
+  const {
+    data: paymentsData,
+    isLoading: isLoadingPayments,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.payments.list.useQuery({
     ...optionsPage0.params,
   });
 
@@ -70,7 +77,7 @@ export function RefundForm() {
       router.refresh();
     },
     onError: (error) => {
-      toast.error(error.message || 'Erreur lors de l\'enregistrement du remboursement');
+      toast.error(error.message || "Erreur lors de l'enregistrement du remboursement");
       setIsSubmitting(false);
     },
   });
@@ -107,17 +114,20 @@ export function RefundForm() {
   };
 
   if (isLoadingPayments) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-3">{optionsPage0.controls(paymentsData?.total ?? 0, isLoadingPayments, optionsError0, optionsRetry0)}</div>
+        <div className="space-y-3">
+          {optionsPage0.controls(
+            paymentsData?.total ?? 0,
+            isLoadingPayments,
+            optionsError0,
+            optionsRetry0,
+          )}
+        </div>
 
         {/* Informations du remboursement */}
         <Card>
@@ -142,8 +152,12 @@ export function RefundForm() {
                       {paymentsData?.payments.map((payment) => (
                         <SelectItem key={payment.id} value={payment.id}>
                           {payment.invoice.invoiceNumber} - {payment.invoice.parent.firstName}{' '}
-                          {payment.invoice.parent.lastName} ({payment.amount.toLocaleString('fr-FR')} XPF -{' '}
-                          {new Date(payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })})
+                          {payment.invoice.parent.lastName} (
+                          {payment.amount.toLocaleString('fr-FR')} XPF -{' '}
+                          {new Date(payment.paymentDate).toLocaleDateString('fr-FR', {
+                            timeZone: 'Pacific/Noumea',
+                          })}
+                          )
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -164,12 +178,16 @@ export function RefundForm() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Montant payé: </span>
-                    <span className="font-medium">{selectedPayment.amount.toLocaleString('fr-FR')} XPF</span>
+                    <span className="font-medium">
+                      {selectedPayment.amount.toLocaleString('fr-FR')} XPF
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Date de paiement: </span>
                     <span className="font-medium">
-                      {new Date(selectedPayment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                      {new Date(selectedPayment.paymentDate).toLocaleDateString('fr-FR', {
+                        timeZone: 'Pacific/Noumea',
+                      })}
                     </span>
                   </div>
                   <div>
@@ -293,7 +311,7 @@ export function RefundForm() {
         </Card>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -306,7 +324,7 @@ export function RefundForm() {
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enregistrer le remboursement
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

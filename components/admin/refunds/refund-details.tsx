@@ -1,13 +1,8 @@
 'use client';
+
 import { formatNumber } from '@/lib/format';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, FileText, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { StatusBadge } from '@/components/shared/status-badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,9 +14,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { trpc } from '@/lib/trpc/client';
+import { FileText, Loader2, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 type Refund = {
   id: string;
@@ -83,7 +84,7 @@ export function RefundDetails({ refund }: { refund: Refund }) {
           <CardTitle>Informations du remboursement</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Montant remboursé</p>
               <p className="text-2xl font-bold">{formatNumber(refund.amount)} XPF</p>
@@ -91,7 +92,9 @@ export function RefundDetails({ refund }: { refund: Refund }) {
             <div>
               <p className="text-sm text-muted-foreground">Date de remboursement</p>
               <p className="font-medium">
-                {new Date(refund.refundDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                {new Date(refund.refundDate).toLocaleDateString('fr-FR', {
+                  timeZone: 'Pacific/Noumea',
+                })}
               </p>
             </div>
             <div>
@@ -119,7 +122,7 @@ export function RefundDetails({ refund }: { refund: Refund }) {
           )}
 
           <div className="pt-4 border-t">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
               <div>
                 <p className="text-muted-foreground">Créé le</p>
                 <p>{new Date(refund.createdAt).toLocaleString('fr-FR')}</p>
@@ -148,7 +151,9 @@ export function RefundDetails({ refund }: { refund: Refund }) {
               <div>
                 <p className="text-sm text-muted-foreground">Date de paiement</p>
                 <p className="font-medium">
-                  {new Date(refund.payment.paymentDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                  {new Date(refund.payment.paymentDate).toLocaleDateString('fr-FR', {
+                    timeZone: 'Pacific/Noumea',
+                  })}
                 </p>
               </div>
               <div>
@@ -199,7 +204,7 @@ export function RefundDetails({ refund }: { refund: Refund }) {
       </Card>
 
       {/* Actions */}
-      <div className="flex justify-end gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={() => router.back()}>
           Retour
         </Button>
@@ -223,7 +228,10 @@ export function RefundDetails({ refund }: { refund: Refund }) {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 Supprimer
               </AlertDialogAction>
             </AlertDialogFooter>

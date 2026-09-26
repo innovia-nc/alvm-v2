@@ -1,17 +1,9 @@
 'use client';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from 'sonner';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
+import { FilterBar } from '@/components/shared/filter-bar';
+import { Button } from '@/components/ui/button';
 import { DataTableServer } from '@/components/ui/data-table-server';
-import {
-  staffRegistrationColumns,
-  type StaffRegistrationType,
-  StaffRegistrationActions,
-} from './columns';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -19,19 +11,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { X } from 'lucide-react';
-import { RegistrationStatusDialog } from './registration-status-dialog';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { CancelRegistrationDialog } from './cancel-registration-dialog';
+import {
+  StaffRegistrationActions,
+  staffRegistrationColumns,
+  type StaffRegistrationType,
+} from './columns';
+import { RegistrationStatusDialog } from './registration-status-dialog';
 
 type StatusFilter = 'all' | 'PENDING' | 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
 export function RegistrationsTableClient() {
   const router = useRouter();
-  const initialStatus = useSearchParams().get("status");
+  const initialStatus = useSearchParams().get('status');
   const utils = trpc.useUtils();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(['PENDING', 'CONFIRMED', 'WAITLIST', 'CANCELLED'].includes(initialStatus ?? '') ? initialStatus as StatusFilter : 'all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    ['PENDING', 'CONFIRMED', 'WAITLIST', 'CANCELLED'].includes(initialStatus ?? '')
+      ? (initialStatus as StatusFilter)
+      : 'all',
+  );
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const createInvoiceMutation = trpc.invoices.createFromRegistration.useMutation({
@@ -66,7 +71,12 @@ export function RegistrationsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Query tRPC avec pagination, filtre statut et recherche server-side
-  const { data, isLoading, error: listError, refetch: retryList } = trpc.registrations.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.registrations.list.useQuery({
     sortBy: pagination.sortBy as 'registrationDate' | 'childName' | 'status' | undefined,
     sortOrder: pagination.sortOrder,
     limit: pagination.limit,
@@ -139,8 +149,8 @@ export function RegistrationsTableClient() {
   return (
     <div className="space-y-4">
       {/* Filtres */}
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[200px]">
+      <FilterBar>
+        <div className="w-full sm:w-56">
           <Label htmlFor="status-filter" className="mb-2 block">
             Filtrer par statut
           </Label>
@@ -169,11 +179,13 @@ export function RegistrationsTableClient() {
             </Button>
           </div>
         )}
-      </div>
+      </FilterBar>
 
       {/* Table avec pagination */}
       <DataTableServer
-        error={listError} onRetry={retryList} sortableColumns={['registrationDate', 'childName', 'status']}
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['registrationDate', 'childName', 'status']}
         columns={columnsWithActions}
         data={data?.registrations || []}
         totalCount={data?.total || 0}
@@ -181,6 +193,7 @@ export function RegistrationsTableClient() {
         pagination={pagination}
         searchKey="child.firstName"
         searchPlaceholder="Rechercher par nom d'enfant, parent ou camp..."
+        search={searchTerm}
         onSearchChange={handleSearchChange}
       />
 

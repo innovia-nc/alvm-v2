@@ -1,15 +1,12 @@
 'use client';
+
+import { FormActions } from '@/components/shared/form-actions';
+import { LoadingState } from '@/components/shared/loading-state';
 import { usePagedOptions } from '@/hooks/use-paged-options';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import type { inferRouterOutputs } from '@trpc/server';
-import type { AppRouter } from '@/server/trpc/router';
-import { trpc } from '@/lib/trpc/client';
+import { PaymentMethodSelect } from '@/components/shared/payment-method-select';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -19,6 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -26,13 +24,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { PaymentMethodSelect } from '@/components/shared/payment-method-select';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import type { AppRouter } from '@/server/trpc/router';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { inferRouterOutputs } from '@trpc/server';
+import { Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 const paymentFormSchema = z.object({
   invoiceId: z.string().uuid('Sélectionnez une facture'),
@@ -45,8 +48,7 @@ const paymentFormSchema = z.object({
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
-type InvoiceListItem =
-  inferRouterOutputs<AppRouter>['invoices']['list']['invoices'][number];
+type InvoiceListItem = inferRouterOutputs<AppRouter>['invoices']['list']['invoices'][number];
 
 export function PaymentForm() {
   const router = useRouter();
@@ -58,10 +60,15 @@ export function PaymentForm() {
   const invoiceIdParam = searchParams.get('invoiceId');
 
   // Récupérer les factures non payées
-  const optionsPage0 = usePagedOptions("une facture");
-  const { data: invoicesData, isLoading: isLoadingInvoices , error: optionsError0, refetch: optionsRetry0} = trpc.invoices.list.useQuery({
+  const optionsPage0 = usePagedOptions('une facture');
+  const {
+    data: invoicesData,
+    isLoading: isLoadingInvoices,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.invoices.list.useQuery({
     ...optionsPage0.params,
-    statuses: ["SENT", "OVERDUE"],
+    statuses: ['SENT', 'OVERDUE'],
     status: undefined, // Toutes les factures
   });
 
@@ -72,7 +79,7 @@ export function PaymentForm() {
       router.refresh();
     },
     onError: (error) => {
-      toast.error(error.message || 'Erreur lors de l\'enregistrement du paiement');
+      toast.error(error.message || "Erreur lors de l'enregistrement du paiement");
       setIsSubmitting(false);
     },
   });
@@ -108,25 +115,27 @@ export function PaymentForm() {
   };
 
   if (isLoadingInvoices) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   // Seules les factures émises ou en retard avec un reste à payer peuvent recevoir un paiement
   // (exclut DRAFT/devis, PAID, CANCELLED, CREDITED)
-  const unpaidInvoices = invoicesData?.invoices.filter(
-    (inv) =>
-      (inv.status === 'SENT' || inv.status === 'OVERDUE') &&
-      inv.remainingAmount > 0,
-  ) || [];
+  const unpaidInvoices =
+    invoicesData?.invoices.filter(
+      (inv) => (inv.status === 'SENT' || inv.status === 'OVERDUE') && inv.remainingAmount > 0,
+    ) || [];
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-3">{optionsPage0.controls(invoicesData?.total ?? 0, isLoadingInvoices, optionsError0, optionsRetry0)}</div>
+        <div className="space-y-3">
+          {optionsPage0.controls(
+            invoicesData?.total ?? 0,
+            isLoadingInvoices,
+            optionsError0,
+            optionsRetry0,
+          )}
+        </div>
 
         {/* Informations du paiement */}
         <Card>
@@ -150,7 +159,8 @@ export function PaymentForm() {
                     <SelectContent>
                       {unpaidInvoices.map((invoice) => (
                         <SelectItem key={invoice.id} value={invoice.id}>
-                          {invoice.invoiceNumber} - {invoice.parent.firstName} {invoice.parent.lastName}
+                          {invoice.invoiceNumber} - {invoice.parent.firstName}{' '}
+                          {invoice.parent.lastName}
                           (Reste: {invoice.remainingAmount.toLocaleString('fr-FR')} XPF)
                         </SelectItem>
                       ))}
@@ -168,15 +178,21 @@ export function PaymentForm() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">Total: </span>
-                    <span className="font-medium">{selectedInvoice.totalAmount.toLocaleString('fr-FR')} XPF</span>
+                    <span className="font-medium">
+                      {selectedInvoice.totalAmount.toLocaleString('fr-FR')} XPF
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Payé: </span>
-                    <span className="font-medium">{selectedInvoice.paidAmount.toLocaleString('fr-FR')} XPF</span>
+                    <span className="font-medium">
+                      {selectedInvoice.paidAmount.toLocaleString('fr-FR')} XPF
+                    </span>
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Reste à payer: </span>
-                    <span className="font-semibold text-primary">{selectedInvoice.remainingAmount.toLocaleString('fr-FR')} XPF</span>
+                    <span className="font-semibold text-primary">
+                      {selectedInvoice.remainingAmount.toLocaleString('fr-FR')} XPF
+                    </span>
                   </div>
                 </div>
               </div>
@@ -198,9 +214,7 @@ export function PaymentForm() {
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Montant du paiement (peut être partiel)
-                  </FormDescription>
+                  <FormDescription>Montant du paiement (peut être partiel)</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -274,7 +288,7 @@ export function PaymentForm() {
         </Card>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -287,7 +301,7 @@ export function PaymentForm() {
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enregistrer le paiement
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

@@ -1,10 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
+import { FormActions } from '@/components/shared/form-actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -17,7 +14,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -25,9 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 
 // ============================================================================
 // SCHEMA - Doit correspondre au schema createChildSchema du router
@@ -64,9 +65,10 @@ type ChildFormData = z.infer<typeof childFormSchema>;
 // COMPOSANT
 // ============================================================================
 
-export function ChildForm() {
+export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnTo?: string }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const utils = trpc.useUtils();
   const createChildMutation = trpc.children.createByParent.useMutation();
 
   const form = useForm<ChildFormData>({
@@ -107,7 +109,8 @@ export function ChildForm() {
         emergencyContactRelation: values.emergencyContactRelation || undefined,
       });
 
-      router.push('/dashboard/parent/children');
+      await utils.children.list.invalidate(undefined, { refetchType: 'all' });
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
@@ -125,15 +128,13 @@ export function ChildForm() {
       <Card>
         <CardHeader>
           <CardTitle>Informations de l'enfant</CardTitle>
-          <CardDescription>
-            Remplissez les informations concernant votre enfant
-          </CardDescription>
+          <CardDescription>Remplissez les informations concernant votre enfant</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* Identité */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="firstName"
@@ -163,7 +164,7 @@ export function ChildForm() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="birthDate"
@@ -220,7 +221,8 @@ export function ChildForm() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Indiquez toute information médicale importante (allergies, médicaments, conditions)
+                        Indiquez toute information médicale importante (allergies, médicaments,
+                        conditions)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -247,7 +249,7 @@ export function ChildForm() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="emergencyContactPhone"
@@ -280,20 +282,22 @@ export function ChildForm() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-4 pt-6">
-                <Button type="submit" disabled={createChildMutation.isPending}>
-                  {createChildMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Enregistrer l'enfant
-                </Button>
+              <FormActions>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.back()}
+                  onClick={() => router.push(returnTo)}
                   disabled={createChildMutation.isPending}
                 >
                   Annuler
                 </Button>
-              </div>
+                <Button type="submit" disabled={createChildMutation.isPending}>
+                  {createChildMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Enregistrer l'enfant
+                </Button>
+              </FormActions>
             </form>
           </Form>
         </CardContent>

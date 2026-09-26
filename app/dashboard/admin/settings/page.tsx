@@ -1,5 +1,6 @@
 'use client';
 
+import { FormActions } from '@/components/shared/form-actions';
 /**
  * Settings Page - Admin
  *
@@ -11,15 +12,9 @@
  * - Accounting (codes comptables FEC)
  */
 
-import { useEffect } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -29,11 +24,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Building, Mail, DollarSign, FileText, Database, Loader2, FileCode } from 'lucide-react';
-import { trpc } from '@/lib/trpc/client';
-import { toast } from 'sonner';
 import { ImageUpload } from '@/components/ui/image-upload';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Building, Database, DollarSign, FileCode, FileText, Loader2, Mail } from 'lucide-react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ============================================================================
 // SCHEMAS ZOD
@@ -101,9 +102,7 @@ type DocumentsFormValues = z.infer<typeof documentsSchema>;
 /**
  * Transforme les settings du backend en objet pour le formulaire
  */
-function settingsToFormData<T>(
-  settings: Array<{ key: string; value: unknown }>,
-): Partial<T> {
+function settingsToFormData<T>(settings: Array<{ key: string; value: unknown }>): Partial<T> {
   return settings.reduce<Partial<T>>((acc, setting) => {
     // Parse JSON if string, otherwise use value as-is
     let parsedValue = setting.value;
@@ -124,8 +123,12 @@ function settingsToFormData<T>(
  */
 function formDataToSettings(
   category: 'organization' | 'pricing' | 'email' | 'accounting' | 'maintenance' | 'documents',
-  formData: Record<string, unknown>
-): Array<{ category: 'organization' | 'pricing' | 'email' | 'accounting' | 'maintenance' | 'documents'; key: string; value: unknown }> {
+  formData: Record<string, unknown>,
+): Array<{
+  category: 'organization' | 'pricing' | 'email' | 'accounting' | 'maintenance' | 'documents';
+  key: string;
+  value: unknown;
+}> {
   return Object.entries(formData).map(([key, value]) => ({
     category,
     key,
@@ -147,8 +150,9 @@ export default function AdminSettingsPage() {
   const { data: pricingSettings, isLoading: isLoadingPricing } =
     trpc.settings.getByCategory.useQuery({ category: 'pricing' });
 
-  const { data: emailSettings, isLoading: isLoadingEmail } =
-    trpc.settings.getByCategory.useQuery({ category: 'email' });
+  const { data: emailSettings, isLoading: isLoadingEmail } = trpc.settings.getByCategory.useQuery({
+    category: 'email',
+  });
 
   const { data: accountingSettings, isLoading: isLoadingAccounting } =
     trpc.settings.getByCategory.useQuery({ category: 'accounting' });
@@ -426,10 +430,12 @@ export default function AdminSettingsPage() {
                 className="space-y-6"
               >
                 {/* Logo Upload Section */}
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="rounded-lg border border-border bg-muted/50 p-4">
                   <div className="mb-3">
-                    <h3 className="text-sm font-medium text-gray-900">Logo de l&apos;organisation</h3>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <h3 className="text-sm font-medium text-foreground">
+                      Logo de l&apos;organisation
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
                       Logo affiché sur les factures et documents officiels
                     </p>
                   </div>
@@ -546,11 +552,7 @@ export default function AdminSettingsPage() {
                       <FormItem>
                         <FormLabel>Téléphone</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="tel"
-                            disabled={updateMutation.isPending}
-                          />
+                          <Input {...field} type="tel" disabled={updateMutation.isPending} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -564,11 +566,7 @@ export default function AdminSettingsPage() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="email"
-                            disabled={updateMutation.isPending}
-                          />
+                          <Input {...field} type="email" disabled={updateMutation.isPending} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -638,14 +636,12 @@ export default function AdminSettingsPage() {
                   />
                 </div>
 
-                <div className="flex justify-end">
+                <FormActions>
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enregistrer les modifications
                   </Button>
-                </div>
+                </FormActions>
               </form>
             </Form>
           )}
@@ -669,10 +665,7 @@ export default function AdminSettingsPage() {
             </div>
           ) : (
             <Form {...pricingForm}>
-              <form
-                onSubmit={pricingForm.handleSubmit(onSubmitPricing)}
-                className="space-y-4"
-              >
+              <form onSubmit={pricingForm.handleSubmit(onSubmitPricing)} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <FormField
                     control={pricingForm.control}
@@ -778,14 +771,12 @@ export default function AdminSettingsPage() {
                   />
                 </div>
 
-                <div className="flex justify-end">
+                <FormActions>
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enregistrer les modifications
                   </Button>
-                </div>
+                </FormActions>
               </form>
             </Form>
           )}
@@ -809,8 +800,8 @@ export default function AdminSettingsPage() {
               <strong>Service configuré :</strong> Resend
             </p>
             <p className="mt-1 text-xs text-blue-700">
-              Les emails sont envoyés via le service Resend. La configuration SMTP se fait
-              dans les variables d&apos;environnement.
+              Les emails sont envoyés via le service Resend. La configuration SMTP se fait dans les
+              variables d&apos;environnement.
             </p>
           </div>
 
@@ -831,9 +822,7 @@ export default function AdminSettingsPage() {
                       <FormControl>
                         <Input {...field} disabled={updateMutation.isPending} />
                       </FormControl>
-                      <FormDescription>
-                        Nom affiché dans les emails envoyés
-                      </FormDescription>
+                      <FormDescription>Nom affiché dans les emails envoyés</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -846,11 +835,7 @@ export default function AdminSettingsPage() {
                     <FormItem>
                       <FormLabel>Email expéditeur</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="email"
-                          disabled={updateMutation.isPending}
-                        />
+                        <Input {...field} type="email" disabled={updateMutation.isPending} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -864,11 +849,7 @@ export default function AdminSettingsPage() {
                     <FormItem>
                       <FormLabel>Email de réponse</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="email"
-                          disabled={updateMutation.isPending}
-                        />
+                        <Input {...field} type="email" disabled={updateMutation.isPending} />
                       </FormControl>
                       <FormDescription>
                         Email utilisé quand les destinataires répondent
@@ -878,14 +859,12 @@ export default function AdminSettingsPage() {
                   )}
                 />
 
-                <div className="flex justify-end">
+                <FormActions>
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enregistrer les modifications
                   </Button>
-                </div>
+                </FormActions>
               </form>
             </Form>
           )}
@@ -916,7 +895,10 @@ export default function AdminSettingsPage() {
                 onSubmit={accountingForm.handleSubmit(onSubmitAccounting)}
                 className="space-y-4"
               >
-                <p className="text-sm text-muted-foreground">Journal ventes : VE. Compte clients : 411000. Les comptes de produits sont définis par type d’ACM (706000 par défaut).</p>
+                <p className="text-sm text-muted-foreground">
+                  Journal ventes : VE. Compte clients : 411000. Les comptes de produits sont définis
+                  par type d’ACM (706000 par défaut).
+                </p>
 
                 <FormField
                   control={accountingForm.control}
@@ -953,23 +935,20 @@ export default function AdminSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        9 chiffres. Nomme le fichier d&apos;export
-                        (SIRENFECAAAAMMJJ.txt, article A47 A-1 du LPF). Sans
-                        SIREN, l&apos;export garde son nom historique.
+                        9 chiffres. Nomme le fichier d&apos;export (SIRENFECAAAAMMJJ.txt, article
+                        A47 A-1 du LPF). Sans SIREN, l&apos;export garde son nom historique.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <div className="flex justify-end">
+                <FormActions>
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enregistrer les modifications
                   </Button>
-                </div>
+                </FormActions>
               </form>
             </Form>
           )}
@@ -994,10 +973,7 @@ export default function AdminSettingsPage() {
             </div>
           ) : (
             <Form {...documentsForm}>
-              <form
-                onSubmit={documentsForm.handleSubmit(onSubmitDocuments)}
-                className="space-y-4"
-              >
+              <form onSubmit={documentsForm.handleSubmit(onSubmitDocuments)} className="space-y-4">
                 <FormField
                   control={documentsForm.control}
                   name="child_form_footer"
@@ -1013,8 +989,8 @@ export default function AdminSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Cette mention apparaîtra en bas de chaque fiche enfant générée en PDF.
-                        Vous pouvez y inclure des mentions légales, RGPD, etc.
+                        Cette mention apparaîtra en bas de chaque fiche enfant générée en PDF. Vous
+                        pouvez y inclure des mentions légales, RGPD, etc.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1036,8 +1012,8 @@ export default function AdminSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Cette mention apparaîtra en bas de chaque facture générée en PDF.
-                        Vous pouvez y inclure les modalités de paiement, mentions légales, etc.
+                        Cette mention apparaîtra en bas de chaque facture générée en PDF. Vous
+                        pouvez y inclure les modalités de paiement, mentions légales, etc.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1113,14 +1089,12 @@ export default function AdminSettingsPage() {
                   )}
                 />
 
-                <div className="flex justify-end">
+                <FormActions>
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                    {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enregistrer les modifications
                   </Button>
-                </div>
+                </FormActions>
               </form>
             </Form>
           )}
@@ -1134,9 +1108,7 @@ export default function AdminSettingsPage() {
             <Database className="h-5 w-5" />
             <CardTitle>Maintenance</CardTitle>
           </div>
-          <CardDescription>
-            Outils de maintenance de la base de données
-          </CardDescription>
+          <CardDescription>Outils de maintenance de la base de données</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4">

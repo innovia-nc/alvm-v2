@@ -72,7 +72,9 @@ export function Breadcrumbs() {
 
       // Masquer les IDs dynamiques (segments qui ressemblent à des UUIDs ou IDs numériques)
       // Format UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        segment,
+      );
       const isNumericId = /^\d+$/.test(segment);
       if (isUUID || isNumericId) continue;
 
@@ -94,7 +96,10 @@ export function Breadcrumbs() {
 
       items.push({
         href: currentPath,
-        label: segment === 'export' && segments[i - 1] === 'fec' ? 'Export FEC' : segmentLabels[segment] || segment,
+        label:
+          segment === 'export' && segments[i - 1] === 'fec'
+            ? 'Export FEC'
+            : segmentLabels[segment] || segment,
       });
     }
 
@@ -106,9 +111,10 @@ export function Breadcrumbs() {
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center space-x-1 text-sm">
+    <nav aria-label="Fil d’Ariane" className="flex flex-wrap items-center gap-1 text-sm">
       <Link
         href="/dashboard"
+        aria-label="Accueil"
         className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
       >
         <Home className="h-4 w-4" />
@@ -123,7 +129,12 @@ export function Breadcrumbs() {
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
 
             {isLast || !item.href ? (
-              <span className="font-medium text-foreground">{item.label}</span>
+              <span
+                aria-current={isLast ? 'page' : undefined}
+                className="font-medium text-foreground"
+              >
+                {item.label}
+              </span>
             ) : (
               <Link
                 href={item.href}

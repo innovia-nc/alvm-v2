@@ -33,7 +33,7 @@ export type Parent = {
 
 export const parentsColumns: ColumnDef<Parent>[] = [
   {
-    accessorKey: 'fullName',
+    accessorKey: 'lastName',
     header: 'Parent',
     cell: ({ row }) => {
       const parent = row.original;

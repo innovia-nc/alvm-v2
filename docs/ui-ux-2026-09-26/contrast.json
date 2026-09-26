@@ -1,0 +1,42 @@
+[
+  {
+    "theme": "light",
+    "token": "primary",
+    "ratio": 5.39
+  },
+  {
+    "theme": "light",
+    "token": "secondary",
+    "ratio": 5.15
+  },
+  {
+    "theme": "light",
+    "token": "accent",
+    "ratio": 7.53
+  },
+  {
+    "theme": "light",
+    "token": "destructive",
+    "ratio": 5.83
+  },
+  {
+    "theme": "dark",
+    "token": "primary",
+    "ratio": 7.8
+  },
+  {
+    "theme": "dark",
+    "token": "secondary",
+    "ratio": 10.13
+  },
+  {
+    "theme": "dark",
+    "token": "accent",
+    "ratio": 11.98
+  },
+  {
+    "theme": "dark",
+    "token": "destructive",
+    "ratio": 6.35
+  }
+]

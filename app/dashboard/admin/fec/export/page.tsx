@@ -1,11 +1,9 @@
 'use client';
+
 import { FecHistory } from '@/components/admin/fec-history';
 
-import { useEffect, useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
 import { PageHeader } from '@/components/shared/page-header';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,9 +16,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, FileText, Loader2, Info } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Download, FileText, Info, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 
 const fecExportSchema = z.object({
   startDate: z.string().min(1, 'Date de début requise'),
@@ -62,7 +63,11 @@ export default function FECExportPage() {
   } | null>(null);
 
   const utils = trpc.useUtils();
-  const generateFECMutation = trpc.fec.generateFEC.useMutation({ onSuccess: () => { utils.fec.history.invalidate(); } });
+  const generateFECMutation = trpc.fec.generateFEC.useMutation({
+    onSuccess: () => {
+      utils.fec.history.invalidate();
+    },
+  });
 
   // Le SIREN est un attribut de l'organisation, pas de l'export : on le
   // pré-remplit depuis les paramètres comptables pour que le trésorier voie
@@ -123,7 +128,11 @@ export default function FECExportPage() {
       // Télécharger le fichier FEC
       downloadFEC(result.content, result.filename);
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue lors de l\'export');
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Une erreur est survenue lors de l'export",
+      );
     }
   }
 
@@ -137,8 +146,9 @@ export default function FECExportPage() {
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          <strong>Format FEC :</strong> Le fichier généré est conforme au standard français FEC pour l'export
-          des écritures comptables. Il peut être importé dans tout logiciel comptable compatible.
+          <strong>Format FEC :</strong> Le fichier généré est conforme au standard français FEC pour
+          l'export des écritures comptables. Il peut être importé dans tout logiciel comptable
+          compatible.
         </AlertDescription>
       </Alert>
 
@@ -158,15 +168,18 @@ export default function FECExportPage() {
             <br />
             Total crédits : {exportStats.totalCredit.toLocaleString('fr-FR')} XPF
             <br />
-            Balance : {(exportStats.totalDebit - exportStats.totalCredit).toLocaleString('fr-FR')} XPF
+            Balance : {(exportStats.totalDebit - exportStats.totalCredit).toLocaleString(
+              'fr-FR',
+            )}{' '}
+            XPF
             <br />
             Fichier : <span className="font-mono">{exportStats.filename}</span>
             {!exportStats.siren && (
               <>
                 <br />
                 <span className="text-orange-700 dark:text-orange-400">
-                  Aucun SIREN renseigné : le fichier ne porte pas le nom attendu
-                  par l&apos;administration (SIRENFECAAAAMMJJ.txt).
+                  Aucun SIREN renseigné : le fichier ne porte pas le nom attendu par
+                  l&apos;administration (SIRENFECAAAAMMJJ.txt).
                 </span>
               </>
             )}
@@ -177,14 +190,12 @@ export default function FECExportPage() {
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Paramètres d'export</CardTitle>
-          <CardDescription>
-            Sélectionnez la période comptable à exporter
-          </CardDescription>
+          <CardDescription>Sélectionnez la période comptable à exporter</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="startDate"
@@ -225,9 +236,9 @@ export default function FECExportPage() {
                     </FormControl>
                     <FormDescription>
                       Nomme le fichier remis à l&apos;administration :{' '}
-                      <span className="font-mono">SIRENFECAAAAMMJJ.txt</span>{' '}
-                      (article A47 A-1 du LPF), où AAAAMMJJ est la date de fin
-                      ci-dessus. Pré-rempli depuis Paramètres → Comptabilité.
+                      <span className="font-mono">SIRENFECAAAAMMJJ.txt</span> (article A47 A-1 du
+                      LPF), où AAAAMMJJ est la date de fin ci-dessus. Pré-rempli depuis Paramètres →
+                      Comptabilité.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -258,8 +269,8 @@ export default function FECExportPage() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
-            Le FEC (Fichier des Écritures Comptables) est un format standardisé obligatoire en France
-            pour l'export des données comptables.
+            Le FEC (Fichier des Écritures Comptables) est un format standardisé obligatoire en
+            France pour l'export des données comptables.
           </p>
           <p>
             <strong>Structure du fichier :</strong>

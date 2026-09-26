@@ -1,15 +1,8 @@
 'use client';
-import { RegistrationCancellationDialog } from './registration-cancellation-dialog';
-import { formatNumber } from '@/lib/format';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, Trash2, Edit, Receipt } from 'lucide-react';
-import { toast } from 'sonner';
+import { formatNumber } from '@/lib/format';
+import { RegistrationCancellationDialog } from './registration-cancellation-dialog';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,8 +14,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { Edit, FileText, Loader2, Receipt, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 type Registration = {
   id: string;
@@ -63,10 +64,13 @@ const statusLabels: Record<Registration['status'], string> = {
   PENDING: 'En attente',
   CONFIRMED: 'Confirmée',
   CANCELLED: 'Annulée',
-  WAITLIST: 'Liste d\'attente',
+  WAITLIST: "Liste d'attente",
 };
 
-const statusVariants: Record<Registration['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const statusVariants: Record<
+  Registration['status'],
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
   PENDING: 'outline',
   CONFIRMED: 'default',
   CANCELLED: 'destructive',
@@ -87,7 +91,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
       router.refresh();
     },
     onError: (error) => {
-      toast.error(error.message || 'Erreur lors de la suppression de l\'inscription');
+      toast.error(error.message || "Erreur lors de la suppression de l'inscription");
       setIsDeleting(false);
     },
   });
@@ -110,8 +114,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
     deleteRegistrationMutation.mutate({ id: registration.id });
   };
 
-  const canCreateInvoice =
-    registration.status === 'CONFIRMED' && registration.invoiceId === null;
+  const canCreateInvoice = registration.status === 'CONFIRMED' && registration.invoiceId === null;
 
   const handleCreateInvoice = () => {
     createInvoiceMutation.mutate({
@@ -122,8 +125,27 @@ export function RegistrationDetails({ registration }: { registration: Registrati
 
   return (
     <div className="space-y-6">
-      {registration.cancellationRequestedAt && registration.status !== 'CANCELLED' && <p role="status" className="rounded border p-4">Demande d’annulation reçue le {registration.cancellationRequestedAt.toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}.</p>}
-      <RegistrationCancellationDialog registration={registration} open={cancelling} onOpenChange={setCancelling} onSuccess={() => { utils.registrations.list.invalidate(); utils.registrations.getById.invalidate({ id: registration.id }); utils.invoices.list.invalidate(); setCancelling(false); router.refresh(); }} />
+      {registration.cancellationRequestedAt && registration.status !== 'CANCELLED' && (
+        <p role="status" className="rounded border p-4">
+          Demande d’annulation reçue le{' '}
+          {registration.cancellationRequestedAt.toLocaleDateString('fr-FR', {
+            timeZone: 'Pacific/Noumea',
+          })}
+          .
+        </p>
+      )}
+      <RegistrationCancellationDialog
+        registration={registration}
+        open={cancelling}
+        onOpenChange={setCancelling}
+        onSuccess={() => {
+          utils.registrations.list.invalidate();
+          utils.registrations.getById.invalidate({ id: registration.id });
+          utils.invoices.list.invalidate();
+          setCancelling(false);
+          router.refresh();
+        }}
+      />
       {/* Informations de l'inscription */}
       <Card>
         <CardHeader>
@@ -135,11 +157,13 @@ export function RegistrationDetails({ registration }: { registration: Registrati
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Date d'inscription</p>
               <p className="font-medium">
-                {new Date(registration.registrationDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                {new Date(registration.registrationDate).toLocaleDateString('fr-FR', {
+                  timeZone: 'Pacific/Noumea',
+                })}
               </p>
             </div>
             <div>
@@ -156,7 +180,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
           )}
 
           <div className="pt-4 border-t">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
               <div>
                 <p className="text-muted-foreground">Créé le</p>
                 <p>{new Date(registration.createdAt).toLocaleString('fr-FR')}</p>
@@ -188,7 +212,9 @@ export function RegistrationDetails({ registration }: { registration: Registrati
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Prix par jour</p>
-                <p className="font-medium">{registration.camp.pricePerDay.toLocaleString('fr-FR')} XPF</p>
+                <p className="font-medium">
+                  {registration.camp.pricePerDay.toLocaleString('fr-FR')} XPF
+                </p>
               </div>
             </div>
             <Link href={`${basePath}/camps/${registration.camp.id}`}>
@@ -217,7 +243,9 @@ export function RegistrationDetails({ registration }: { registration: Registrati
             <div>
               <p className="text-sm text-muted-foreground">Date de naissance</p>
               <p className="font-medium">
-                {new Date(registration.child.birthDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                {new Date(registration.child.birthDate).toLocaleDateString('fr-FR', {
+                  timeZone: 'Pacific/Noumea',
+                })}
               </p>
             </div>
           </div>
@@ -262,7 +290,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
                 <p className="font-medium">
                   {registration.camp.startDate
                     ? new Date(registration.camp.startDate).toLocaleDateString('fr-FR', {
-    timeZone: 'Pacific/Noumea',
+                        timeZone: 'Pacific/Noumea',
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -276,7 +304,7 @@ export function RegistrationDetails({ registration }: { registration: Registrati
                 <p className="font-medium">
                   {registration.camp.endDate
                     ? new Date(registration.camp.endDate).toLocaleDateString('fr-FR', {
-    timeZone: 'Pacific/Noumea',
+                        timeZone: 'Pacific/Noumea',
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -289,11 +317,15 @@ export function RegistrationDetails({ registration }: { registration: Registrati
             <div className="pt-3 border-t">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Nombre de jours</p>
-                <p className="font-semibold">{registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''}</p>
+                <p className="font-semibold">
+                  {registration.camp.daysCount} jour{registration.camp.daysCount > 1 ? 's' : ''}
+                </p>
               </div>
               <div className="flex items-center justify-between mt-2">
                 <p className="text-sm text-muted-foreground">Prix par jour</p>
-                <p className="font-medium">{registration.camp.pricePerDay.toLocaleString('fr-FR')} XPF</p>
+                <p className="font-medium">
+                  {registration.camp.pricePerDay.toLocaleString('fr-FR')} XPF
+                </p>
               </div>
             </div>
           </div>
@@ -317,17 +349,18 @@ export function RegistrationDetails({ registration }: { registration: Registrati
         </Card>
       )}
 
-      {registration.status !== 'CANCELLED' && <Button variant="destructive" onClick={() => setCancelling(true)}>Annuler l’inscription</Button>}
+      {registration.status !== 'CANCELLED' && (
+        <Button variant="destructive" onClick={() => setCancelling(true)}>
+          Annuler l’inscription
+        </Button>
+      )}
       {/* Actions */}
-      <div className="flex flex-wrap justify-end gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={() => router.back()}>
           Retour
         </Button>
         {canCreateInvoice && (
-          <Button
-            onClick={handleCreateInvoice}
-            disabled={createInvoiceMutation.isPending}
-          >
+          <Button onClick={handleCreateInvoice} disabled={createInvoiceMutation.isPending}>
             {createInvoiceMutation.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -357,12 +390,16 @@ export function RegistrationDetails({ registration }: { registration: Registrati
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
               <AlertDialogDescription>
-                Êtes-vous sûr de vouloir supprimer cette inscription ? Cette action est irréversible.
+                Êtes-vous sûr de vouloir supprimer cette inscription ? Cette action est
+                irréversible.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 Supprimer
               </AlertDialogAction>
             </AlertDialogFooter>

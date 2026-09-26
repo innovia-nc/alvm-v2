@@ -1,3 +1,6 @@
+'use client';
+
+import { EmptyState } from '@/components/shared/empty-state';
 /**
  * Data Table Component (Generic & Reusable)
  *
@@ -11,9 +14,6 @@
  * - Design responsive
  */
 
-'use client';
-
-import * as React from 'react';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -26,8 +26,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import * as React from 'react';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -36,8 +39,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -100,10 +101,7 @@ function DataTableSkeleton({ columns }: { columns: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex gap-4">
           {Array.from({ length: columns }).map((_, j) => (
-            <div
-              key={j}
-              className="h-12 flex-1 animate-pulse rounded-md bg-muted"
-            />
+            <div key={j} className="h-12 flex-1 animate-pulse rounded-md bg-muted" />
           ))}
         </div>
       ))}
@@ -117,15 +115,11 @@ function DataTableSkeleton({ columns }: { columns: number }) {
 
 function DataTableEmpty() {
   return (
-    <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-        <Search className="h-6 w-6 text-muted-foreground" />
-      </div>
-      <h3 className="mt-4 text-lg font-semibold">Aucune donnée</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Aucun résultat ne correspond à votre recherche.
-      </p>
-    </div>
+    <EmptyState
+      title="Aucune donnée"
+      description="Les éléments ajoutés apparaîtront ici. Si un filtre est actif, essayez de le modifier."
+      icon={Search}
+    />
   );
 }
 
@@ -144,11 +138,8 @@ export function DataTable<TData, TValue>({
   className,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   const table = useReactTable({
     data,
@@ -156,6 +147,7 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    sortDescFirst: false,
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -182,6 +174,7 @@ export function DataTable<TData, TValue>({
         {searchKey && (
           <div className="flex items-center">
             <Input
+              aria-label={searchPlaceholder}
               placeholder={searchPlaceholder}
               disabled
               className="max-w-sm"
@@ -203,13 +196,10 @@ export function DataTable<TData, TValue>({
         {searchKey && (
           <div className="flex items-center">
             <Input
+              aria-label={searchPlaceholder}
               placeholder={searchPlaceholder}
-              value={
-                (table.getColumn(searchKey)?.getFilterValue() as string) ?? ''
-              }
-              onChange={(event) =>
-                table.getColumn(searchKey)?.setFilterValue(event.target.value)
-              }
+              value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ''}
+              onChange={(event) => table.getColumn(searchKey)?.setFilterValue(event.target.value)}
               className="max-w-sm"
             />
           </div>
@@ -229,20 +219,17 @@ export function DataTable<TData, TValue>({
       {searchKey && (
         <div className="flex items-center">
           <Input
+            aria-label={searchPlaceholder}
             placeholder={searchPlaceholder}
-            value={
-              (table.getColumn(searchKey)?.getFilterValue() as string) ?? ''
-            }
-            onChange={(event) =>
-              table.getColumn(searchKey)?.setFilterValue(event.target.value)
-            }
+            value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ''}
+            onChange={(event) => table.getColumn(searchKey)?.setFilterValue(event.target.value)}
             className="max-w-sm"
           />
         </div>
       )}
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="w-full overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -251,36 +238,37 @@ export function DataTable<TData, TValue>({
                   const canSort = header.column.getCanSort();
 
                   return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : (
-                        <div
-                          className={cn(
-                            canSort &&
-                              'flex cursor-pointer select-none items-center gap-2',
-                            !canSort && 'flex items-center'
-                          )}
-                          onClick={
-                            canSort
-                              ? header.column.getToggleSortingHandler()
-                              : undefined
-                          }
+                    <TableHead
+                      key={header.id}
+                      aria-sort={
+                        canSort
+                          ? header.column.getIsSorted() === 'asc'
+                            ? 'ascending'
+                            : header.column.getIsSorted() === 'desc'
+                              ? 'descending'
+                              : 'none'
+                          : undefined
+                      }
+                    >
+                      {header.isPlaceholder ? null : canSort ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-sm py-2 text-left font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={header.column.getToggleSortingHandler()}
                         >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {canSort && (
-                            <span className="ml-auto">
-                              {header.column.getIsSorted() === 'asc' ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : header.column.getIsSorted() === 'desc' ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <div className="h-4 w-4" />
-                              )}
-                            </span>
-                          )}
-                        </div>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          <span className="ml-auto" aria-hidden="true">
+                            {header.column.getIsSorted() === 'asc' ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : header.column.getIsSorted() === 'desc' ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ArrowUpDown className="h-4 w-4" />
+                            )}
+                          </span>
+                        </button>
+                      ) : (
+                        flexRender(header.column.columnDef.header, header.getContext())
                       )}
                     </TableHead>
                   );
@@ -291,26 +279,17 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   Aucun résultat.
                 </TableCell>
               </TableRow>
@@ -321,12 +300,12 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination */}
       {table.getPageCount() > 1 && (
-        <div className="flex items-center justify-between px-2">
+        <div className="flex flex-col gap-3 px-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
             {table.getFilteredRowModel().rows.length} résultat
             {table.getFilteredRowModel().rows.length > 1 ? 's' : ''}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -337,9 +316,7 @@ export function DataTable<TData, TValue>({
             </Button>
             <div className="flex items-center gap-1 text-sm">
               <span className="text-muted-foreground">Page</span>
-              <span className="font-medium">
-                {table.getState().pagination.pageIndex + 1}
-              </span>
+              <span className="font-medium">{table.getState().pagination.pageIndex + 1}</span>
               <span className="text-muted-foreground">sur</span>
               <span className="font-medium">{table.getPageCount()}</span>
             </div>

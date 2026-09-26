@@ -13,10 +13,10 @@ export default function SignInPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900">Connexion</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Accédez à votre espace personnel
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Bienvenue sur votre espace
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">Accédez à votre espace personnel</p>
       </div>
 
       {/* Formulaire */}
@@ -26,10 +26,7 @@ export default function SignInPage() {
 
       {/* Liens */}
       <div className="text-center text-sm">
-        <Link
-          href="/auth/reset-password"
-          className="text-indigo-600 hover:text-indigo-500 font-medium"
-        >
+        <Link href="/auth/reset-password" className="text-primary hover:underline font-medium">
           Mot de passe oublié ?
         </Link>
       </div>

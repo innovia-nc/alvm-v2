@@ -15,18 +15,18 @@
  * ```
  */
 
-import * as React from "react"
-import { Loader2 } from "lucide-react"
-import { Button, ButtonProps } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button, ButtonProps } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import * as React from 'react';
 
 // Privée au module, comme `ButtonGroupProps` : les six écrans qui rendent
 // `<LoadingButton>` n'importent jamais ce type.
 interface LoadingButtonProps extends ButtonProps {
   /** État de chargement */
-  loading?: boolean
+  loading?: boolean;
   /** Texte affiché pendant le chargement (optionnel) */
-  loadingText?: string
+  loadingText?: string;
 }
 
 export const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonProps>(
@@ -34,6 +34,7 @@ export const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonPr
     return (
       <Button
         ref={ref}
+        aria-busy={loading}
         disabled={loading || disabled}
         className={cn(className)}
         {...props}
@@ -41,8 +42,8 @@ export const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonPr
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {loading && loadingText ? loadingText : children}
       </Button>
-    )
-  }
-)
+    );
+  },
+);
 
-LoadingButton.displayName = "LoadingButton"
+LoadingButton.displayName = 'LoadingButton';

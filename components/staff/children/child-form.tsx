@@ -1,10 +1,11 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
-import * as z from 'zod';
+import { FormActions } from '@/components/shared/form-actions';
+import { ParentMultiSelect } from '@/components/shared/parent-multi-select';
+import type { SelectedParent } from '@/components/shared/selected-parents-list';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -15,7 +16,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { LoadingButton } from '@/components/ui/loading-button';
 import {
   Select,
   SelectContent,
@@ -23,16 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LoadingButton } from '@/components/ui/loading-button';
-import { ButtonGroup } from '@/components/ui/button-group';
-import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc/client';
-import { Save, Users, Info } from 'lucide-react';
-import { ParentMultiSelect } from '@/components/shared/parent-multi-select';
-import type { SelectedParent } from '@/components/shared/selected-parents-list';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Info, Save, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import * as z from 'zod';
 
 // ============================================================================
 // SCHEMAS DE VALIDATION
@@ -50,9 +50,17 @@ const childFormSchema = z.object({
         parentId: z.string().uuid(),
         isPrimary: z.boolean(),
         relationship: z
-          .enum(['mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other'])
+          .enum([
+            'mother',
+            'father',
+            'guardian',
+            'step_mother',
+            'step_father',
+            'grandparent',
+            'other',
+          ])
           .optional(),
-      })
+      }),
     )
     .min(1, 'Au moins un parent est requis')
     .max(3, 'Maximum 3 parents autorisés')
@@ -61,7 +69,7 @@ const childFormSchema = z.object({
         const primaryCount = parents.filter((p) => p.isPrimary).length;
         return primaryCount === 1;
       },
-      { message: 'Exactement un parent doit être marqué comme principal' }
+      { message: 'Exactement un parent doit être marqué comme principal' },
     ),
   // Informations enfant
   firstName: z
@@ -140,7 +148,11 @@ interface ChildFormProps {
 // COMPOSANT FORMULAIRE
 // ============================================================================
 
-export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/children' }: ChildFormProps) {
+export function ChildForm({
+  mode,
+  initialData,
+  basePath = '/dashboard/staff/children',
+}: ChildFormProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -179,51 +191,62 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
 
   // Known canonical relationship enum values — used to narrow the lenient
   // `string | null` from the API back to the strict union for the form input.
-  const KNOWN_RELATIONSHIPS = ['mother', 'father', 'guardian', 'step_mother', 'step_father', 'grandparent', 'other'] as const;
-  type KnownRelationship = typeof KNOWN_RELATIONSHIPS[number];
+  const KNOWN_RELATIONSHIPS = [
+    'mother',
+    'father',
+    'guardian',
+    'step_mother',
+    'step_father',
+    'grandparent',
+    'other',
+  ] as const;
+  type KnownRelationship = (typeof KNOWN_RELATIONSHIPS)[number];
   const narrowRelationship = (r: string | null | undefined): KnownRelationship | undefined => {
     if (!r) return undefined;
-    return (KNOWN_RELATIONSHIPS as readonly string[]).includes(r) ? (r as KnownRelationship) : undefined;
+    return (KNOWN_RELATIONSHIPS as readonly string[]).includes(r)
+      ? (r as KnownRelationship)
+      : undefined;
   };
 
   // Préparer les valeurs par défaut
-  const defaultValues: ChildFormValues = mode === 'edit' && initialData
-    ? {
-        parents: initialData.parents.map((p) => ({
-          parentId: p.parentId,
-          isPrimary: p.isPrimary,
-          relationship: narrowRelationship(p.relationship),
-        })),
-        firstName: initialData.firstName,
-        lastName: initialData.lastName,
-        birthDate: new Date(initialData.birthDate).toISOString().split('T')[0]!,
-        gender: initialData.gender,
-        ecole: initialData.ecole || '',
-        allergies: initialData.medicalInfo?.allergies?.join(', ') || '',
-        medications: initialData.medicalInfo?.medications?.join(', ') || '',
-        conditions: initialData.medicalInfo?.conditions?.join(', ') || '',
-        dietRestrictions: initialData.medicalInfo?.diet_restrictions?.join(', ') || '',
-        medicalNotes: initialData.medicalInfo?.notes || '',
-        emergencyContactName: initialData.emergencyContactName || '',
-        emergencyContactPhone: initialData.emergencyContactPhone || '',
-        emergencyContactRelation: initialData.emergencyContactRelation || '',
-      }
-    : {
-        parents: [],
-        firstName: '',
-        lastName: '',
-        birthDate: '',
-        gender: 'MALE',
-        ecole: '',
-        allergies: '',
-        medications: '',
-        conditions: '',
-        dietRestrictions: '',
-        medicalNotes: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        emergencyContactRelation: '',
-      };
+  const defaultValues: ChildFormValues =
+    mode === 'edit' && initialData
+      ? {
+          parents: initialData.parents.map((p) => ({
+            parentId: p.parentId,
+            isPrimary: p.isPrimary,
+            relationship: narrowRelationship(p.relationship),
+          })),
+          firstName: initialData.firstName,
+          lastName: initialData.lastName,
+          birthDate: new Date(initialData.birthDate).toISOString().split('T')[0]!,
+          gender: initialData.gender,
+          ecole: initialData.ecole || '',
+          allergies: initialData.medicalInfo?.allergies?.join(', ') || '',
+          medications: initialData.medicalInfo?.medications?.join(', ') || '',
+          conditions: initialData.medicalInfo?.conditions?.join(', ') || '',
+          dietRestrictions: initialData.medicalInfo?.diet_restrictions?.join(', ') || '',
+          medicalNotes: initialData.medicalInfo?.notes || '',
+          emergencyContactName: initialData.emergencyContactName || '',
+          emergencyContactPhone: initialData.emergencyContactPhone || '',
+          emergencyContactRelation: initialData.emergencyContactRelation || '',
+        }
+      : {
+          parents: [],
+          firstName: '',
+          lastName: '',
+          birthDate: '',
+          gender: 'MALE',
+          ecole: '',
+          allergies: '',
+          medications: '',
+          conditions: '',
+          dietRestrictions: '',
+          medicalNotes: '',
+          emergencyContactName: '',
+          emergencyContactPhone: '',
+          emergencyContactRelation: '',
+        };
 
   // Configuration React Hook Form
   const form = useForm<ChildFormValues>({
@@ -237,16 +260,28 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
     // Transformer les champs texte en arrays pour medicalInfo
     const medicalInfo = {
       allergies: values.allergies
-        ? values.allergies.split(',').map(s => s.trim()).filter(Boolean)
+        ? values.allergies
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       medications: values.medications
-        ? values.medications.split(',').map(s => s.trim()).filter(Boolean)
+        ? values.medications
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       conditions: values.conditions
-        ? values.conditions.split(',').map(s => s.trim()).filter(Boolean)
+        ? values.conditions
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       diet_restrictions: values.dietRestrictions
-        ? values.dietRestrictions.split(',').map(s => s.trim()).filter(Boolean)
+        ? values.dietRestrictions
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       notes: values.medicalNotes || '',
     };
@@ -288,18 +323,19 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   // Convertir les parents pour le ParentMultiSelect
-  const selectedParents: SelectedParent[] = mode === 'edit' && initialData
-    ? initialData.parents.map((p) => ({
-        id: p.id,
-        parentId: p.parentId,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        email: p.email,
-        phone: p.phone,
-        isPrimary: p.isPrimary,
-        relationship: p.relationship,
-      }))
-    : [];
+  const selectedParents: SelectedParent[] =
+    mode === 'edit' && initialData
+      ? initialData.parents.map((p) => ({
+          id: p.id,
+          parentId: p.parentId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.email,
+          phone: p.phone,
+          isPrimary: p.isPrimary,
+          relationship: p.relationship,
+        }))
+      : [];
 
   return (
     <Form {...form}>
@@ -335,7 +371,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                               parentId: p.parentId,
                               isPrimary: p.isPrimary,
                               relationship: p.relationship || undefined,
-                            }))
+                            })),
                           );
                         }}
                         maxParents={3}
@@ -343,8 +379,8 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                       />
                     </FormControl>
                     <FormDescription>
-                      Sélectionnez entre 1 et 3 parents pour cet enfant.
-                      Le parent principal sera utilisé par défaut pour la facturation et la communication.
+                      Sélectionnez entre 1 et 3 parents pour cet enfant. Le parent principal sera
+                      utilisé par défaut pour la facturation et la communication.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -363,18 +399,13 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
             <CardContent>
               <div className="space-y-2">
                 {selectedParents.map((parent) => (
-                  <div
-                    key={parent.parentId}
-                    className="rounded-lg border p-3 bg-muted/50"
-                  >
+                  <div key={parent.parentId} className="rounded-lg border p-3 bg-muted/50">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-medium">
                           {parent.firstName} {parent.lastName}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {parent.email}
-                        </div>
+                        <div className="text-sm text-muted-foreground">{parent.email}</div>
                       </div>
                       {parent.isPrimary && (
                         <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
@@ -385,18 +416,20 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                   </div>
                 ))}
               </div>
-              {!basePath.includes("/parent/") && <Alert className="mt-4">
-                <Info className="h-4 w-4" />
-                <AlertDescription className="flex items-center gap-2">
-                  <span>Pour modifier les parents associés, utilisez la page dédiée :</span>
-                  <Button asChild variant="link" size="sm" className="h-auto p-0">
-                    <Link href={`${basePath}/${initialData.id}/parents`}>
-                      <Users className="h-4 w-4 mr-1" />
-                      Gérer les parents
-                    </Link>
-                  </Button>
-                </AlertDescription>
-              </Alert>}
+              {!basePath.includes('/parent/') && (
+                <Alert className="mt-4">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="flex items-center gap-2">
+                    <span>Pour modifier les parents associés, utilisez la page dédiée :</span>
+                    <Button asChild variant="link" size="sm" className="h-auto p-0">
+                      <Link href={`${basePath}/${initialData.id}/parents`}>
+                        <Users className="h-4 w-4 mr-1" />
+                        Gérer les parents
+                      </Link>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         )}
@@ -447,9 +480,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Format : JJ/MM/AAAA
-                    </FormDescription>
+                    <FormDescription>Format : JJ/MM/AAAA</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -488,9 +519,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                   <FormControl>
                     <Input placeholder="Nom de l'école" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    École actuellement fréquentée
-                  </FormDescription>
+                  <FormDescription>École actuellement fréquentée</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -511,14 +540,9 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                 <FormItem>
                   <FormLabel>Allergies</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Arachides, Lactose, Pollen..."
-                      {...field}
-                    />
+                    <Input placeholder="Arachides, Lactose, Pollen..." {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Séparez les allergies par des virgules
-                  </FormDescription>
+                  <FormDescription>Séparez les allergies par des virgules</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -531,14 +555,9 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                 <FormItem>
                   <FormLabel>Médicaments</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Ventoline, Insuline..."
-                      {...field}
-                    />
+                    <Input placeholder="Ventoline, Insuline..." {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Médicaments pris régulièrement
-                  </FormDescription>
+                  <FormDescription>Médicaments pris régulièrement</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -551,14 +570,9 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                 <FormItem>
                   <FormLabel>Conditions médicales</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Asthme, Diabète, Épilepsie..."
-                      {...field}
-                    />
+                    <Input placeholder="Asthme, Diabète, Épilepsie..." {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Conditions médicales importantes à connaître
-                  </FormDescription>
+                  <FormDescription>Conditions médicales importantes à connaître</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -571,14 +585,9 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                 <FormItem>
                   <FormLabel>Restrictions alimentaires</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Végétarien, Sans gluten, Halal..."
-                      {...field}
-                    />
+                    <Input placeholder="Végétarien, Sans gluten, Halal..." {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Régimes alimentaires spéciaux
-                  </FormDescription>
+                  <FormDescription>Régimes alimentaires spéciaux</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -619,9 +628,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
                   <FormControl>
                     <Input placeholder="Marie Dupont" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Personne à contacter en cas d'urgence
-                  </FormDescription>
+                  <FormDescription>Personne à contacter en cas d'urgence</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -660,17 +667,7 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
         </Card>
 
         {/* Boutons d'action */}
-        <ButtonGroup align="right" responsive>
-          <LoadingButton
-            type="submit"
-            loading={isPending}
-            loadingText={mode === 'create' ? 'Création...' : 'Enregistrement...'}
-            className="flex-1 md:flex-initial"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {mode === 'create' ? 'Créer l\'enfant' : 'Enregistrer les modifications'}
-          </LoadingButton>
-
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -679,7 +676,15 @@ export function ChildForm({ mode, initialData, basePath = '/dashboard/staff/chil
           >
             Annuler
           </Button>
-        </ButtonGroup>
+          <LoadingButton
+            type="submit"
+            loading={isPending}
+            loadingText={mode === 'create' ? 'Création...' : 'Enregistrement...'}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {mode === 'create' ? "Créer l'enfant" : 'Enregistrer les modifications'}
+          </LoadingButton>
+        </FormActions>
       </form>
     </Form>
   );

@@ -1,13 +1,14 @@
 'use client';
+
+import { EmptyState } from '@/components/shared/empty-state';
+import { FormActions } from '@/components/shared/form-actions';
+import { LoadingState } from '@/components/shared/loading-state';
 import { usePagedOptions } from '@/hooks/use-paged-options';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { trpc } from '@/lib/trpc/client';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -17,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -24,17 +26,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Trash2, FileText, CheckSquare } from 'lucide-react';
-import { toast } from 'sonner';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckSquare, FileText, Loader2, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useFieldArray, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 const invoiceFormSchema = z.object({
   parentId: z.string().uuid('Sélectionnez un parent'),
-  dueDate: z.string().min(1, 'Date d\'échéance requise'),
+  dueDate: z.string().min(1, "Date d'échéance requise"),
   lines: z
     .array(
       z.object({
@@ -42,7 +46,7 @@ const invoiceFormSchema = z.object({
         description: z.string().min(3, 'Description requise (min 3 caractères)'),
         quantity: z.number().min(1, 'Quantité minimum: 1'),
         unitPrice: z.number().min(0, 'Prix unitaire doit être positif'),
-      })
+      }),
     )
     .min(1, 'Au moins une ligne requise'),
 });
@@ -56,8 +60,13 @@ export function InvoiceForm() {
   const [selectedRegistrationIds, setSelectedRegistrationIds] = useState<string[]>([]);
 
   // Récupérer la liste des parents
-  const optionsPage0 = usePagedOptions("un client");
-  const { data: parentsData, isLoading: isLoadingParents , error: optionsError0, refetch: optionsRetry0} = trpc.parents.list.useQuery({
+  const optionsPage0 = usePagedOptions('un client');
+  const {
+    data: parentsData,
+    isLoading: isLoadingParents,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.parents.list.useQuery({
     ...optionsPage0.params,
   });
 
@@ -94,7 +103,7 @@ export function InvoiceForm() {
   const { data: unpaidRegistrations, isLoading: isLoadingRegistrations } =
     trpc.invoices.fetchUnpaidRegistrations.useQuery(
       { parentId: watchParentId },
-      { enabled: !!watchParentId }
+      { enabled: !!watchParentId },
     );
 
   // Fonction pour ajouter les inscriptions sélectionnées aux lignes
@@ -122,9 +131,7 @@ export function InvoiceForm() {
   // Toggle sélection d'une inscription
   const toggleRegistrationSelection = (regId: string) => {
     setSelectedRegistrationIds((prev) =>
-      prev.includes(regId)
-        ? prev.filter((id) => id !== regId)
-        : [...prev, regId]
+      prev.includes(regId) ? prev.filter((id) => id !== regId) : [...prev, regId],
     );
   };
 
@@ -137,21 +144,24 @@ export function InvoiceForm() {
   const watchLines = form.watch('lines');
   const totalAmount = watchLines.reduce(
     (sum, line) => sum + (line.quantity || 0) * (line.unitPrice || 0),
-    0
+    0,
   );
 
   if (isLoadingParents) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-3">{optionsPage0.controls(parentsData?.total ?? 0, isLoadingParents, optionsError0, optionsRetry0)}</div>
+        <div className="space-y-3">
+          {optionsPage0.controls(
+            parentsData?.total ?? 0,
+            isLoadingParents,
+            optionsError0,
+            optionsRetry0,
+          )}
+        </div>
 
         {/* Informations générales */}
         <Card>
@@ -195,9 +205,7 @@ export function InvoiceForm() {
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Date limite de paiement de la facture
-                  </FormDescription>
+                  <FormDescription>Date limite de paiement de la facture</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -226,14 +234,9 @@ export function InvoiceForm() {
             </CardHeader>
             <CardContent>
               {isLoadingRegistrations ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState />
               ) : unpaidRegistrations?.registrations.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="mx-auto h-12 w-12 mb-3 text-muted-foreground/50" />
-                  <p>Aucune inscription non payée pour ce parent</p>
-                </div>
+                <EmptyState title="Aucune inscription non payée pour ce parent" icon={FileText} />
               ) : (
                 <div className="space-y-2">
                   {unpaidRegistrations?.registrations.map((reg) => (
@@ -246,10 +249,7 @@ export function InvoiceForm() {
                         checked={selectedRegistrationIds.includes(reg.id)}
                         onCheckedChange={() => toggleRegistrationSelection(reg.id)}
                       />
-                      <label
-                        htmlFor={`reg-${reg.id}`}
-                        className="flex-1 cursor-pointer space-y-1"
-                      >
+                      <label htmlFor={`reg-${reg.id}`} className="flex-1 cursor-pointer space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
                             {reg.childFirstName} {reg.childLastName}
@@ -259,7 +259,10 @@ export function InvoiceForm() {
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Inscription du {new Date(reg.registrationDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}
+                          Inscription du{' '}
+                          {new Date(reg.registrationDate).toLocaleDateString('fr-FR', {
+                            timeZone: 'Pacific/Noumea',
+                          })}
                         </div>
                       </label>
                       <div className="text-right">
@@ -291,42 +294,47 @@ export function InvoiceForm() {
               </div>
             ) : (
               fields.map((field, index) => {
-              const line = watchLines[index];
+                const line = watchLines[index];
 
-              return (
-                <div key={field.id} className="flex items-center justify-between rounded-lg border p-4 bg-muted/30">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        <FileText className="mr-1 h-3 w-3" />
-                        Inscription
-                      </Badge>
-                    </div>
-                    <p className="font-medium">{line?.description}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Quantité: {line?.quantity} × {line?.unitPrice.toLocaleString('fr-FR')} XPF
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Total</p>
-                      <p className="text-lg font-semibold">
-                        {((line?.quantity || 0) * (line?.unitPrice || 0)).toLocaleString('fr-FR')} XPF
+                return (
+                  <div
+                    key={field.id}
+                    className="flex items-center justify-between rounded-lg border p-4 bg-muted/30"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          <FileText className="mr-1 h-3 w-3" />
+                          Inscription
+                        </Badge>
+                      </div>
+                      <p className="font-medium">{line?.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Quantité: {line?.quantity} × {line?.unitPrice.toLocaleString('fr-FR')} XPF
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => remove(index)}
-                      title="Retirer cette inscription"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Total</p>
+                        <p className="text-lg font-semibold">
+                          {((line?.quantity || 0) * (line?.unitPrice || 0)).toLocaleString('fr-FR')}{' '}
+                          XPF
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(index)}
+                        title="Retirer cette inscription"
+                        aria-label="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })
             )}
 
             {fields.length > 0 && (
@@ -341,7 +349,7 @@ export function InvoiceForm() {
         </Card>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -354,7 +362,7 @@ export function InvoiceForm() {
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Créer la facture
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Form>
   );

@@ -1,18 +1,9 @@
 'use client';
+
+import { FilterBar } from '@/components/shared/filter-bar';
 import { usePagedOptions } from '@/hooks/use-paged-options';
 
-import type { Row } from '@tanstack/react-table';
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { useServerPagination } from '@/hooks/use-server-pagination';
-import { DataTableServer } from '@/components/ui/data-table-server';
-import {
-  adminRegistrationColumns,
-  type AdminRegistrationType,
-  AdminRegistrationActions,
-} from './columns';
-import { RegistrationCancellationDialog } from './registration-cancellation-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { DataTableServer } from '@/components/ui/data-table-server';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -30,21 +24,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { useServerPagination } from '@/hooks/use-server-pagination';
+import { trpc } from '@/lib/trpc/client';
+import type { Row } from '@tanstack/react-table';
 import { X } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import {
+  AdminRegistrationActions,
+  adminRegistrationColumns,
+  type AdminRegistrationType,
+} from './columns';
+import { RegistrationCancellationDialog } from './registration-cancellation-dialog';
 
 type StatusFilter = 'all' | 'PENDING' | 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
 export function AdminRegistrationsTableClient() {
   const router = useRouter();
-  const initialStatus = useSearchParams().get("status");
+  const initialStatus = useSearchParams().get('status');
   const [deletingItem, setDeletingItem] = useState<AdminRegistrationType | null>(null);
   const [confirmingItem, setConfirmingItem] = useState<AdminRegistrationType | null>(null);
   const [cancellingItem, setCancellingItem] = useState<AdminRegistrationType | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(['PENDING', 'CONFIRMED', 'WAITLIST', 'CANCELLED'].includes(initialStatus ?? '') ? initialStatus as StatusFilter : 'all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    ['PENDING', 'CONFIRMED', 'WAITLIST', 'CANCELLED'].includes(initialStatus ?? '')
+      ? (initialStatus as StatusFilter)
+      : 'all',
+  );
   const [campFilter, setCampFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -53,15 +59,24 @@ export function AdminRegistrationsTableClient() {
   const pagination = useServerPagination({ defaultPageSize: 20 });
 
   // Charger la liste des camps pour le dropdown
-  const optionsPage0 = usePagedOptions("un camp");
-  const { data: campsData , error: optionsError0, refetch: optionsRetry0} = trpc.camps.list.useQuery({
+  const optionsPage0 = usePagedOptions('un camp');
+  const {
+    data: campsData,
+    error: optionsError0,
+    refetch: optionsRetry0,
+  } = trpc.camps.list.useQuery({
     ...optionsPage0.params,
     sortBy: 'name',
     sortOrder: 'asc',
   });
 
   // Query tRPC avec pagination, filtres serveur et recherche
-  const { data, isLoading, error: listError, refetch: retryList } = trpc.registrations.list.useQuery({
+  const {
+    data,
+    isLoading,
+    error: listError,
+    refetch: retryList,
+  } = trpc.registrations.list.useQuery({
     sortBy: pagination.sortBy as 'registrationDate' | 'childName' | 'status' | undefined,
     sortOrder: pagination.sortOrder,
     limit: pagination.limit,
@@ -116,7 +131,6 @@ export function AdminRegistrationsTableClient() {
     },
   });
 
-
   // Liste des camps pour le dropdown (depuis la query camps séparée)
   const campsList = campsData?.camps || [];
 
@@ -133,7 +147,7 @@ export function AdminRegistrationsTableClient() {
             onCreateInvoice={(item: AdminRegistrationType) => {
               createInvoiceMutation.mutate({
                 registrationId: item.id,
-                status: 'SENT'
+                status: 'SENT',
               });
             }}
             onDelete={(item: AdminRegistrationType) => setDeletingItem(item)}
@@ -180,7 +194,9 @@ export function AdminRegistrationsTableClient() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">{optionsPage0.controls(campsData?.total ?? 0, isLoading, optionsError0, optionsRetry0)}</div>
+      <div className="space-y-3">
+        {optionsPage0.controls(campsData?.total ?? 0, isLoading, optionsError0, optionsRetry0)}
+      </div>
 
       {error && (
         <Alert variant="destructive">
@@ -189,8 +205,8 @@ export function AdminRegistrationsTableClient() {
       )}
 
       {/* Filtres */}
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[180px]">
+      <FilterBar>
+        <div className="w-full sm:w-56">
           <Label htmlFor="status-filter" className="mb-2 block">
             Filtrer par statut
           </Label>
@@ -214,14 +230,17 @@ export function AdminRegistrationsTableClient() {
           </Select>
         </div>
 
-        <div className="flex-1 min-w-[200px]">
+        <div className="w-full sm:w-56">
           <Label htmlFor="camp-filter" className="mb-2 block">
             Filtrer par camp
           </Label>
-          <Select value={campFilter} onValueChange={(val) => {
-            setCampFilter(val);
-            pagination.resetToFirstPage();
-          }}>
+          <Select
+            value={campFilter}
+            onValueChange={(val) => {
+              setCampFilter(val);
+              pagination.resetToFirstPage();
+            }}
+          >
             <SelectTrigger id="camp-filter">
               <SelectValue placeholder="Tous les camps" />
             </SelectTrigger>
@@ -244,11 +263,13 @@ export function AdminRegistrationsTableClient() {
             </Button>
           </div>
         )}
-      </div>
+      </FilterBar>
 
       {/* Table avec pagination */}
       <DataTableServer
-        error={listError} onRetry={retryList} sortableColumns={['registrationDate', 'childName', 'status']}
+        error={listError}
+        onRetry={retryList}
+        sortableColumns={['registrationDate', 'childName', 'status']}
         columns={columnsWithActions}
         data={registrations}
         totalCount={data?.total || 0}
@@ -256,6 +277,7 @@ export function AdminRegistrationsTableClient() {
         pagination={pagination}
         searchKey="child.firstName"
         searchPlaceholder="Rechercher par nom, email, camp..."
+        search={searchTerm}
         onSearchChange={handleSearchChange}
       />
 
@@ -268,7 +290,10 @@ export function AdminRegistrationsTableClient() {
               Êtes-vous sûr de vouloir supprimer cette inscription ?
               <br />
               <br />
-              Enfant : <strong>{deletingItem?.child.firstName} {deletingItem?.child.lastName}</strong>
+              Enfant :{' '}
+              <strong>
+                {deletingItem?.child.firstName} {deletingItem?.child.lastName}
+              </strong>
               <br />
               Camp : <strong>{deletingItem?.camp.name}</strong>
               <br />
@@ -277,13 +302,11 @@ export function AdminRegistrationsTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
             </AlertDialogAction>
@@ -300,7 +323,10 @@ export function AdminRegistrationsTableClient() {
               Êtes-vous sûr de vouloir valider cette inscription ?
               <br />
               <br />
-              Enfant : <strong>{confirmingItem?.child.firstName} {confirmingItem?.child.lastName}</strong>
+              Enfant :{' '}
+              <strong>
+                {confirmingItem?.child.firstName} {confirmingItem?.child.lastName}
+              </strong>
               <br />
               Camp : <strong>{confirmingItem?.camp.name}</strong>
               <br />
@@ -309,9 +335,7 @@ export function AdminRegistrationsTableClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={confirmMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={confirmMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirm}
               disabled={confirmMutation.isPending}

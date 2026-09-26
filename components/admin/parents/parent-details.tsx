@@ -1,14 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Pencil, Trash2, User, Mail, Phone, MapPin, Calendar } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc/client';
-import { toast } from 'sonner';
-import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +10,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { trpc } from '@/lib/trpc/client';
+import { Calendar, Mail, MapPin, Pencil, Phone, Trash2, User } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 // ============================================================================
 // TYPES
@@ -72,7 +72,8 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
       router.push(parentsPath);
       router.refresh();
     } catch (err) {
-      const errorMessage = err instanceof Error && err.message ? err.message : 'Erreur lors de la suppression';
+      const errorMessage =
+        err instanceof Error && err.message ? err.message : 'Erreur lors de la suppression';
       toast.error(errorMessage);
     }
   }
@@ -80,7 +81,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
   return (
     <div className="space-y-6">
       {/* Actions */}
-      <div className="flex gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <Button asChild>
           <Link href={`${parentsPath}/${parent.id}/edit`}>
             <Pencil className="mr-2 h-4 w-4" />
@@ -88,10 +89,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
           </Link>
         </Button>
 
-        <Button
-          variant="destructive"
-          onClick={() => setShowDeleteDialog(true)}
-        >
+        <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
           <Trash2 className="mr-2 h-4 w-4" />
           Supprimer
         </Button>
@@ -145,11 +143,12 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
               <div className="flex items-start gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground mt-1" />
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Téléphone Professionnel</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Téléphone Professionnel
+                  </p>
                   <p className="text-base">{parent.workPhone}</p>
                 </div>
               </div>
-            
             </div>
             {parent.employeur && (
               <div>
@@ -189,7 +188,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
               <p className="text-sm font-medium text-muted-foreground">Compte créé le</p>
               <p className="text-base">
                 {new Date(parent.createdAt).toLocaleDateString('fr-FR', {
-    timeZone: 'Pacific/Noumea',
+                  timeZone: 'Pacific/Noumea',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
@@ -220,7 +219,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
                     <p className="text-sm text-muted-foreground">
                       Né(e) le{' '}
                       {new Date(child.dateOfBirth).toLocaleDateString('fr-FR', {
-    timeZone: 'Pacific/Noumea',
+                        timeZone: 'Pacific/Noumea',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
@@ -228,9 +227,7 @@ export function ParentDetails({ parent }: ParentDetailsProps) {
                     </p>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`${basePath}/children/${child.id}`}>
-                      Voir détails
-                    </Link>
+                    <Link href={`${basePath}/children/${child.id}`}>Voir détails</Link>
                   </Button>
                 </div>
               ))}
