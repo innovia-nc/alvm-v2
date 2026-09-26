@@ -29,6 +29,11 @@ vi.mock('next-auth/react', () => ({
   signOut: vi.fn(),
 }));
 
+// Le nom de l'association vient d'une requête tRPC : hors du périmètre de ce test.
+vi.mock('@/components/layout/organization-name', () => ({
+  OrganizationName: () => 'Association',
+}));
+
 vi.mock('next-themes', () => ({
   useTheme: () => ({ theme: 'light', setTheme: vi.fn() }),
 }));
@@ -59,7 +64,9 @@ async function ouvrirMenuUtilisateur() {
   const user = userEvent.setup();
   const trigger = screen
     .getAllByRole('button')
-    .find((b) => b.querySelector('[class*="rounded-full"]') || b.className.includes('rounded-full'));
+    .find(
+      (b) => b.querySelector('[class*="rounded-full"]') || b.className.includes('rounded-full'),
+    );
 
   await user.click(trigger!);
   return user;

@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-export function FeatureControls() {
+/** Modules d'UNE association, réglés par la super administration. */
+export function FeatureControls({ organizationId }: { organizationId: string }) {
   const utils = trpc.useUtils();
-  const state = trpc.features.get.useQuery();
+  const state = trpc.features.forOrganization.useQuery({ organizationId });
   const update = trpc.features.set.useMutation({
     onSuccess: async () => {
-      await utils.features.get.invalidate();
+      await utils.features.forOrganization.invalidate({ organizationId });
       toast.success('Disponibilité mise à jour');
     },
     onError: (error) => toast.error(error.message),
@@ -26,9 +27,9 @@ export function FeatureControls() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Les changements s’appliquent à tous les rôles métier. Votre accès super admin reste
-        disponible. Les données sont conservées ; les opérations automatiques nécessaires aux
-        écritures existantes restent cohérentes.
+        Les changements s’appliquent à tous les rôles métier de cette association. Les données sont
+        conservées ; les opérations automatiques nécessaires aux écritures existantes restent
+        cohérentes.
       </p>
       <div className="grid gap-4 md:grid-cols-2">
         {Object.entries(FEATURES).map(([key, feature]) => {
@@ -53,7 +54,9 @@ export function FeatureControls() {
                   aria-label={feature.label}
                   variant={enabled ? 'outline' : 'default'}
                   disabled={update.isPending}
-                  onClick={() => update.mutate({ key: featureKey, enabled: !enabled })}
+                  onClick={() =>
+                    update.mutate({ organizationId, key: featureKey, enabled: !enabled })
+                  }
                 >
                   {enabled ? 'Désactiver' : 'Activer'}
                 </Button>

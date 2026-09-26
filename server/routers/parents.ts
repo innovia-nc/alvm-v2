@@ -5,6 +5,7 @@ import { hash } from 'bcryptjs';
 import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
 import { BCRYPT_ROUNDS } from '@/server/helpers/password';
 import type { Prisma } from '@prisma/client';
+import { lockTenant } from '@/server/db-context';
 
 // NOTE: Output schemas are intentionally lenient on `email` (z.string() rather
 // than z.string().email()). Some legacy rows in BDD have malformed emails and
@@ -76,25 +77,31 @@ function mapParent(p: {
 
 export const parentsRouter = router({
   list: staffProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      search: z.string().optional(),
-      sortBy: z.enum(['lastName', 'firstName', 'createdAt']).default('lastName'),
-      sortOrder: z.enum(['asc', 'desc']).default('asc'),
-      status: z.enum(['all', 'active', 'inactive']).default('active'),
-    }))
-    .output(z.object({
-      parents: z.array(parentWithUserSchema),
-      total: z.number(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        search: z.string().optional(),
+        sortBy: z.enum(['lastName', 'firstName', 'createdAt']).default('lastName'),
+        sortOrder: z.enum(['asc', 'desc']).default('asc'),
+        status: z.enum(['all', 'active', 'inactive']).default('active'),
+      }),
+    )
+    .output(
+      z.object({
+        parents: z.array(parentWithUserSchema),
+        total: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, offset, search, sortBy, sortOrder, status } = input;
 
       const deletedAtFilter: Prisma.ParentWhereInput =
-        status === 'active' ? { deletedAt: null } :
-        status === 'inactive' ? { deletedAt: { not: null } } :
-        {};
+        status === 'active'
+          ? { deletedAt: null }
+          : status === 'inactive'
+            ? { deletedAt: { not: null } }
+            : {};
 
       const where: Prisma.ParentWhereInput = {
         ...deletedAtFilter,
@@ -124,13 +131,14 @@ export const parentsRouter = router({
 
       // Get registrations counts in bulk
       const parentIds = parents.map((p) => p.userId);
-      const regCounts = parentIds.length > 0
-        ? await ctx.prisma.registration.groupBy({
-            by: ['parentId'],
-            where: { parentId: { in: parentIds } },
-            _count: true,
-          })
-        : [];
+      const regCounts =
+        parentIds.length > 0
+          ? await ctx.prisma.registration.groupBy({
+              by: ['parentId'],
+              where: { parentId: { in: parentIds } },
+              _count: true,
+            })
+          : [];
 
       const regCountMap = new Map(regCounts.map((r) => [r.parentId, r._count]));
 
@@ -166,23 +174,32 @@ export const parentsRouter = router({
     }),
 
   update: protectedProcedure
-    .input(z.object({
-      firstName: z.string().min(2).max(50).optional(),
-      lastName: z.string().min(2).max(50).optional(),
-      phone: z.string().min(6).optional(),
-      homePhone: z.string().optional().nullable(),
-      workPhone: z.string().optional().nullable(),
-      email: z.string().email().optional(),
-      address: z.string().optional(),
-      city: z.string().optional(),
-      postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
-      employeur: z.string().max(100).nullable().optional(),
-      fonction: z.string().max(100).nullable().optional(),
-    }))
+    .input(
+      z.object({
+        firstName: z.string().min(2).max(50).optional(),
+        lastName: z.string().min(2).max(50).optional(),
+        phone: z.string().min(6).optional(),
+        homePhone: z.string().optional().nullable(),
+        workPhone: z.string().optional().nullable(),
+        email: z.string().email().optional(),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        postalCode: z
+          .string()
+          .regex(/^\d{5}$/, 'Code postal : 5 chiffres')
+          .optional()
+          .or(z.literal('')),
+        employeur: z.string().max(100).nullable().optional(),
+        fonction: z.string().max(100).nullable().optional(),
+      }),
+    )
     .output(parentSchema)
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== 'PARENT') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Seuls les parents peuvent modifier leur profil' });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Seuls les parents peuvent modifier leur profil',
+        });
       }
 
       const data: Prisma.ParentUpdateInput = {};
@@ -221,25 +238,29 @@ export const parentsRouter = router({
     }),
 
   create: staffProcedure
-    .input(z.object({
-      firstName: z.string().min(2).max(50),
-      lastName: z.string().min(2).max(50),
-      email: z.string().email(),
-      phone: z.string().min(6),
-      homePhone: z.string().optional().or(z.literal('')),
-      workPhone: z.string().optional().or(z.literal('')),
-      address: z.string().optional().or(z.literal('')),
-      city: z.string().optional().or(z.literal('')),
-      postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
-      employeur: z.string().max(100).nullable().optional(),
-      fonction: z.string().max(100).nullable().optional(),
-      password: z.string()
-        .min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/)
-        .optional(),
-    }))
+    .input(
+      z.object({
+        firstName: z.string().min(2).max(50),
+        lastName: z.string().min(2).max(50),
+        email: z.string().email(),
+        phone: z.string().min(6),
+        homePhone: z.string().optional().or(z.literal('')),
+        workPhone: z.string().optional().or(z.literal('')),
+        address: z.string().optional().or(z.literal('')),
+        city: z.string().optional().or(z.literal('')),
+        postalCode: z
+          .string()
+          .regex(/^\d{5}$/, 'Code postal : 5 chiffres')
+          .optional()
+          .or(z.literal('')),
+        employeur: z.string().max(100).nullable().optional(),
+        fonction: z.string().max(100).nullable().optional(),
+        password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/).optional(),
+      }),
+    )
     .output(parentSchema)
     .mutation(async ({ ctx, input }) => {
-      const existingUser = await ctx.prisma.user.findUnique({
+      const existingUser = await ctx.prisma.user.findFirst({
         where: { email: input.email },
       });
       if (existingUser) {
@@ -296,20 +317,26 @@ export const parentsRouter = router({
     }),
 
   updateByStaff: staffProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      firstName: z.string().min(2).max(50).optional(),
-      lastName: z.string().min(2).max(50).optional(),
-      phone: z.string().min(6).optional(),
-      homePhone: z.string().optional().nullable(),
-      workPhone: z.string().optional().nullable(),
-      email: z.string().email().optional(),
-      address: z.string().optional(),
-      city: z.string().optional(),
-      postalCode: z.string().regex(/^\d{5}$/, 'Code postal : 5 chiffres').optional().or(z.literal('')),
-      employeur: z.string().max(100).nullable().optional(),
-      fonction: z.string().max(100).nullable().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        firstName: z.string().min(2).max(50).optional(),
+        lastName: z.string().min(2).max(50).optional(),
+        phone: z.string().min(6).optional(),
+        homePhone: z.string().optional().nullable(),
+        workPhone: z.string().optional().nullable(),
+        email: z.string().email().optional(),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        postalCode: z
+          .string()
+          .regex(/^\d{5}$/, 'Code postal : 5 chiffres')
+          .optional()
+          .or(z.literal('')),
+        employeur: z.string().max(100).nullable().optional(),
+        fonction: z.string().max(100).nullable().optional(),
+      }),
+    )
     .output(parentSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.parent.findFirst({
@@ -339,9 +366,16 @@ export const parentsRouter = router({
 
       const result = await ctx.prisma.$transaction(async (tx) => {
         if (updates.email) {
-          await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(20260922, 1)::text');
+          await lockTenant(tx, 'accounts');
           const target = await tx.user.findUnique({ where: { id } });
-          if (target?.role === 'SUPER_ADMIN' || (target?.role !== 'PARENT' && !['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role))) throw new TRPCError({ code: 'FORBIDDEN', message: 'Seul un administrateur peut modifier cette adresse de connexion' });
+          if (
+            target?.role === 'SUPER_ADMIN' ||
+            (target?.role !== 'PARENT' && !['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role))
+          )
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'Seul un administrateur peut modifier cette adresse de connexion',
+            });
           data.email = updates.email;
           await tx.user.update({
             where: { id },
@@ -373,7 +407,8 @@ export const parentsRouter = router({
       if (activeRegistrations > 0) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Impossible de supprimer ce parent : des inscriptions actives existent pour ses enfants',
+          message:
+            'Impossible de supprimer ce parent : des inscriptions actives existent pour ses enfants',
         });
       }
 
@@ -390,16 +425,17 @@ export const parentsRouter = router({
       });
 
       // Un parent déjà archivé ne « compte » pas comme parent restant.
-      const siblingLinks = childLinks.length > 0
-        ? await ctx.prisma.childParent.findMany({
-            where: {
-              childId: { in: childLinks.map((l) => l.childId) },
-              parentId: { not: input.id },
-              parent: { deletedAt: null },
-            },
-            select: { childId: true },
-          })
-        : [];
+      const siblingLinks =
+        childLinks.length > 0
+          ? await ctx.prisma.childParent.findMany({
+              where: {
+                childId: { in: childLinks.map((l) => l.childId) },
+                parentId: { not: input.id },
+                parent: { deletedAt: null },
+              },
+              select: { childId: true },
+            })
+          : [];
 
       const childrenWithAnotherParent = new Set(siblingLinks.map((l) => l.childId));
 

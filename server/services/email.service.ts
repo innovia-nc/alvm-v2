@@ -35,6 +35,10 @@ interface HasAppSettingFindMany {
       select: { key: true; value: true };
     }) => Promise<Array<{ key: string; value: string | null }>>;
   };
+  /** Association de la transaction (la RLS n'en laisse voir qu'une). */
+  organization?: {
+    findFirst: (args: { select: { name: true } }) => Promise<{ name: string } | null>;
+  };
 }
 
 // ============================================================================
@@ -62,8 +66,11 @@ function parseSetting(raw: string | null | undefined): string | undefined {
 }
 
 /**
- * Lit l'identité d'expédition dans les settings `email`.
- * Fallbacks alignés sur le seed (`prisma/seed.ts`).
+ * Lit l'identité d'expédition dans les settings `email` de l'association.
+ *
+ * Multi-tenant : sans réglage, le nom d'expéditeur est celui de l'association
+ * et l'adresse celle de la plateforme (`EMAIL_FROM_ADDRESS`, domaine vérifié
+ * chez le fournisseur). Aucune identité d'organisation n'est codée en dur.
  */
 export async function getEmailSender(prisma: HasAppSettingFindMany): Promise<EmailSender> {
   const rows = await prisma.appSetting.findMany({
@@ -72,10 +79,18 @@ export async function getEmailSender(prisma: HasAppSettingFindMany): Promise<Ema
   });
 
   const map = new Map(rows.map((r) => [r.key, parseSetting(r.value)]));
+  const organizationName = map.get('from_name')
+    ? undefined
+    : (await prisma.organization?.findFirst({ select: { name: true } }))?.name;
+  const fromEmail = map.get('from_email') ?? process.env.EMAIL_FROM_ADDRESS?.trim();
+  if (!fromEmail)
+    throw new Error(
+      "Adresse d'expédition absente : renseignez-la dans les paramètres email ou définissez EMAIL_FROM_ADDRESS.",
+    );
 
   return {
-    fromName: map.get('from_name') ?? 'ALVM',
-    fromEmail: map.get('from_email') ?? 'noreply@alvm.nc',
+    fromName: map.get('from_name') ?? organizationName ?? 'Plateforme',
+    fromEmail,
     replyTo: map.get('reply_to'),
   };
 }

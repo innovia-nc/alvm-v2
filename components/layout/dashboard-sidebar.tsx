@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMediaQuery } from '@/lib/hooks/use-media-query';
 import { cn } from '@/lib/utils';
 import {
+  Building2,
   CalendarDays,
   ChevronLeft,
   CreditCard,
@@ -55,9 +56,13 @@ const navigationConfig: Record<string, NavSection[]> = {
     {
       title: 'Super administration',
       items: [
-        { title: 'Fonctionnalités', href: '/dashboard/super-admin', icon: Settings },
+        { title: 'Associations', href: '/dashboard/super-admin', icon: Building2 },
         { title: 'Configuration globale', href: '/dashboard/super-admin/settings', icon: Settings },
-        { title: 'Intégrations et clés API', href: '/dashboard/super-admin/integrations', icon: Settings },
+        {
+          title: 'Intégrations et clés API',
+          href: '/dashboard/super-admin/integrations',
+          icon: Settings,
+        },
         { title: 'Comptes et accès', href: '/dashboard/super-admin/accounts', icon: Users },
         { title: 'Journal d’audit', href: '/dashboard/super-admin/audit', icon: FileText },
       ],
@@ -301,7 +306,9 @@ export function DashboardSidebar({ role, features }: DashboardSidebarProps) {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!compact && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="min-w-0 break-words text-xl font-bold text-primary"><ApplicationName /></span>
+            <span className="min-w-0 break-words text-xl font-bold text-primary">
+              <ApplicationName />
+            </span>
           </Link>
         )}
 
@@ -395,7 +402,11 @@ export function DashboardSidebar({ role, features }: DashboardSidebarProps) {
                     ? 'Personnel'
                     : 'Administrateur'}
             </p>
-            <p className="mt-1">{role === 'super-admin' ? 'Administration de la plateforme' : 'Gestion des camps et activités'}</p>
+            <p className="mt-1">
+              {role === 'super-admin'
+                ? 'Administration de la plateforme'
+                : 'Gestion des camps et activités'}
+            </p>
           </div>
         </div>
       )}

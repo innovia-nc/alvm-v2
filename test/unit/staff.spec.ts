@@ -64,7 +64,10 @@ describe('staff router', () => {
       staff.mockPrisma.staffMember.findMany.mockResolvedValue([makeStaffRow()]);
       staff.mockPrisma.staffMember.count.mockResolvedValue(1);
       const result = await staff.caller.staff.list({
-        limit: 20, offset: 0, sortBy: 'lastName', sortOrder: 'asc',
+        limit: 20,
+        offset: 0,
+        sortBy: 'lastName',
+        sortOrder: 'asc',
       });
       expect(result.staff).toHaveLength(1);
       expect(result.total).toBe(1);
@@ -131,7 +134,10 @@ describe('staff router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
       admin.mockPrisma.user.create.mockResolvedValue({
-        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+        id: USER_ID,
+        email: createInput.email,
+        name: 'Marie Martin',
+        role: 'STAFF',
       });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
@@ -143,7 +149,7 @@ describe('staff router', () => {
     });
 
     it('should reject duplicate user email', async () => {
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: 'x', email: createInput.email });
+      admin.mockPrisma.user.findFirst.mockResolvedValue({ id: 'x', email: createInput.email });
       await expect(admin.caller.staff.create(createInput)).rejects.toThrow(
         'Un compte avec cet email existe déjà',
       );
@@ -151,7 +157,9 @@ describe('staff router', () => {
 
     it('should reject duplicate staff email', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
-      admin.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow({ email: createInput.email }));
+      admin.mockPrisma.staffMember.findFirst.mockResolvedValue(
+        makeStaffRow({ email: createInput.email }),
+      );
       await expect(admin.caller.staff.create(createInput)).rejects.toThrow(
         'Un membre du personnel avec cet email existe déjà',
       );
@@ -161,7 +169,10 @@ describe('staff router', () => {
       staff.mockPrisma.user.findUnique.mockResolvedValue(null);
       staff.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
       staff.mockPrisma.user.create.mockResolvedValue({
-        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+        id: USER_ID,
+        email: createInput.email,
+        name: 'Marie Martin',
+        role: 'STAFF',
       });
       staff.mockPrisma.account.create.mockResolvedValue({});
       staff.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
@@ -173,7 +184,10 @@ describe('staff router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
       admin.mockPrisma.user.create.mockResolvedValue({
-        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+        id: USER_ID,
+        email: createInput.email,
+        name: 'Marie Martin',
+        role: 'STAFF',
       });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
@@ -186,7 +200,10 @@ describe('staff router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
       admin.mockPrisma.user.create.mockResolvedValue({
-        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+        id: USER_ID,
+        email: createInput.email,
+        name: 'Marie Martin',
+        role: 'STAFF',
       });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
@@ -211,7 +228,10 @@ describe('staff router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(null);
       admin.mockPrisma.user.create.mockResolvedValue({
-        id: USER_ID, email: createInput.email, name: 'Marie Martin', role: 'STAFF',
+        id: USER_ID,
+        email: createInput.email,
+        name: 'Marie Martin',
+        role: 'STAFF',
       });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.staffMember.create.mockResolvedValue(createdRow);
@@ -243,10 +263,15 @@ describe('staff router', () => {
     it('should update firstName and lastName', async () => {
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow());
       admin.mockPrisma.staffMember.update.mockResolvedValue({
-        ...makeStaffRow(), firstName: 'Pierre', lastName: 'Lefevre', user: undefined,
+        ...makeStaffRow(),
+        firstName: 'Pierre',
+        lastName: 'Lefevre',
+        user: undefined,
       });
       const result = await admin.caller.staff.update({
-        id: STAFF_ID, firstName: 'Pierre', lastName: 'Lefevre',
+        id: STAFF_ID,
+        firstName: 'Pierre',
+        lastName: 'Lefevre',
       });
       expect(result.firstName).toBe('Pierre');
     });
@@ -260,15 +285,17 @@ describe('staff router', () => {
 
     it('should reject empty update', async () => {
       admin.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow());
-      await expect(
-        admin.caller.staff.update({ id: STAFF_ID }),
-      ).rejects.toThrow('Aucune modification fournie');
+      await expect(admin.caller.staff.update({ id: STAFF_ID })).rejects.toThrow(
+        'Aucune modification fournie',
+      );
     });
 
     it('should allow STAFF to update', async () => {
       staff.mockPrisma.staffMember.findFirst.mockResolvedValue(makeStaffRow());
       staff.mockPrisma.staffMember.update.mockResolvedValue({
-        ...makeStaffRow(), firstName: 'Xx', user: undefined,
+        ...makeStaffRow(),
+        firstName: 'Xx',
+        user: undefined,
       });
       const result = await staff.caller.staff.update({ id: STAFF_ID, firstName: 'Xx' });
       expect(result.firstName).toBe('Xx');
@@ -278,7 +305,7 @@ describe('staff router', () => {
   describe('delete', () => {
     it('should soft-delete a staff member with no camps', async () => {
       admin.mockPrisma.camp.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: "STAFF" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: 'STAFF' });
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 1 });
       const result = await admin.caller.staff.delete({ id: STAFF_ID });
       expect(result.success).toBe(true);
@@ -286,14 +313,14 @@ describe('staff router', () => {
 
     it('should reject deletion when staff has created camps', async () => {
       admin.mockPrisma.camp.count.mockResolvedValue(3);
-      await expect(
-        admin.caller.staff.delete({ id: STAFF_ID }),
-      ).rejects.toThrow('Impossible de supprimer ce membre');
+      await expect(admin.caller.staff.delete({ id: STAFF_ID })).rejects.toThrow(
+        'Impossible de supprimer ce membre',
+      );
     });
 
     it('should reject deletion of non-existent staff', async () => {
       admin.mockPrisma.camp.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: "STAFF" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: 'STAFF' });
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 0 });
       await expect(
         admin.caller.staff.delete({ id: 'b0000000-0000-4000-a000-000000000099' }),
@@ -302,9 +329,11 @@ describe('staff router', () => {
 
     it('should deny STAFF from disabling another STAFF', async () => {
       staff.mockPrisma.camp.count.mockResolvedValue(0);
-      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: "STAFF" });
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: STAFF_ID, role: 'STAFF' });
       staff.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 1 });
-      await expect(staff.caller.staff.delete({ id: STAFF_ID })).rejects.toThrow('Seul un administrateur');
+      await expect(staff.caller.staff.delete({ id: STAFF_ID })).rejects.toThrow(
+        'Seul un administrateur',
+      );
     });
 
     it('should deny PARENT from deleting', async () => {

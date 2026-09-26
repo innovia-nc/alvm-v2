@@ -13,23 +13,26 @@ const campTypeSchema = z.object({
 });
 
 export const campTypesRouter = router({
-  listAll: staffProcedure
-    .output(z.array(campTypeSchema))
-    .query(async ({ ctx }) => {
-      return ctx.prisma.campType.findMany({
-        orderBy: [{ active: 'desc' }, { name: 'asc' }],
-      });
-    }),
+  listAll: staffProcedure.output(z.array(campTypeSchema)).query(async ({ ctx }) => {
+    return ctx.prisma.campType.findMany({
+      orderBy: [{ active: 'desc' }, { name: 'asc' }],
+    });
+  }),
 
   create: adminProcedure
-    .input(z.object({
-      name: z.string().min(2).max(100),
-      description: z.string().optional(),
-      accountingCode: z.string().regex(/^\d{6}$/, 'Code comptable invalide (6 chiffres)').optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(2).max(100),
+        description: z.string().optional(),
+        accountingCode: z
+          .string()
+          .regex(/^\d{6}$/, 'Code comptable invalide (6 chiffres)')
+          .optional(),
+      }),
+    )
     .output(campTypeSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.campType.findUnique({
+      const existing = await ctx.prisma.campType.findFirst({
         where: { name: input.name },
       });
       if (existing) {
@@ -62,13 +65,19 @@ export const campTypesRouter = router({
     }),
 
   update: adminProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      name: z.string().min(2).max(100).optional(),
-      description: z.string().optional(),
-      accountingCode: z.string().regex(/^\d{6}$/).nullable().optional(),
-      active: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(2).max(100).optional(),
+        description: z.string().optional(),
+        accountingCode: z
+          .string()
+          .regex(/^\d{6}$/)
+          .nullable()
+          .optional(),
+        active: z.boolean().optional(),
+      }),
+    )
     .output(campTypeSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.campType.findUnique({
@@ -79,7 +88,7 @@ export const campTypesRouter = router({
       }
 
       if (input.name && input.name !== existing.name) {
-        const nameExists = await ctx.prisma.campType.findUnique({
+        const nameExists = await ctx.prisma.campType.findFirst({
           where: { name: input.name },
         });
         if (nameExists) {

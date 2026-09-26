@@ -4,7 +4,7 @@ import { prisma } from '@/server/db';
 import { DEFAULT_BRANDING, INTEGRATIONS, type Branding, type IntegrationId } from '@/lib/platform';
 
 type IntegrationReader = Pick<typeof prisma, 'platformIntegration'>;
-type SettingsReader = Pick<typeof prisma, 'appSetting'>;
+type SettingsReader = Pick<typeof prisma, 'platformSetting'>;
 
 function encryptionKey() {
   const key = Buffer.from(process.env.PLATFORM_ENCRYPTION_KEY ?? '', 'base64');
@@ -53,10 +53,12 @@ export async function getIntegrationSecret(
   if (row?.encryptedSecret) return decryptSecret(row.encryptedSecret);
   return process.env[INTEGRATIONS[id].environment]?.trim() || null;
 }
+/**
+ * Identité de la plateforme (nom, description, support). Globale : lisible
+ * sans contexte de tenant (`platform_settings`, policy de lecture ouverte).
+ */
 export async function getBranding(db: SettingsReader = prisma): Promise<Branding> {
-  const row = await db.appSetting.findUnique({
-    where: { category_key: { category: 'platform', key: 'branding' } },
-  });
+  const row = await db.platformSetting.findUnique({ where: { key: 'branding' } });
   if (!row?.value) return { ...DEFAULT_BRANDING };
   try {
     const parsed = JSON.parse(row.value);

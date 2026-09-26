@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,15 +17,40 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AlertCircle, Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { trpc } from '@/lib/trpc/client';
+import { useDebounce } from '@/lib/hooks/use-debounce';
+import {
+  LAST_ORGANIZATION_KEY,
+  ORGANIZATION_SLUG_PATTERN,
+  normalizeOrganizationSlug,
+} from '@/lib/organization-slug';
 
-// Schéma validation Zod
+// Schéma validation Zod. L'espace n'est demandé que sur le portail habituel :
+// un compte SUPER_ADMIN vit dans l'espace de plateforme.
 const signInSchema = z.object({
+  organization: z.string(),
   email: z.string().min(1, 'Email requis').email('Email invalide').toLowerCase(),
   password: z.string().min(6, 'Mot de passe doit contenir au moins 6 caractères'),
 });
 
 type SignInFormValues = z.infer<typeof signInSchema>;
+
+function readLastOrganization(): string {
+  try {
+    return window.localStorage.getItem(LAST_ORGANIZATION_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function rememberOrganization(slug: string) {
+  try {
+    window.localStorage.setItem(LAST_ORGANIZATION_KEY, slug);
+  } catch {
+    // Stockage indisponible (navigation privée) : simple confort perdu.
+  }
+}
 
 export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
   const router = useRouter();
@@ -42,31 +67,63 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<SignInFormValues>({
-    resolver: zodResolver(signInSchema),
+    resolver: zodResolver(
+      signInSchema.refine(
+        (values) =>
+          superAdmin ||
+          ORGANIZATION_SLUG_PATTERN.test(normalizeOrganizationSlug(values.organization)),
+        { path: ['organization'], message: 'Identifiant d’espace requis (ex. : mon-association)' },
+      ),
+    ),
     defaultValues: {
+      organization: '',
       email: '',
       password: '',
     },
     mode: 'onBlur', // Validation on blur pour meilleure UX
   });
 
+  // Espace prérempli : lien d'une association (`?org=`) puis dernier espace utilisé.
+  const requestedOrganization = searchParams.get('org');
+  useEffect(() => {
+    if (superAdmin) return;
+    const initial = normalizeOrganizationSlug(requestedOrganization ?? readLastOrganization());
+    if (initial) form.setValue('organization', initial);
+  }, [superAdmin, requestedOrganization, form]);
+
+  const typedOrganization = normalizeOrganizationSlug(form.watch('organization'));
+  const organizationSlug = useDebounce(typedOrganization, 300);
+  const organization = trpc.organizations.publicInfo.useQuery(
+    { slug: organizationSlug },
+    {
+      enabled: !superAdmin && ORGANIZATION_SLUG_PATTERN.test(organizationSlug),
+      retry: false,
+      staleTime: 60_000,
+    },
+  );
+
   async function onSubmit(data: SignInFormValues) {
     setIsLoading(true);
     setError(null);
+    const organizationValue = normalizeOrganizationSlug(data.organization);
 
     try {
       // Utiliser NextAuth signIn
       const result = await signIn('credentials', {
         portal: superAdmin ? 'super-admin' : 'standard',
+        ...(superAdmin ? {} : { organization: organizationValue }),
         email: data.email,
         password: data.password,
         redirect: false, // Gérer la redirection manuellement
       });
 
       if (result?.error) {
-        // Messages d'erreur localisés
+        // Messages d'erreur localisés. Un espace inconnu ou suspendu n'est pas
+        // distingué d'identifiants erronés (pas d'énumération des associations).
         const errorMessages: Record<string, string> = {
-          CredentialsSignin: 'Email ou mot de passe incorrect',
+          CredentialsSignin: superAdmin
+            ? 'Email ou mot de passe incorrect'
+            : 'Espace, email ou mot de passe incorrect',
           Configuration: 'Erreur de configuration du serveur',
           AccessDenied: 'Accès refusé',
         };
@@ -76,6 +133,7 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
       }
 
       if (result?.ok) {
+        if (!superAdmin) rememberOrganization(organizationValue);
         // Connexion réussie - rediriger vers callback URL ou dashboard
         router.push(callbackUrl);
         router.refresh(); // Refresh server components
@@ -99,6 +157,45 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
           </Alert>
         )}
 
+        {/* Espace (association) */}
+        {!superAdmin && (
+          <FormField
+            control={form.control}
+            name="organization"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Identifiant de l’espace</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="mon-association"
+                    autoComplete="organization"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    disabled={isLoading}
+                    aria-describedby="organization-status"
+                    {...field}
+                  />
+                </FormControl>
+                <p
+                  id="organization-status"
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                  aria-live="polite"
+                >
+                  {organization.data ? (
+                    <>
+                      <Building2 className="h-4 w-4" aria-hidden="true" />
+                      <span>{organization.data.name}</span>
+                    </>
+                  ) : (
+                    'Communiqué par votre association.'
+                  )}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         {/* Email */}
         <FormField
           control={form.control}
@@ -113,7 +210,6 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
                   autoComplete="email"
                   autoCapitalize="none"
                   spellCheck={false}
-                  autoFocus
                   disabled={isLoading}
                   {...field}
                 />

@@ -48,12 +48,15 @@ describe('Navigation — repérage et changement de taille', () => {
   });
 });
 
-
 it('affiche la navigation dédiée du super admin', () => {
   state.pathname = '/dashboard/super-admin';
   render(<DashboardSidebar role="super-admin" />);
-  expect(screen.getByRole('link', { name: 'Fonctionnalités' }).getAttribute('aria-current')).toBe('page');
-  expect(screen.getByRole('link', { name: 'Configuration globale' }).getAttribute('href')).toBe('/dashboard/super-admin/settings');
+  expect(screen.getByRole('link', { name: 'Associations' }).getAttribute('aria-current')).toBe(
+    'page',
+  );
+  expect(screen.getByRole('link', { name: 'Configuration globale' }).getAttribute('href')).toBe(
+    '/dashboard/super-admin/settings',
+  );
 });
 it('masque les rubriques désactivées', () => {
   render(<DashboardSidebar role="admin" features={{ ...defaultFeatures, invoices: false }} />);

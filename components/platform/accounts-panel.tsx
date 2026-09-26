@@ -8,12 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 const roles: Record<string, string> = {
-  ADMIN: 'Admin entreprise',
+  ADMIN: 'Admin association',
   SUPER_ADMIN: 'Super admin',
   STAFF: 'Personnel',
   PARENT: 'Parent',
 };
-export function AccountsPanel() {
+/**
+ * Comptes de connexion vus par la super administration.
+ * `organizationId` : restreint la liste à une association (écran de détail) ;
+ * sans filtre, tous les espaces, avec la colonne « Association ».
+ */
+export function AccountsPanel({ organizationId }: { organizationId?: string }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
   const [search, setSearch] = useState('');
@@ -32,7 +37,7 @@ export function AccountsPanel() {
     password: '',
     role: 'SUPER_ADMIN' as const,
   });
-  const query = trpc.platform.accounts.useQuery({ search, offset, limit: 20 });
+  const query = trpc.platform.accounts.useQuery({ search, organizationId, offset, limit: 20 });
   const update = trpc.platform.updateAccount.useMutation({
     onSuccess: async () => {
       setEditing(null);
@@ -58,8 +63,8 @@ export function AccountsPanel() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Gestion des identités et des accès uniquement. Les emails et mots de passe des comptes
-        métier restent gérés par l’entreprise. Les fiches clients, enfants, personnel et les données
-        financières restent dans l’espace de l’entreprise.
+        métier restent gérés par chaque association. Les fiches clients, enfants, personnel et les
+        données financières restent dans l’espace de l’association.
       </p>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1 space-y-2">
@@ -74,9 +79,11 @@ export function AccountsPanel() {
             placeholder="Nom ou email"
           />
         </div>
-        <Button onClick={() => setCreating(!creating)}>
-          {creating ? 'Fermer' : 'Créer un super admin'}
-        </Button>
+        {!organizationId && (
+          <Button onClick={() => setCreating(!creating)}>
+            {creating ? 'Fermer' : 'Créer un super admin'}
+          </Button>
+        )}
       </div>
       {creating && (
         <Card>
@@ -204,6 +211,7 @@ export function AccountsPanel() {
                   <th className="p-3">Nom</th>
                   <th className="p-3">Email</th>
                   <th className="p-3">Rôle</th>
+                  {!organizationId && <th className="p-3">Association</th>}
                   <th className="p-3">État</th>
                   <th className="p-3">Actions</th>
                 </tr>
@@ -214,6 +222,11 @@ export function AccountsPanel() {
                     <td className="p-3">{account.name ?? '—'}</td>
                     <td className="break-all p-3">{account.email}</td>
                     <td className="p-3">{roles[account.role]}</td>
+                    {!organizationId && (
+                      <td className="p-3">
+                        {account.role === 'SUPER_ADMIN' ? 'Plateforme' : account.organization.name}
+                      </td>
+                    )}
                     <td className="p-3">{account.disabledAt ? 'Désactivé' : 'Actif'}</td>
                     <td className="p-3">
                       <div className="flex gap-2">

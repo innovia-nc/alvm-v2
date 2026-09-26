@@ -1,4 +1,6 @@
-vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
+vi.mock('@/server/db', () => ({
+  prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } },
+}));
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
 
@@ -23,6 +25,7 @@ import {
   STAFF_USER,
   PARENT_USER,
   type TestCaller,
+  TEST_ORGANIZATION_ID,
 } from '../helpers/test-caller';
 import type { MockPrisma } from '../helpers/mock-prisma';
 
@@ -31,12 +34,12 @@ import type { MockPrisma } from '../helpers/mock-prisma';
 // Pattern: [0-9a-f]{8}-[0-9a-f]{4}-[1-8]xxx-[89ab]xxx-[0-9a-f]{12}
 // ---------------------------------------------------------------------------
 
-const INVOICE_ID   = 'a0000000-0000-1000-a000-000000000001';
-const LINE_ID      = 'b0000000-0000-1000-a000-000000000001';
-const PAYMENT_ID   = 'c0000000-0000-1000-a000-000000000001';
-const REG_ID       = 'd0000000-0000-1000-a000-000000000001';
-const CAMP_ID      = 'e0000000-0000-1000-a000-000000000001';
-const CHILD_ID     = 'f0000000-0000-1000-a000-000000000001';
+const INVOICE_ID = 'a0000000-0000-1000-a000-000000000001';
+const LINE_ID = 'b0000000-0000-1000-a000-000000000001';
+const PAYMENT_ID = 'c0000000-0000-1000-a000-000000000001';
+const REG_ID = 'd0000000-0000-1000-a000-000000000001';
+const CAMP_ID = 'e0000000-0000-1000-a000-000000000001';
+const CHILD_ID = 'f0000000-0000-1000-a000-000000000001';
 const OTHER_PARENT = 'a1111111-1111-1111-a111-111111111111';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +52,7 @@ const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 function makeInvoiceRow(overrides: Record<string, any> = {}) {
   return {
     id: INVOICE_ID,
+    organizationId: TEST_ORGANIZATION_ID,
     invoiceNumber: 'FAC-2026-0001',
     parentId: PARENT_USER.id,
     issueDate: now,
@@ -98,6 +102,7 @@ function makeInvoiceRow(overrides: Record<string, any> = {}) {
 function makeRawInvoice(overrides: Record<string, any> = {}) {
   return {
     id: INVOICE_ID,
+    organizationId: TEST_ORGANIZATION_ID,
     invoiceNumber: 'FAC-2026-0001',
     parentId: PARENT_USER.id,
     issueDate: now,
@@ -379,15 +384,11 @@ describe('invoices router', () => {
       });
 
       it('rejects invalid status value', async () => {
-        await expect(
-          caller.invoices.list({ status: 'INVALID' as any }),
-        ).rejects.toThrow();
+        await expect(caller.invoices.list({ status: 'INVALID' as any })).rejects.toThrow();
       });
 
       it('rejects invalid parentId format', async () => {
-        await expect(
-          caller.invoices.list({ parentId: 'not-a-uuid' }),
-        ).rejects.toThrow();
+        await expect(caller.invoices.list({ parentId: 'not-a-uuid' })).rejects.toThrow();
       });
     });
   });
@@ -399,9 +400,9 @@ describe('invoices router', () => {
   describe('getById', () => {
     it('rejects unauthenticated users', async () => {
       const { caller: anonCaller } = createTestCaller(null);
-      await expect(
-        anonCaller.invoices.getById({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+      await expect(anonCaller.invoices.getById({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'UNAUTHORIZED',
+      });
     });
 
     it('returns null when invoice not found', async () => {
@@ -436,9 +437,7 @@ describe('invoices router', () => {
 
     it('rejects invalid UUID input', async () => {
       ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
-      await expect(
-        caller.invoices.getById({ id: 'not-a-uuid' }),
-      ).rejects.toThrow();
+      await expect(caller.invoices.getById({ id: 'not-a-uuid' })).rejects.toThrow();
     });
   });
 
@@ -480,7 +479,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         const result = await caller.invoices.create(validInput);
@@ -492,7 +493,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         const result = await caller.invoices.create(validInput);
@@ -519,7 +522,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice({ totalAmount: 4000, subtotalHt: 4000 });
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.create(input);
@@ -536,7 +541,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.create(validInput);
@@ -553,7 +560,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.create(validInput);
@@ -568,18 +577,14 @@ describe('invoices router', () => {
       });
 
       it('rejects empty lines array', async () => {
-        await expect(
-          caller.invoices.create({ ...validInput, lines: [] }),
-        ).rejects.toThrow();
+        await expect(caller.invoices.create({ ...validInput, lines: [] })).rejects.toThrow();
       });
 
       it('rejects line with description shorter than 3 chars', async () => {
         await expect(
           caller.invoices.create({
             ...validInput,
-            lines: [
-              { registrationId: null, description: 'AB', quantity: 1, unitPrice: 100 },
-            ],
+            lines: [{ registrationId: null, description: 'AB', quantity: 1, unitPrice: 100 }],
           }),
         ).rejects.toThrow();
       });
@@ -702,7 +707,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice({ totalAmount: 10000, subtotalHt: 10000 });
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.createFromRegistration({ registrationId: REG_ID });
@@ -723,7 +730,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice({ status: 'SENT' });
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.createFromRegistration({
@@ -733,7 +742,9 @@ describe('invoices router', () => {
 
         const createCall = mockPrisma.invoice.create.mock.calls[0][0];
         expect(createCall.data.status).toBe('DRAFT');
-        expect(mockPrisma.invoice.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'SENT' }) }));
+        expect(mockPrisma.invoice.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ status: 'SENT' }) }),
+        );
       });
 
       it('creates an invoice line with the correct description and amounts (HT)', async () => {
@@ -742,7 +753,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.createFromRegistration({ registrationId: REG_ID });
@@ -805,16 +818,16 @@ describe('invoices router', () => {
     describe('access control', () => {
       it('rejects unauthenticated users', async () => {
         const { caller: anonCaller } = createTestCaller(null);
-        await expect(
-          anonCaller.invoices.update(baseInput()),
-        ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+        await expect(anonCaller.invoices.update(baseInput())).rejects.toMatchObject({
+          code: 'UNAUTHORIZED',
+        });
       });
 
       it('rejects PARENT role', async () => {
         const { caller: parentCaller } = createTestCaller(PARENT_USER);
-        await expect(
-          parentCaller.invoices.update(baseInput()),
-        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        await expect(parentCaller.invoices.update(baseInput())).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
       });
 
       it('allows STAFF role', async () => {
@@ -848,9 +861,7 @@ describe('invoices router', () => {
       });
 
       it('throws PRECONDITION_FAILED when invoice is not DRAFT', async () => {
-        mockPrisma.invoice.findFirst.mockResolvedValue(
-          makeRawInvoice({ status: 'SENT' }),
-        );
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
 
         await expect(caller.invoices.update(baseInput())).rejects.toMatchObject({
           code: 'PRECONDITION_FAILED',
@@ -863,9 +874,9 @@ describe('invoices router', () => {
         );
         mockPrisma.invoice.updateMany.mockResolvedValue({ count: 0 });
 
-        await expect(
-          caller.invoices.update({ ...baseInput(), version: 0 }),
-        ).rejects.toMatchObject({ code: 'CONFLICT' });
+        await expect(caller.invoices.update({ ...baseInput(), version: 0 })).rejects.toMatchObject({
+          code: 'CONFLICT',
+        });
       });
 
       it('recomputes totals using stored tax rate', async () => {
@@ -917,7 +928,11 @@ describe('invoices router', () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(
           makeRawInvoice({ status: 'DRAFT', taxRate: 0 }),
         );
-        mockPrisma.registration.findFirst.mockResolvedValue({ id: REG_ID, parentId: PARENT_USER.id, status: 'CONFIRMED' });
+        mockPrisma.registration.findFirst.mockResolvedValue({
+          id: REG_ID,
+          parentId: PARENT_USER.id,
+          status: 'CONFIRMED',
+        });
         mockPrisma.invoice.updateMany.mockResolvedValue({ count: 1 });
         mockPrisma.invoiceLine.updateMany.mockResolvedValue({ count: 2 });
         mockPrisma.invoiceLine.create.mockResolvedValue({});
@@ -965,16 +980,16 @@ describe('invoices router', () => {
     describe('access control', () => {
       it('rejects unauthenticated users', async () => {
         const { caller: anonCaller } = createTestCaller(null);
-        await expect(
-          anonCaller.invoices.validate({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+        await expect(anonCaller.invoices.validate({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'UNAUTHORIZED',
+        });
       });
 
       it('rejects PARENT role', async () => {
         const { caller: parentCaller } = createTestCaller(PARENT_USER);
-        await expect(
-          parentCaller.invoices.validate({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        await expect(parentCaller.invoices.validate({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
       });
     });
 
@@ -986,38 +1001,30 @@ describe('invoices router', () => {
       it('throws NOT_FOUND when invoice does not exist', async () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-        await expect(
-          caller.invoices.validate({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        await expect(caller.invoices.validate({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
       });
 
       it('throws PRECONDITION_FAILED when invoice is not DRAFT', async () => {
-        mockPrisma.invoice.findFirst.mockResolvedValue(
-          makeRawInvoice({ status: 'SENT' }),
-        );
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
 
-        await expect(
-          caller.invoices.validate({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+        await expect(caller.invoices.validate({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'PRECONDITION_FAILED',
+        });
       });
 
       it('throws PRECONDITION_FAILED for PAID invoice', async () => {
-        mockPrisma.invoice.findFirst.mockResolvedValue(
-          makeRawInvoice({ status: 'PAID' }),
-        );
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'PAID' }));
 
-        await expect(
-          caller.invoices.validate({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+        await expect(caller.invoices.validate({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'PRECONDITION_FAILED',
+        });
       });
 
       it('updates DRAFT invoice to SENT', async () => {
-        mockPrisma.invoice.findFirst.mockResolvedValue(
-          makeRawInvoice({ status: 'DRAFT' }),
-        );
-        mockPrisma.invoice.update.mockResolvedValue(
-          makeRawInvoice({ status: 'SENT' }),
-        );
+        mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'DRAFT' }));
+        mockPrisma.invoice.update.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
         mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
           ...makeRawInvoice({ status: 'SENT' }),
           lines: [],
@@ -1028,7 +1035,11 @@ describe('invoices router', () => {
         expect(result.status).toBe('SENT');
         expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
           where: { id: INVOICE_ID },
-          data: expect.objectContaining({ status: 'SENT', pdfUrl: null, validatedById: STAFF_USER.id }),
+          data: expect.objectContaining({
+            status: 'SENT',
+            pdfUrl: null,
+            validatedById: STAFF_USER.id,
+          }),
         });
       });
 
@@ -1039,9 +1050,7 @@ describe('invoices router', () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(
           makeRawInvoice({ status: 'DRAFT', ...zero }),
         );
-        mockPrisma.invoice.update.mockResolvedValue(
-          makeRawInvoice({ status: 'SENT', ...zero }),
-        );
+        mockPrisma.invoice.update.mockResolvedValue(makeRawInvoice({ status: 'SENT', ...zero }));
         mockPrisma.invoice.findUniqueOrThrow.mockResolvedValue({
           ...makeRawInvoice({ status: 'SENT', ...zero }),
           lines: [],
@@ -1095,7 +1104,7 @@ describe('invoices router', () => {
         };
       }
 
-      it('laisse la facture en SENT quand le client n\'a aucun avoir', async () => {
+      it("laisse la facture en SENT quand le client n'a aucun avoir", async () => {
         arrangeDraftInvoice();
         mockPrisma.parentCredit.findMany.mockResolvedValue([]);
 
@@ -1107,12 +1116,11 @@ describe('invoices router', () => {
 
       it('impute un avoir partiel et laisse la facture en SENT', async () => {
         arrangeDraftInvoice();
-        mockPrisma.parentCredit.findMany.mockResolvedValue([
-          makeCredit('cr1', 'cn1', 2000),
-        ]);
+        mockPrisma.parentCredit.findMany.mockResolvedValue([makeCredit('cr1', 'cn1', 2000)]);
         // Second update : paidAmount porté à 2 000, statut inchangé.
-        mockPrisma.invoice.update
-          .mockResolvedValueOnce(makeRawInvoice({ status: 'SENT', paidAmount: 2000 }));
+        mockPrisma.invoice.update.mockResolvedValueOnce(
+          makeRawInvoice({ status: 'SENT', paidAmount: 2000 }),
+        );
 
         const result = await caller.invoices.validate({ id: INVOICE_ID });
 
@@ -1125,11 +1133,10 @@ describe('invoices router', () => {
 
       it('bascule la facture en PAID quand les avoirs la couvrent entièrement', async () => {
         arrangeDraftInvoice();
-        mockPrisma.parentCredit.findMany.mockResolvedValue([
-          makeCredit('cr1', 'cn1', 15000),
-        ]);
-        mockPrisma.invoice.update
-          .mockResolvedValueOnce(makeRawInvoice({ status: 'PAID', paidAmount: 10000 }));
+        mockPrisma.parentCredit.findMany.mockResolvedValue([makeCredit('cr1', 'cn1', 15000)]);
+        mockPrisma.invoice.update.mockResolvedValueOnce(
+          makeRawInvoice({ status: 'PAID', paidAmount: 10000 }),
+        );
 
         const result = await caller.invoices.validate({ id: INVOICE_ID });
 
@@ -1146,9 +1153,7 @@ describe('invoices router', () => {
 
       it('impute les avoirs APRÈS les écritures VE de la facture', async () => {
         arrangeDraftInvoice();
-        mockPrisma.parentCredit.findMany.mockResolvedValue([
-          makeCredit('cr1', 'cn1', 2000),
-        ]);
+        mockPrisma.parentCredit.findMany.mockResolvedValue([makeCredit('cr1', 'cn1', 2000)]);
 
         await caller.invoices.validate({ id: INVOICE_ID });
 
@@ -1177,14 +1182,21 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.create({
           parentId: PARENT_USER.id,
           dueDate: '2026-04-15',
           lines: [
-            { registrationId: null, description: 'Camp ete - Enfant', quantity: 5, unitPrice: 2000 },
+            {
+              registrationId: null,
+              description: 'Camp ete - Enfant',
+              quantity: 5,
+              unitPrice: 2000,
+            },
           ],
         });
 
@@ -1197,14 +1209,21 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.create({
           parentId: PARENT_USER.id,
           dueDate: '2026-04-15',
           lines: [
-            { registrationId: null, description: 'Camp ete - Enfant', quantity: 5, unitPrice: 2000 },
+            {
+              registrationId: null,
+              description: 'Camp ete - Enfant',
+              quantity: 5,
+              unitPrice: 2000,
+            },
           ],
         });
 
@@ -1242,7 +1261,9 @@ describe('invoices router', () => {
         const created = makeRawInvoice();
         mockPrisma.invoice.create.mockResolvedValue(created);
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-        mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
+        mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+          makeRawInvoice({ ...data, version: 1 }),
+        );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
         await caller.invoices.createFromRegistration({ registrationId: REG_ID });
@@ -1377,28 +1398,49 @@ describe('invoices router', () => {
   // =========================================================================
 
   describe('updateStatus', () => {
-    beforeEach(() => { ({ caller, mockPrisma } = createTestCaller(STAFF_USER)); });
+    beforeEach(() => {
+      ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+    });
     it('rejects forged paid and overdue status changes', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'SENT' }));
-      for (const status of ['PAID', 'OVERDUE'] as const) await expect(caller.invoices.updateStatus({ id: INVOICE_ID, version: 0, status })).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+      for (const status of ['PAID', 'OVERDUE'] as const)
+        await expect(
+          caller.invoices.updateStatus({ id: INVOICE_ID, version: 0, status }),
+        ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
       expect(mockPrisma.invoice.update).not.toHaveBeenCalled();
     });
     it('checks the version before any effect', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ version: 2 }));
-      await expect(caller.invoices.updateStatus({ id: INVOICE_ID, version: 1, status: 'SENT' })).rejects.toMatchObject({ code: 'CONFLICT' });
+      await expect(
+        caller.invoices.updateStatus({ id: INVOICE_ID, version: 1, status: 'SENT' }),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
       expect(mockPrisma.accountingEntry.create).not.toHaveBeenCalled();
     });
     it('emits a draft through accounting and the shared issuance path', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
-      mockPrisma.invoice.update.mockImplementation(async ({ data }) => makeRawInvoice({ ...data, version: 1 }));
-      const result = await caller.invoices.updateStatus({ id: INVOICE_ID, version: 0, status: 'SENT' });
+      mockPrisma.invoice.update.mockImplementation(async ({ data }) =>
+        makeRawInvoice({ ...data, version: 1 }),
+      );
+      const result = await caller.invoices.updateStatus({
+        id: INVOICE_ID,
+        version: 0,
+        status: 'SENT',
+      });
       expect(result.status).toBe('SENT');
       expect(mockPrisma.accountingEntry.create).toHaveBeenCalledTimes(2);
-      expect(mockPrisma.invoice.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ validatedById: STAFF_USER.id }) }));
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ validatedById: STAFF_USER.id }),
+        }),
+      );
     });
     it('refuses cancellation while money remains collected', async () => {
-      mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice({ status: 'SENT', paidAmount: 1000 }));
-      await expect(caller.invoices.updateStatus({ id: INVOICE_ID, version: 0, status: 'CANCELLED' })).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+      mockPrisma.invoice.findFirst.mockResolvedValue(
+        makeRawInvoice({ status: 'SENT', paidAmount: 1000 }),
+      );
+      await expect(
+        caller.invoices.updateStatus({ id: INVOICE_ID, version: 0, status: 'CANCELLED' }),
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
     });
   });
 
@@ -1406,18 +1448,17 @@ describe('invoices router', () => {
     describe('access control', () => {
       it('rejects unauthenticated users', async () => {
         const { caller: anonCaller } = createTestCaller(null);
-        await expect(
-          anonCaller.invoices.delete({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+        await expect(anonCaller.invoices.delete({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'UNAUTHORIZED',
+        });
       });
 
       it('rejects PARENT role', async () => {
         const { caller: parentCaller } = createTestCaller(PARENT_USER);
-        await expect(
-          parentCaller.invoices.delete({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        await expect(parentCaller.invoices.delete({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
       });
-
     });
 
     describe('business logic', () => {
@@ -1429,9 +1470,9 @@ describe('invoices router', () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(makeRawInvoice());
         mockPrisma.payment.count.mockResolvedValue(2);
 
-        await expect(
-          caller.invoices.delete({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+        await expect(caller.invoices.delete({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'PRECONDITION_FAILED',
+        });
       });
 
       it('soft deletes invoice (sets deletedAt) when no payments exist', async () => {
@@ -1493,9 +1534,9 @@ describe('invoices router', () => {
         mockPrisma.invoice.updateMany.mockResolvedValue({ count: 0 });
         mockPrisma.invoiceLine.findMany.mockResolvedValue([]);
 
-        await expect(
-          caller.invoices.delete({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        await expect(caller.invoices.delete({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
       });
     });
   });
@@ -1507,17 +1548,17 @@ describe('invoices router', () => {
   describe('generatePDF', () => {
     it('rejects PARENT users', async () => {
       const { caller: parentCaller } = createTestCaller(PARENT_USER);
-      await expect(
-        parentCaller.invoices.generatePDF({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(parentCaller.invoices.generatePDF({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
     });
 
     it('throws NOT_FOUND when invoice is missing', async () => {
       ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
 
-      await expect(
-        caller.invoices.generatePDF({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(caller.invoices.generatePDF({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
     });
 
     describe('payments loading and mapping', () => {
@@ -1531,9 +1572,9 @@ describe('invoices router', () => {
         // Invoice manquante — on vérifie uniquement la shape du query
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-        await expect(
-          caller.invoices.generatePDF({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        await expect(caller.invoices.generatePDF({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
         expect(findFirstCall.include).toHaveProperty('payments');
@@ -1550,9 +1591,9 @@ describe('invoices router', () => {
       it('includes parent, lines and payments together in the findFirst query', async () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-        await expect(
-          caller.invoices.generatePDF({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        await expect(caller.invoices.generatePDF({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
         expect(findFirstCall.include).toHaveProperty('parent');
@@ -1563,9 +1604,9 @@ describe('invoices router', () => {
       it('does not expose sensitive fields in the payments select (no id, no invoiceId, no parentId)', async () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-        await expect(
-          caller.invoices.generatePDF({ id: INVOICE_ID }),
-        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        await expect(caller.invoices.generatePDF({ id: INVOICE_ID })).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
         const paymentsSelect = findFirstCall.include.payments.select;
@@ -1651,17 +1692,17 @@ describe('invoices router', () => {
 
     it('rejects PARENT users', async () => {
       const { caller: parentCaller } = createTestCaller(PARENT_USER);
-      await expect(
-        parentCaller.invoices.sendEmail({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(parentCaller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
     });
 
     it('fails with an explicit precondition error when email is not configured', async () => {
       delete process.env.RESEND_API_KEY;
 
-      await expect(
-        caller.invoices.sendEmail({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'PRECONDITION_FAILED',
+      });
 
       // Aucun PDF généré, aucun appel réseau : on s'arrête avant.
       expect(generateInvoicePDF).not.toHaveBeenCalled();
@@ -1671,9 +1712,9 @@ describe('invoices router', () => {
     it('throws NOT_FOUND when the invoice does not exist', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-      await expect(
-        caller.invoices.sendEmail({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -1692,9 +1733,7 @@ describe('invoices router', () => {
       expect(payload.subject).toContain('FAC-2026-0001');
       expect(payload.attachments).toHaveLength(1);
       expect(payload.attachments[0].filename).toBe('facture-FAC-2026-0001.pdf');
-      expect(Buffer.from(payload.attachments[0].content, 'base64').toString()).toBe(
-        '%PDF-facture',
-      );
+      expect(Buffer.from(payload.attachments[0].content, 'base64').toString()).toBe('%PDF-facture');
     });
 
     it('archives the freshly generated PDF on the invoice', async () => {
@@ -1733,9 +1772,9 @@ describe('invoices router', () => {
         }),
       );
 
-      await expect(
-        caller.invoices.sendEmail({ id: INVOICE_ID }),
-      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
       expect(fetchMock).not.toHaveBeenCalled();
     });
 

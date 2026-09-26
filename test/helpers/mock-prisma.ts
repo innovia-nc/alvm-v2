@@ -50,6 +50,10 @@ export function createMockPrisma() {
     parentCredit: createModelMock(),
     creditApplication: createModelMock(),
     accountingEntry: createModelMock(),
+    organization: createModelMock(),
+    platformSetting: createModelMock(),
+    documentCounter: createModelMock(),
+    emailMessage: createModelMock(),
 
     $transaction: vi.fn().mockImplementation(async (fnOrArray: any) => {
       if (typeof fnOrArray === 'function') {
@@ -66,9 +70,24 @@ export function createMockPrisma() {
     }),
     $executeRawUnsafe: vi.fn().mockResolvedValue(0),
 
+    // Requêtes SQL paramétrées (tagged templates) : verrous par tenant
+    // (`lockTenant`) et compteurs de pièces (`nextCounterValue`).
+    $queryRaw: vi.fn().mockImplementation(async (strings: TemplateStringsArray) => {
+      const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
+      if (sql.includes('document_counters')) return [{ value: 1 }];
+      return [];
+    }),
+    $executeRaw: vi.fn().mockResolvedValue(1),
+
     $connect: vi.fn(),
     $disconnect: vi.fn(),
   };
+
+  // Le tenant de la session existe et est actif (garde `requireActiveOrganization`).
+  prisma.organization.findUnique.mockResolvedValue({
+    id: 'b0000000-0000-4000-b000-000000000001',
+    status: 'ACTIVE',
+  });
 
   return prisma;
 }

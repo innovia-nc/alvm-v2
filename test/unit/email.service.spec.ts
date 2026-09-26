@@ -1,4 +1,6 @@
-vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
+vi.mock('@/server/db', () => ({
+  prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } },
+}));
 /**
  * TD-008 — service d'envoi d'emails transactionnels.
  *
@@ -20,11 +22,16 @@ const SENDER = {
   replyTo: 'contact@alvm.nc',
 };
 
-function makePrisma(rows: Array<{ key: string; value: string | null }>) {
+function makePrisma(
+  rows: Array<{ key: string; value: string | null }>,
+  organizationName = 'Association ALVM',
+) {
   return {
     appSetting: {
       findMany: vi.fn().mockResolvedValue(rows),
     },
+    // Tenant de la transaction : la RLS n'en laisse voir qu'un.
+    organization: { findFirst: vi.fn().mockResolvedValue({ name: organizationName }) },
   };
 }
 
@@ -75,12 +82,20 @@ describe('email.service (TD-008)', () => {
       });
     });
 
-    it('falls back to the seeded defaults when settings are empty', async () => {
+    it('falls back to the association name and the platform sender when settings are empty', async () => {
+      vi.stubEnv('EMAIL_FROM_ADDRESS', 'noreply@plateforme.test');
       await expect(getEmailSender(makePrisma([]))).resolves.toEqual({
-        fromName: 'ALVM',
-        fromEmail: 'noreply@alvm.nc',
+        fromName: 'Association ALVM',
+        fromEmail: 'noreply@plateforme.test',
         replyTo: undefined,
       });
+      vi.unstubAllEnvs();
+    });
+
+    it('refuses to invent a sender address (no hard-coded organisation identity)', async () => {
+      vi.stubEnv('EMAIL_FROM_ADDRESS', '');
+      await expect(getEmailSender(makePrisma([]))).rejects.toThrow('EMAIL_FROM_ADDRESS');
+      vi.unstubAllEnvs();
     });
 
     it('accepts legacy values stored without JSON quotes', async () => {
@@ -173,9 +188,7 @@ describe('email.service (TD-008)', () => {
 
   describe('escapeHtml', () => {
     it('neutralises markup coming from stored data', () => {
-      expect(escapeHtml('Dupont & <b>Fils</b>')).toBe(
-        'Dupont &amp; &lt;b&gt;Fils&lt;/b&gt;',
-      );
+      expect(escapeHtml('Dupont & <b>Fils</b>')).toBe('Dupont &amp; &lt;b&gt;Fils&lt;/b&gt;');
     });
   });
 });

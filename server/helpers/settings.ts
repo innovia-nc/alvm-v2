@@ -1,14 +1,67 @@
 /**
  * Minimal interface for Prisma clients that can query appSetting.
  * Compatible with both PrismaClient and extended clients (soft-delete, $transaction).
+ *
+ * Multi-tenant : `app_settings` est soumise à la RLS — lue dans la transaction
+ * d'un tenant, la requête ne voit que les réglages de ce tenant. D'où
+ * `findFirst` sur (category, key) plutôt qu'une clé unique qui exigerait
+ * l'organisation.
  */
 interface HasAppSetting {
   appSetting: {
-    findUnique: (args: {
-      where: { category_key: { category: string; key: string } };
+    findFirst: (args: {
+      where: { category: string; key: string };
       select: { value: true };
     }) => Promise<{ value: string | null } | null>;
   };
+}
+
+interface HasAppSettingUpsert {
+  appSetting: {
+    upsert: (args: {
+      where: {
+        organizationId_category_key: { organizationId: string; category: string; key: string };
+      };
+      create: {
+        category: string;
+        key: string;
+        value: string;
+        description?: string;
+        updatedBy?: string | null;
+      };
+      update: { value: string; updatedBy?: string | null };
+    }) => Promise<unknown>;
+  };
+}
+
+/**
+ * Enregistre un réglage du tenant `organizationId` (valeur déjà sérialisée).
+ * `organization_id` de la ligne créée vient du contexte de la transaction ; la
+ * RLS refuse toute écriture pour un autre tenant.
+ */
+export async function upsertAppSetting(
+  db: HasAppSettingUpsert,
+  organizationId: string,
+  setting: {
+    category: string;
+    key: string;
+    value: string;
+    description?: string;
+    updatedBy?: string | null;
+  },
+): Promise<void> {
+  const { category, key, value, description, updatedBy } = setting;
+  await db.appSetting.upsert({
+    where: { organizationId_category_key: { organizationId, category, key } },
+    create: {
+      category,
+      key,
+      value,
+      ...(description ? { description } : {}),
+      ...(updatedBy !== undefined ? { updatedBy } : {}),
+    },
+    update: { value, ...(updatedBy !== undefined ? { updatedBy } : {}) },
+  });
 }
 
 const DEFAULTS = {
@@ -25,12 +78,9 @@ const DEFAULTS = {
 
 type PricingKey = keyof typeof DEFAULTS.pricing;
 
-export async function getPricingSetting(
-  prisma: HasAppSetting,
-  key: PricingKey,
-): Promise<number> {
-  const row = await prisma.appSetting.findUnique({
-    where: { category_key: { category: 'pricing', key } },
+export async function getPricingSetting(prisma: HasAppSetting, key: PricingKey): Promise<number> {
+  const row = await prisma.appSetting.findFirst({
+    where: { category: 'pricing', key },
     select: { value: true },
   });
 
@@ -43,7 +93,7 @@ export async function getPricingSetting(
     // or non-numeric JSON). Log so it can be fixed in BDD, but do not crash.
     console.warn(
       `[settings] pricing.${key} value is not a finite number (got ${JSON.stringify(row.value)}). ` +
-      `Falling back to default ${DEFAULTS.pricing[key]}.`,
+        `Falling back to default ${DEFAULTS.pricing[key]}.`,
     );
     return DEFAULTS.pricing[key];
   }
@@ -51,24 +101,18 @@ export async function getPricingSetting(
   return parsed;
 }
 
-export async function getTaxRateDecimal(
-  prisma: HasAppSetting,
-): Promise<number> {
+export async function getTaxRateDecimal(prisma: HasAppSetting): Promise<number> {
   const pct = await getPricingSetting(prisma, 'tax_rate');
   return pct / 100;
 }
 
-export async function getDefaultDueDate(
-  prisma: HasAppSetting,
-): Promise<Date> {
+export async function getDefaultDueDate(prisma: HasAppSetting): Promise<Date> {
   const days = await getPricingSetting(prisma, 'payment_terms_days');
 
   // Extra guard: getPricingSetting already returns the default if the stored
   // value isn't a finite number, but we double-check here in case future code
   // paths bypass it. The output is never new Date(NaN) silently.
-  const safeDays = Number.isFinite(days) && days > 0
-    ? days
-    : DEFAULTS.pricing.payment_terms_days;
+  const safeDays = Number.isFinite(days) && days > 0 ? days : DEFAULTS.pricing.payment_terms_days;
 
   if (safeDays !== days) {
     console.warn(
@@ -79,13 +123,9 @@ export async function getDefaultDueDate(
   return new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000);
 }
 
-export async function getCreditExpiryDate(
-  prisma: HasAppSetting,
-): Promise<Date> {
+export async function getCreditExpiryDate(prisma: HasAppSetting): Promise<Date> {
   const days = await getPricingSetting(prisma, 'credit_expiry_days');
-  const safeDays = Number.isFinite(days) && days > 0
-    ? days
-    : DEFAULTS.pricing.credit_expiry_days;
+  const safeDays = Number.isFinite(days) && days > 0 ? days : DEFAULTS.pricing.credit_expiry_days;
   const date = new Date();
   date.setDate(date.getDate() + safeDays);
   return date;
@@ -126,8 +166,8 @@ export function normalizeSiren(raw: string | null | undefined): string | null {
  * seul le nommage réglementaire est perdu (le router le signale à l'appelant).
  */
 export async function getFecSiren(prisma: HasAppSetting): Promise<string | null> {
-  const row = await prisma.appSetting.findUnique({
-    where: { category_key: { category: 'accounting', key: 'fec_siren' } },
+  const row = await prisma.appSetting.findFirst({
+    where: { category: 'accounting', key: 'fec_siren' },
     select: { value: true },
   });
 

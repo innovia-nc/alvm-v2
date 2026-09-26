@@ -17,7 +17,8 @@ import {
 function makeFakePrisma(value: string | null | undefined) {
   return {
     appSetting: {
-      findUnique: vi.fn().mockResolvedValue(value === undefined ? null : { value }),
+      // Lecture par (category, key) : la RLS limite `app_settings` au tenant.
+      findFirst: vi.fn().mockResolvedValue(value === undefined ? null : { value }),
     },
   };
 }
@@ -182,8 +183,8 @@ describe('settings.helper — SIREN du FEC (TD-012)', () => {
     it('reads accounting.fec_siren', async () => {
       const prisma = makeFakePrisma('"123456789"');
       await expect(getFecSiren(prisma as any)).resolves.toBe('123456789');
-      expect(prisma.appSetting.findUnique).toHaveBeenCalledWith({
-        where: { category_key: { category: 'accounting', key: 'fec_siren' } },
+      expect(prisma.appSetting.findFirst).toHaveBeenCalledWith({
+        where: { category: 'accounting', key: 'fec_siren' },
         select: { value: true },
       });
     });

@@ -1,27 +1,22 @@
 #!/bin/sh
 # Point d'entrée de l'image ALVM (staging srv-innovia, prod srv-ovh).
 #
-# Pas de migration automatique au démarrage : le schéma d'une base en service
-# évolue par SQL manuel répété sur un clone (prisma/migrations-manual/). Le
-# projet n'a pas d'historique `prisma/migrations` — `migrate deploy` répondrait
-# P3005, et `db push --accept-data-loss` au démarrage est exclu sur une base
-# comptable.
+# Pas de migration automatique au démarrage : les migrations sont un geste
+# explicite, avant de servir le code qui en dépend.
 #
-# Commandes one-shot (base neuve) :
-#   db-init                 schéma + invariants SQL + réglages pricing (refuse une base non vide)
-#   seed-payment-methods    moyens de paiement système (idempotent)
-#   create-super-admin      requiert SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD
+# Commandes one-shot :
+#   migrate                 prisma migrate deploy + droits du rôle applicatif
+#                           (DATABASE_MIGRATION_URL = propriétaire, DATABASE_URL = rôle applicatif)
+#   create-super-admin      espace de plateforme + premier SUPER_ADMIN
+#                           (SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD)
 set -e
 
 case "${1:-serve}" in
   serve)
     exec node server.js
     ;;
-  db-init)
-    exec node scripts/db-init.js
-    ;;
-  seed-payment-methods)
-    exec node scripts/seed-payment-methods.js
+  migrate)
+    exec node scripts/db-migrate.js
     ;;
   create-super-admin)
     exec node scripts/create-super-admin.js

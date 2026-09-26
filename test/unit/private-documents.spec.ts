@@ -7,25 +7,41 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   pdf: vi.fn(),
 }));
-vi.mock('@/lib/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/server/helpers/child-access.helper', () => ({ hasChildAccess: mocks.access }));
 vi.mock('@/server/db', () => ({
   prisma: {
-    platformIntegration: { findUnique: vi.fn().mockResolvedValue({ enabled: true, encryptedSecret: null }) },
-    appSetting: { findUnique: vi.fn().mockResolvedValue(null) },
-    childDocument: { findFirst: mocks.document },
-    staffDocument: { findFirst: mocks.document },
-    invoice: { findFirst: mocks.invoice },
+    platformIntegration: {
+      findUnique: vi.fn().mockResolvedValue({ enabled: true, encryptedSecret: null }),
+    },
   },
+}));
+// Transactions de contexte RLS simulées sur les modèles utilisés par le handler.
+vi.mock('@/server/db-context', () => ({
+  withDbContext: (_context: unknown, fn: (db: unknown) => unknown) =>
+    fn({
+      organization: { findUnique: async () => ({ status: 'ACTIVE' }) },
+      appSetting: { findFirst: async () => null },
+      childDocument: { findFirst: mocks.document },
+      staffDocument: { findFirst: mocks.document },
+      invoice: { findFirst: mocks.invoice },
+    }),
 }));
 vi.mock('@vercel/blob', () => ({ get: mocks.get }));
 vi.mock('@/server/services/invoice-pdf.service', () => ({ generateAndStoreInvoicePdf: mocks.pdf }));
-import { GET } from '@/app/api/documents/[kind]/[id]/route';
+import { handleDocumentDownload } from '@/server/http/documents.handler';
 const id = '10000000-0000-4000-a000-000000000001';
-const request = (kind = 'child') =>
-  GET(new Request('http://localhost/api/documents/' + kind + '/' + id), {
-    params: Promise.resolve({ kind, id }),
-  });
+const TENANT_ID = 'b0000000-0000-4000-b000-000000000001';
+const request = async (kind = 'child') => {
+  const session = (await mocks.auth()) as { user: { id: string; role: string } } | null;
+  return handleDocumentDownload(
+    { kind, id },
+    session
+      ? ({ ...session.user, organizationId: TENANT_ID } as Parameters<
+          typeof handleDocumentDownload
+        >[1])
+      : null,
+  );
+};
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('BLOB_PRIVATE_READ_WRITE_TOKEN', 'private-test-token');
@@ -92,6 +108,7 @@ describe('authenticated personal document downloads', () => {
     expect(r.status).toBe(200);
     expect(mocks.invoice).toHaveBeenCalledWith({
       where: { id, deletedAt: null, invoiceType: 'INVOICE', parentId: id },
+      select: { id: true },
     });
     expect(mocks.pdf).toHaveBeenCalledWith(expect.anything(), id, false);
   });

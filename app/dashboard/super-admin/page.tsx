@@ -1,13 +1,13 @@
-import { FeatureControls } from '@/components/super-admin/feature-controls';
+import { OrganizationsPanel } from '@/components/super-admin/organizations-panel';
 import { PageHeader } from '@/components/shared/page-header';
 export default function SuperAdminPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Super administration"
-        description="Pilotez la disponibilité des fonctionnalités pour tous les utilisateurs."
+        title="Associations"
+        description="Créez les espaces des associations, réglez leurs modules et leur disponibilité."
       />
-      <FeatureControls />
+      <OrganizationsPanel />
     </div>
   );
 }

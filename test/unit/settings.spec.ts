@@ -1,4 +1,6 @@
-vi.mock('@/server/db', () => ({ prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } } }));
+vi.mock('@/server/db', () => ({
+  prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } },
+}));
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
 
@@ -15,8 +17,12 @@ import {
   ADMIN_USER,
   STAFF_USER,
   PARENT_USER,
+  TEST_ORGANIZATION_ID,
   type TestCaller,
 } from '../helpers/test-caller';
+
+/** Préfixe des objets de l'association de test dans le stockage public. */
+const LOGO_BASE = `https://store.public.blob.vercel-storage.com/organizations/${TEST_ORGANIZATION_ID}`;
 
 describe('settings router', () => {
   let admin: TestCaller;
@@ -84,22 +90,33 @@ describe('settings router', () => {
 
   it('should set logo URL', async () => {
     admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
-    const result = await admin.caller.settings.setLogoUrl({ url: 'https://example.com/logo.png' });
+    const result = await admin.caller.settings.setLogoUrl({ url: `${LOGO_BASE}/logo.png` });
     expect(result.success).toBe(true);
   });
 
+  it.each([
+    ['javascript:alert(1)'],
+    ['https://example.com/logo.png'],
+    [
+      'https://store.public.blob.vercel-storage.com/organizations/b0000000-0000-4000-b000-000000000002/logo.png',
+    ],
+  ])('refuse une URL de logo hors du stockage de l’association : %s', async (url) => {
+    await expect(admin.caller.settings.setLogoUrl({ url })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+    expect(admin.mockPrisma.appSetting.upsert).not.toHaveBeenCalled();
+  });
+
   it('should get logo URL', async () => {
-    staff.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) =>
-      where.category_key.category === 'features'
-        ? null
-        : { value: '"https://example.com/logo.png"' },
+    staff.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+      where.category === 'features' ? null : { value: `"${LOGO_BASE}/logo.png"` },
     );
     const result = await staff.caller.settings.getLogoUrl();
-    expect(result).toBe('https://example.com/logo.png');
+    expect(result).toBe(`${LOGO_BASE}/logo.png`);
   });
 
   it('should return null when no logo is set', async () => {
-    staff.mockPrisma.appSetting.findUnique.mockResolvedValue(null);
+    staff.mockPrisma.appSetting.findFirst.mockResolvedValue(null);
     const result = await staff.caller.settings.getLogoUrl();
     expect(result).toBeNull();
   });
@@ -148,19 +165,21 @@ describe('settings router', () => {
   // TD-006 — blobs orphelins
   describe('logo — nettoyage du blob (TD-006)', () => {
     it('should delete the blob when the logo is removed', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: '"https://store.blob.vercel-storage.com/logo.png"' });
+      admin.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+        where.category === 'features' ? null : { value: `"${LOGO_BASE}/logo.png"` },
+      );
       admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
 
       await admin.caller.settings.deleteLogoUrl();
 
       expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
-        'https://store.blob.vercel-storage.com/logo.png',
+        `${LOGO_BASE}/logo.png`,
         expect.any(String),
       );
     });
 
     it('should not call the store when no logo was set', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockResolvedValue(null);
+      admin.mockPrisma.appSetting.findFirst.mockResolvedValue(null);
       admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 0 });
 
       await admin.caller.settings.deleteLogoUrl();
@@ -169,22 +188,26 @@ describe('settings router', () => {
     });
 
     it('should delete the previous blob when the logo is replaced', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: '"https://store.blob.vercel-storage.com/old-logo.png"' });
+      admin.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+        where.category === 'features' ? null : { value: `"${LOGO_BASE}/old-logo.png"` },
+      );
       admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
 
       await admin.caller.settings.setLogoUrl({
-        url: 'https://store.blob.vercel-storage.com/new-logo.png',
+        url: `${LOGO_BASE}/new-logo.png`,
       });
 
       expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
-        'https://store.blob.vercel-storage.com/old-logo.png',
+        `${LOGO_BASE}/old-logo.png`,
         expect.any(String),
       );
     });
 
     it('should not delete the blob when the same URL is re-saved', async () => {
-      const url = 'https://store.blob.vercel-storage.com/logo.png';
-      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: JSON.stringify(url) });
+      const url = `${LOGO_BASE}/logo.png`;
+      admin.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+        where.category === 'features' ? null : { value: JSON.stringify(url) },
+      );
       admin.mockPrisma.appSetting.upsert.mockResolvedValue({});
 
       await admin.caller.settings.setLogoUrl({ url });
@@ -193,7 +216,9 @@ describe('settings router', () => {
     });
 
     it('should still succeed when the blob store fails', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: '"https://store.blob.vercel-storage.com/logo.png"' });
+      admin.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+        where.category === 'features' ? null : { value: `"${LOGO_BASE}/logo.png"` },
+      );
       admin.mockPrisma.appSetting.deleteMany.mockResolvedValue({ count: 1 });
       deleteFromStorageBestEffort.mockResolvedValue(false);
 

@@ -87,8 +87,8 @@ export async function generateAndStoreInvoicePdf(
   const { getPdfSettings } = await import('@/server/helpers/pdf-settings.helper');
   const pdfSettings = await getPdfSettings(prisma);
 
-  const logoSetting = await prisma.appSetting.findUnique({
-    where: { category_key: { category: 'organization', key: 'logo_url' } },
+  const logoSetting = await prisma.appSetting.findFirst({
+    where: { category: 'organization', key: 'logo_url' },
     select: { value: true },
   });
   const logoUrl: string | undefined = (() => {
@@ -136,7 +136,11 @@ export async function generateAndStoreInvoicePdf(
 
   if (!persist) return { invoice, pdfBuffer, pdfUrl: `/api/documents/invoice/${invoice.id}` };
 
-  const pathname = `invoices/${invoice.invoiceNumber}-${invoice.id}.pdf`;
+  const { tenantBlobPath } = await import('@/lib/storage/tenant-path');
+  const pathname = tenantBlobPath(
+    invoice.organizationId,
+    `invoices/${invoice.invoiceNumber}-${invoice.id}.pdf`,
+  );
 
   const { url } = await uploadToStorage(pdfBuffer, {
     pathname,

@@ -118,9 +118,7 @@ describe('parents router', () => {
       });
       admin.mockPrisma.parent.findMany.mockResolvedValue([parentRecord]);
       admin.mockPrisma.parent.count.mockResolvedValue(1);
-      admin.mockPrisma.registration.groupBy.mockResolvedValue([
-        { parentId: PARENT_ID, _count: 3 },
-      ]);
+      admin.mockPrisma.registration.groupBy.mockResolvedValue([{ parentId: PARENT_ID, _count: 3 }]);
 
       const result = await admin.caller.parents.list({
         limit: 20,
@@ -297,9 +295,7 @@ describe('parents router', () => {
 
   describe('getById', () => {
     it('should deny PARENT access', async () => {
-      await expect(
-        parent.caller.parents.getById({ id: PARENT_ID }),
-      ).rejects.toThrow(TRPCError);
+      await expect(parent.caller.parents.getById({ id: PARENT_ID })).rejects.toThrow(TRPCError);
     });
 
     it('should deny unauthenticated access', async () => {
@@ -354,27 +350,23 @@ describe('parents router', () => {
   describe('update', () => {
     it('should deny unauthenticated access', async () => {
       const { caller } = createTestCaller(null);
-      await expect(
-        caller.parents.update({ firstName: 'Updated' }),
-      ).rejects.toThrow(TRPCError);
+      await expect(caller.parents.update({ firstName: 'Updated' })).rejects.toThrow(TRPCError);
     });
 
     it('should reject non-PARENT role (STAFF)', async () => {
-      await expect(
-        staff.caller.parents.update({ firstName: 'Updated' }),
-      ).rejects.toThrow('Seuls les parents peuvent modifier leur profil');
+      await expect(staff.caller.parents.update({ firstName: 'Updated' })).rejects.toThrow(
+        'Seuls les parents peuvent modifier leur profil',
+      );
     });
 
     it('should reject non-PARENT role (ADMIN)', async () => {
-      await expect(
-        admin.caller.parents.update({ firstName: 'Updated' }),
-      ).rejects.toThrow('Seuls les parents peuvent modifier leur profil');
+      await expect(admin.caller.parents.update({ firstName: 'Updated' })).rejects.toThrow(
+        'Seuls les parents peuvent modifier leur profil',
+      );
     });
 
     it('should reject empty updates', async () => {
-      await expect(
-        parent.caller.parents.update({}),
-      ).rejects.toThrow('Aucune modification fournie');
+      await expect(parent.caller.parents.update({})).rejects.toThrow('Aucune modification fournie');
     });
 
     it('should update parent profile', async () => {
@@ -451,9 +443,7 @@ describe('parents router', () => {
     };
 
     it('should deny PARENT from creating parents', async () => {
-      await expect(
-        parent.caller.parents.create(validInput),
-      ).rejects.toThrow(TRPCError);
+      await expect(parent.caller.parents.create(validInput)).rejects.toThrow(TRPCError);
     });
 
     it('should deny unauthenticated access', async () => {
@@ -462,7 +452,12 @@ describe('parents router', () => {
     });
 
     it('should create a parent with user and account for ADMIN', async () => {
-      const createdUser = { id: PARENT_ID, email: 'jean@test.com', name: 'Jean Martin', role: 'PARENT' };
+      const createdUser = {
+        id: PARENT_ID,
+        email: 'jean@test.com',
+        name: 'Jean Martin',
+        role: 'PARENT',
+      };
       const createdParent = makeParent({
         userId: PARENT_ID,
         firstName: 'Jean',
@@ -502,7 +497,12 @@ describe('parents router', () => {
 
       staff.mockPrisma.user.findUnique.mockResolvedValue(null);
       staff.mockPrisma.parent.findFirst.mockResolvedValue(null);
-      staff.mockPrisma.user.create.mockResolvedValue({ id: PARENT_ID, email: 'jean@test.com', name: 'Jean Martin', role: 'PARENT' });
+      staff.mockPrisma.user.create.mockResolvedValue({
+        id: PARENT_ID,
+        email: 'jean@test.com',
+        name: 'Jean Martin',
+        role: 'PARENT',
+      });
       staff.mockPrisma.account.create.mockResolvedValue({});
       staff.mockPrisma.parent.create.mockResolvedValue(createdParent);
 
@@ -512,34 +512,42 @@ describe('parents router', () => {
     });
 
     it('should reject duplicate user email', async () => {
-      admin.mockPrisma.user.findUnique.mockResolvedValue({
+      admin.mockPrisma.user.findFirst.mockResolvedValue({
         id: PARENT_ID_2,
         email: 'jean@test.com',
       });
 
-      await expect(
-        admin.caller.parents.create(validInput),
-      ).rejects.toThrow('Un compte avec cet email existe déjà');
+      await expect(admin.caller.parents.create(validInput)).rejects.toThrow(
+        'Un compte avec cet email existe déjà',
+      );
     });
 
     it('should reject duplicate parent email', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
-      admin.mockPrisma.parent.findFirst.mockResolvedValue(
-        makeParent({ email: 'jean@test.com' }),
-      );
+      admin.mockPrisma.parent.findFirst.mockResolvedValue(makeParent({ email: 'jean@test.com' }));
 
-      await expect(
-        admin.caller.parents.create(validInput),
-      ).rejects.toThrow('Un parent avec cet email existe déjà');
+      await expect(admin.caller.parents.create(validInput)).rejects.toThrow(
+        'Un parent avec cet email existe déjà',
+      );
     });
 
     it('should create user with PARENT role and formatted name', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.parent.findFirst.mockResolvedValue(null);
-      admin.mockPrisma.user.create.mockResolvedValue({ id: PARENT_ID, email: 'jean@test.com', name: 'Jean Martin', role: 'PARENT' });
+      admin.mockPrisma.user.create.mockResolvedValue({
+        id: PARENT_ID,
+        email: 'jean@test.com',
+        name: 'Jean Martin',
+        role: 'PARENT',
+      });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.parent.create.mockResolvedValue(
-        makeParent({ userId: PARENT_ID, firstName: 'Jean', lastName: 'Martin', email: 'jean@test.com' }),
+        makeParent({
+          userId: PARENT_ID,
+          firstName: 'Jean',
+          lastName: 'Martin',
+          email: 'jean@test.com',
+        }),
       );
 
       await admin.caller.parents.create(validInput);
@@ -556,10 +564,20 @@ describe('parents router', () => {
     it('should create account with credentials provider', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.parent.findFirst.mockResolvedValue(null);
-      admin.mockPrisma.user.create.mockResolvedValue({ id: PARENT_ID, email: 'jean@test.com', name: 'Jean Martin', role: 'PARENT' });
+      admin.mockPrisma.user.create.mockResolvedValue({
+        id: PARENT_ID,
+        email: 'jean@test.com',
+        name: 'Jean Martin',
+        role: 'PARENT',
+      });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.parent.create.mockResolvedValue(
-        makeParent({ userId: PARENT_ID, firstName: 'Jean', lastName: 'Martin', email: 'jean@test.com' }),
+        makeParent({
+          userId: PARENT_ID,
+          firstName: 'Jean',
+          lastName: 'Martin',
+          email: 'jean@test.com',
+        }),
       );
 
       await admin.caller.parents.create(validInput);
@@ -577,10 +595,20 @@ describe('parents router', () => {
     it('should create parent record with optional fields defaulting', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
       admin.mockPrisma.parent.findFirst.mockResolvedValue(null);
-      admin.mockPrisma.user.create.mockResolvedValue({ id: PARENT_ID, email: 'jean@test.com', name: 'Jean Martin', role: 'PARENT' });
+      admin.mockPrisma.user.create.mockResolvedValue({
+        id: PARENT_ID,
+        email: 'jean@test.com',
+        name: 'Jean Martin',
+        role: 'PARENT',
+      });
       admin.mockPrisma.account.create.mockResolvedValue({});
       admin.mockPrisma.parent.create.mockResolvedValue(
-        makeParent({ userId: PARENT_ID, firstName: 'Jean', lastName: 'Martin', email: 'jean@test.com' }),
+        makeParent({
+          userId: PARENT_ID,
+          firstName: 'Jean',
+          lastName: 'Martin',
+          email: 'jean@test.com',
+        }),
       );
 
       await admin.caller.parents.create(validInput);
@@ -655,9 +683,9 @@ describe('parents router', () => {
     it('should reject empty updates', async () => {
       admin.mockPrisma.parent.findFirst.mockResolvedValue(makeParent());
 
-      await expect(
-        admin.caller.parents.updateByStaff({ id: PARENT_ID }),
-      ).rejects.toThrow('Aucune modification fournie');
+      await expect(admin.caller.parents.updateByStaff({ id: PARENT_ID })).rejects.toThrow(
+        'Aucune modification fournie',
+      );
     });
 
     it('should update parent fields for ADMIN', async () => {
@@ -765,14 +793,12 @@ describe('parents router', () => {
 
   describe('delete', () => {
     it('should deny PARENT access', async () => {
-      await expect(
-        parent.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow(TRPCError);
+      await expect(parent.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(TRPCError);
     });
 
     it('should allow STAFF to soft-delete parent without active registrations', async () => {
       staff.mockPrisma.registration.count.mockResolvedValue(0);
-      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       staff.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       staff.mockPrisma.childParent.findMany.mockResolvedValue([]);
       staff.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });
@@ -788,7 +814,7 @@ describe('parents router', () => {
 
     it('should soft-delete parent without active registrations', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
       admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });
@@ -806,19 +832,19 @@ describe('parents router', () => {
     it('should reject deletion when active registrations exist', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(2);
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('Impossible de supprimer ce parent : des inscriptions actives existent pour ses enfants');
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
+        'Impossible de supprimer ce parent : des inscriptions actives existent pour ses enfants',
+      );
     });
 
     it('should throw NOT_FOUND when parent does not exist (updateMany count 0)', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 0 });
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('Parent non trouvé');
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
+        'Parent non trouvé',
+      );
     });
 
     // -----------------------------------------------------------------------
@@ -828,12 +854,14 @@ describe('parents router', () => {
     it('should block deletion when the parent is the last parent of an active child (US-FAM-02)', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
       admin.mockPrisma.childParent.findMany
-        .mockResolvedValueOnce([makeChildLink(CHILD_ID_A, { firstName: 'Léa', lastName: 'Dupont' })])
+        .mockResolvedValueOnce([
+          makeChildLink(CHILD_ID_A, { firstName: 'Léa', lastName: 'Dupont' }),
+        ])
         .mockResolvedValueOnce([]); // aucun autre parent actif
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('il est le dernier parent rattaché à Léa Dupont');
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
+        'il est le dernier parent rattaché à Léa Dupont',
+      );
 
       // Rien n'est écrit : ni archivage du parent, ni suppression de lien
       expect(admin.mockPrisma.$transaction).not.toHaveBeenCalled();
@@ -849,16 +877,16 @@ describe('parents router', () => {
         ])
         .mockResolvedValueOnce([]);
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('Léa Dupont, Tom Dupont');
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
+        'Léa Dupont, Tom Dupont',
+      );
     });
 
     it('should NOT block when the only linked child is already archived (US-FAM-01)', async () => {
       // Cas constaté en recette : plus aucun enfant visible côté UI, mais le
       // lien vers l'enfant archivé subsiste et faisait remonter l'erreur BDD.
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany
         .mockResolvedValueOnce([makeChildLink(CHILD_ID_A, { deletedAt: new Date('2025-01-01') })])
@@ -874,7 +902,7 @@ describe('parents router', () => {
 
     it('should delete only the links of children that keep another parent', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany
         .mockResolvedValueOnce([
@@ -899,9 +927,9 @@ describe('parents router', () => {
         .mockResolvedValueOnce([makeChildLink(CHILD_ID_A)])
         .mockResolvedValueOnce([]);
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('dernier parent');
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
+        'dernier parent',
+      );
 
       expect(admin.mockPrisma.childParent.findMany).toHaveBeenLastCalledWith({
         where: {
@@ -925,28 +953,24 @@ describe('parents router', () => {
         ),
       );
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow(
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
         'Impossible de supprimer ce parent : il est le dernier parent rattaché à un enfant.',
       );
     });
 
     it('should not swallow unrelated database errors', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.childParent.findMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      admin.mockPrisma.childParent.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
       admin.mockPrisma.$transaction.mockRejectedValueOnce(new Error('connection reset'));
 
-      await expect(
-        admin.caller.parents.delete({ id: PARENT_ID }),
-      ).rejects.toThrow('connection reset');
+      await expect(admin.caller.parents.delete({ id: PARENT_ID })).rejects.toThrow(
+        'connection reset',
+      );
     });
 
     it('should not delete any link when the parent has no child', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
 
@@ -958,7 +982,7 @@ describe('parents router', () => {
 
     it('should check registrations with CONFIRMED status and deletedAt null', async () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
-      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: "PARENT" });
+      admin.mockPrisma.user.findUnique.mockResolvedValue({ id: PARENT_ID, role: 'PARENT' });
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.childParent.findMany.mockResolvedValue([]);
       admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 0 });

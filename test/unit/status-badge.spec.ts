@@ -107,6 +107,19 @@ describe('StatusBadge / getStatusInfo', () => {
     });
   });
 
+  describe('organization', () => {
+    it('labels an active and a suspended association with calibrated utilities', () => {
+      expect(getStatusInfo('organization', 'ACTIVE')).toMatchObject({
+        label: 'Active',
+        className: 'status-badge-confirmed',
+      });
+      expect(getStatusInfo('organization', 'SUSPENDED')).toMatchObject({
+        label: 'Suspendue',
+        className: 'status-badge-cancelled',
+      });
+    });
+  });
+
   describe('fallback', () => {
     it('returns the raw status as label when unknown', () => {
       const info = getStatusInfo('invoice', 'NEW_STATUS_XYZ');

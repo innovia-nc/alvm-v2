@@ -8,6 +8,8 @@ import { router, protectedProcedure, publicProcedure } from '@/server/trpc/init'
 import { BCRYPT_ROUNDS } from '@/server/helpers/password';
 import { lockAdministrators } from '@/server/services/account-access.service';
 import { consumeLoginAttempt } from '@/server/services/login-limit.service';
+import { organizationSlugSchema } from '@/server/services/auth.service';
+import { withDbContext } from '@/server/db-context';
 import {
   sendEmail,
   getEmailSender,
@@ -73,50 +75,81 @@ export const accountRouter = router({
       });
       return { success: true };
     }),
+  /**
+   * Demande de réinitialisation. Réponse identique que le compte existe ou
+   * non (pas d'énumération). Scope `auth` : le compte est retrouvé par
+   * (espace, email) avant qu'une session n'existe.
+   */
   requestReset: publicProcedure
-    .input(z.object({ email: z.string().email() }))
-    .mutation(async ({ ctx, input }) => {
+    .input(
+      z.discriminatedUnion('portal', [
+        z.object({
+          portal: z.literal('standard'),
+          organization: organizationSlugSchema,
+          email: z.string().email().toLowerCase(),
+        }),
+        z.object({ portal: z.literal('super-admin'), email: z.string().email().toLowerCase() }),
+      ]),
+    )
+    .mutation(async ({ input }) => {
       if (!(await isEmailConfigured()) || !process.env.AUTH_URL)
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
           message: 'La récupération par email est indisponible. Contactez le secrétariat.',
         });
-      if (!(await consumeLoginAttempt(`reset:${input.email}`, new Headers())))
+      const space = input.portal === 'super-admin' ? 'platform' : input.organization;
+      if (!(await consumeLoginAttempt(`reset:${space}:${input.email}`, new Headers())))
         return { success: true };
-      const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });
-      if (!user || user.disabledAt) return { success: true };
       const token = randomBytes(32).toString('hex');
-      await ctx.prisma.$transaction(async (tx) => {
-        await lockAdministrators(tx);
-        await tx.verificationToken.deleteMany({ where: { identifier: `password:${user.id}` } });
-        await tx.verificationToken.create({
+      const recipient = await withDbContext({ scope: 'auth' }, async (db) => {
+        const organization = await db.organization.findFirst({
+          where:
+            input.portal === 'super-admin'
+              ? { kind: 'PLATFORM' }
+              : { slug: input.organization, kind: 'TENANT', status: 'ACTIVE' },
+          select: { id: true },
+        });
+        if (!organization) return null;
+        const user = await db.user.findFirst({
+          where: { organizationId: organization.id, email: input.email },
+          select: { id: true, email: true, disabledAt: true, organizationId: true },
+        });
+        if (!user || user.disabledAt) return null;
+        await lockAdministrators(db);
+        await db.verificationToken.deleteMany({ where: { identifier: `password:${user.id}` } });
+        await db.verificationToken.create({
           data: {
             identifier: `password:${user.id}`,
             token: digest(token),
             expires: new Date(Date.now() + 30 * 60_000),
           },
         });
+        return user;
       });
+      if (!recipient) return { success: true };
       const url = new URL('/auth/reset-password', process.env.AUTH_URL);
       url.searchParams.set('token', token);
-      const branding = await getBranding(ctx.prisma);
+      const branding = await getBranding();
+      const sender = await withDbContext(
+        { scope: 'tenant', organizationId: recipient.organizationId },
+        (db) => getEmailSender(db),
+      );
       await sendEmail(
         {
-          to: user.email,
+          to: recipient.email,
           subject: `Réinitialiser votre mot de passe ${branding.name}`,
           text: `Lien valable 30 minutes : ${url}`,
           html: `<p><a href="${escapeHtml(url.toString())}">Réinitialiser mon mot de passe</a> (30 minutes)</p>`,
         },
-        await getEmailSender(ctx.prisma),
+        sender,
       );
       return { success: true };
     }),
   reset: publicProcedure
     .input(z.object({ token: z.string().regex(/^[0-9a-f]{64}$/), password }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const hashed = await hash(input.password, BCRYPT_ROUNDS);
-      await ctx.prisma.$transaction(async (tx) => {
-        await lockAdministrators(tx);
+      await withDbContext({ scope: 'auth' }, async (tx) => {
         const token = await tx.verificationToken.findUnique({
           where: { token: digest(input.token) },
         });
@@ -126,6 +159,7 @@ export const accountRouter = router({
         const user = await tx.user.findUnique({ where: { id: userId } });
         if (!user || user.disabledAt)
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Lien invalide' });
+        await lockAdministrators(tx);
         await tx.verificationToken.delete({ where: { token: token.token } });
         const account = await tx.account.findFirst({ where: { userId, provider: 'credentials' } });
         if (account)
@@ -143,7 +177,14 @@ export const accountRouter = router({
             },
           });
         await tx.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
-        await recordPlatformAudit(tx, userId, 'account.password_reset', userId);
+        await recordPlatformAudit(
+          tx,
+          userId,
+          'account.password_reset',
+          userId,
+          'SUCCESS',
+          user.organizationId,
+        );
       });
       return { success: true };
     }),

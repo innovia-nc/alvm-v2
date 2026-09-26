@@ -158,8 +158,8 @@ describe('fec router', () => {
     });
 
     it('falls back to accounting.fec_siren when the field is left empty', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) =>
-        where.category_key.category === 'features' ? null : { value: '"987654321"' },
+      admin.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+        where.category === 'features' ? null : { value: '"987654321"' },
       );
 
       const result = await admin.caller.fec.generateFEC({
@@ -167,8 +167,8 @@ describe('fec router', () => {
         endDate: '2025-12-31',
       });
 
-      expect(admin.mockPrisma.appSetting.findUnique).toHaveBeenCalledWith({
-        where: { category_key: { category: 'accounting', key: 'fec_siren' } },
+      expect(admin.mockPrisma.appSetting.findFirst).toHaveBeenCalledWith({
+        where: { category: 'accounting', key: 'fec_siren' },
         select: { value: true },
       });
       expect(result.filename).toBe('987654321FEC20251231.txt');
@@ -176,8 +176,8 @@ describe('fec router', () => {
     });
 
     it('prefers the typed SIREN over the stored one', async () => {
-      admin.mockPrisma.appSetting.findUnique.mockImplementation(async ({ where }) =>
-        where.category_key.category === 'features' ? null : { value: '"987654321"' },
+      admin.mockPrisma.appSetting.findFirst.mockImplementation(async ({ where }) =>
+        where.category === 'features' ? null : { value: '"987654321"' },
       );
 
       const result = await admin.caller.fec.generateFEC({

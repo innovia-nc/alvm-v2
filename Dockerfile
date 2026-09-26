@@ -22,8 +22,7 @@ ENV NEXT_OUTPUT=standalone \
 RUN pnpm exec prisma generate && pnpm exec next build
 # Commandes one-shot de l'image (db-init, seeds) : compilées en CJS autonome,
 # @prisma/client reste externe et se résout dans le node_modules du standalone.
-RUN pnpm exec esbuild scripts/db-init.ts scripts/create-super-admin.ts \
-      prisma/seed-payment-methods.ts \
+RUN pnpm exec esbuild scripts/db-migrate.ts scripts/create-super-admin.ts \
       --bundle --platform=node --target=node22 --format=cjs \
       --external:@prisma/client --entry-names=[name] --outdir=dist-scripts
 
@@ -39,7 +38,7 @@ ENV NODE_ENV=production \
 # Pas de TZ : Alpine n'embarque pas tzdata, le conteneur reste en UTC.
 
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
-# CLI Prisma pour `db-init` (db push / db execute) — même version que le client.
+# CLI Prisma pour `migrate` (prisma migrate deploy) — même version que le client.
 RUN npm install -g prisma@6.19.2 && npm cache clean --force
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

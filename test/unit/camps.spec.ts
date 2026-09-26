@@ -412,9 +412,11 @@ describe('camps.create', () => {
     it('should allow STAFF users', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
       mockPrisma.campType.findFirst.mockResolvedValue(makeCampType());
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        createdBy: STAFF_USER.id,
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          createdBy: STAFF_USER.id,
+        }),
+      );
 
       const result = await caller.camps.create(createInput);
       expect(result.id).toBe(CAMP_ID);
@@ -423,9 +425,11 @@ describe('camps.create', () => {
     it('should allow any STAFF user, not only the creator', async () => {
       const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
       mockPrisma.campType.findFirst.mockResolvedValue(makeCampType());
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        createdBy: OTHER_STAFF_USER.id,
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          createdBy: OTHER_STAFF_USER.id,
+        }),
+      );
 
       const result = await caller.camps.create(createInput);
       expect(result.id).toBe(CAMP_ID);
@@ -434,9 +438,11 @@ describe('camps.create', () => {
     it('should allow ADMIN users', async () => {
       const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
       mockPrisma.campType.findFirst.mockResolvedValue(makeCampType());
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        createdBy: ADMIN_USER.id,
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          createdBy: ADMIN_USER.id,
+        }),
+      );
 
       const result = await caller.camps.create(createInput);
       expect(result.id).toBe(CAMP_ID);
@@ -454,7 +460,9 @@ describe('camps.create', () => {
     it('should reject if campType is not found or inactive', async () => {
       mockPrisma.campType.findFirst.mockResolvedValue(null);
 
-      await expect(caller.camps.create(createInput)).rejects.toThrow('Type de camp non trouvé ou inactif');
+      await expect(caller.camps.create(createInput)).rejects.toThrow(
+        'Type de camp non trouvé ou inactif',
+      );
     });
 
     it('should compute pricePerDay from totalPrice / daysCount', async () => {
@@ -562,9 +570,11 @@ describe('camps.update', () => {
 
     it('should allow STAFF to update any camp regardless of creator', async () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
-      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
-        createdBy: 'd1a00000-0000-4000-a000-000000000099',
-      }));
+      mockPrisma.camp.findFirst.mockResolvedValue(
+        makeCampRow({
+          createdBy: 'd1a00000-0000-4000-a000-000000000099',
+        }),
+      );
       mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
       const result = await caller.camps.update(updateInput);
@@ -575,9 +585,11 @@ describe('camps.update', () => {
     // tout STAFF peut modifier n'importe quel camp.
     it('should allow any STAFF to update any camp regardless of creator', async () => {
       const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
-      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
-        createdBy: 'd1a00000-0000-4000-a000-000000000099',
-      }));
+      mockPrisma.camp.findFirst.mockResolvedValue(
+        makeCampRow({
+          createdBy: 'd1a00000-0000-4000-a000-000000000099',
+        }),
+      );
       mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
       const result = await caller.camps.update(updateInput);
@@ -586,9 +598,11 @@ describe('camps.update', () => {
 
     it('should allow ADMIN to update any camp regardless of creator', async () => {
       const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
-      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
-        createdBy: 'd1a00000-0000-4000-a000-000000000099',
-      }));
+      mockPrisma.camp.findFirst.mockResolvedValue(
+        makeCampRow({
+          createdBy: 'd1a00000-0000-4000-a000-000000000099',
+        }),
+      );
       mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
       const result = await caller.camps.update(updateInput);
@@ -597,9 +611,11 @@ describe('camps.update', () => {
 
     it('should allow the creating STAFF to update their own camp', async () => {
       const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
-      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
-        createdBy: OTHER_STAFF_USER.id,
-      }));
+      mockPrisma.camp.findFirst.mockResolvedValue(
+        makeCampRow({
+          createdBy: OTHER_STAFF_USER.id,
+        }),
+      );
       mockPrisma.camp.update.mockResolvedValue(makeCampRow({ name: 'Camp Modifie' }));
 
       const result = await caller.camps.update(updateInput);
@@ -624,7 +640,9 @@ describe('camps.update', () => {
     it('should throw BAD_REQUEST when no modifications provided', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow());
 
-      await expect(caller.camps.update({ id: CAMP_ID })).rejects.toThrow('Aucune modification fournie');
+      await expect(caller.camps.update({ id: CAMP_ID })).rejects.toThrow(
+        'Aucune modification fournie',
+      );
     });
 
     it('should recalculate pricePerDay when totalPrice is provided', async () => {
@@ -657,11 +675,13 @@ describe('camps.update', () => {
     });
 
     it('should reject update when endDate < startDate (Zod refine)', async () => {
-      await expect(caller.camps.update({
-        id: CAMP_ID,
-        startDate: '2026-07-10',
-        endDate: '2026-07-01',
-      })).rejects.toThrow();
+      await expect(
+        caller.camps.update({
+          id: CAMP_ID,
+          startDate: '2026-07-10',
+          endDate: '2026-07-01',
+        }),
+      ).rejects.toThrow();
     });
 
     it('should update only the provided fields', async () => {
@@ -805,18 +825,24 @@ describe('camps.delete', () => {
 // ---------------------------------------------------------------------------
 
 describe('camps.listCampTypes', () => {
-  it('should be accessible without authentication (publicProcedure)', async () => {
+  it('refuse un visiteur : les types d’ACM appartiennent à une association', async () => {
     const { caller, mockPrisma } = createTestCaller(null);
-    const types = [makeCampType()];
-    mockPrisma.campType.findMany.mockResolvedValue(types);
+    await expect(caller.camps.listCampTypes()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    expect(mockPrisma.campType.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lit dans la transaction de l’association de la session (parent compris)', async () => {
+    const { caller, mockPrisma, dbContexts } = createTestCaller(PARENT_USER);
+    mockPrisma.campType.findMany.mockResolvedValue([makeCampType()]);
 
     const result = await caller.camps.listCampTypes();
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('Centre aere');
+    expect(dbContexts).toEqual([{ scope: 'tenant', organizationId: PARENT_USER.organizationId }]);
   });
 
   it('should return only active camp types', async () => {
-    const { caller, mockPrisma } = createTestCaller(null);
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
     mockPrisma.campType.findMany.mockResolvedValue([]);
 
     await caller.camps.listCampTypes();
@@ -826,7 +852,7 @@ describe('camps.listCampTypes', () => {
   });
 
   it('should order by name ascending', async () => {
-    const { caller, mockPrisma } = createTestCaller(null);
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
     mockPrisma.campType.findMany.mockResolvedValue([]);
 
     await caller.camps.listCampTypes();
@@ -836,10 +862,8 @@ describe('camps.listCampTypes', () => {
   });
 
   it('should return camp type with nullable description', async () => {
-    const { caller, mockPrisma } = createTestCaller(null);
-    mockPrisma.campType.findMany.mockResolvedValue([
-      makeCampType({ description: null }),
-    ]);
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.campType.findMany.mockResolvedValue([makeCampType({ description: null })]);
 
     const result = await caller.camps.listCampTypes();
     expect(result[0].description).toBeNull();
@@ -871,11 +895,13 @@ describe('camps.duplicate', () => {
       const { caller, mockPrisma } = createTestCaller(STAFF_USER);
       const sourceCamp = makeCampRow();
       mockPrisma.camp.findFirst.mockResolvedValue(sourceCamp);
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        id: CAMP_ID_2,
-        name: 'Camp Ete 2026 - Copie',
-        status: 'DRAFT',
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          id: CAMP_ID_2,
+          name: 'Camp Ete 2026 - Copie',
+          status: 'DRAFT',
+        }),
+      );
 
       const result = await caller.camps.duplicate(duplicateInput);
       expect(result.id).toBe(CAMP_ID_2);
@@ -885,12 +911,14 @@ describe('camps.duplicate', () => {
       const { caller, mockPrisma } = createTestCaller(OTHER_STAFF_USER);
       const sourceCamp = makeCampRow();
       mockPrisma.camp.findFirst.mockResolvedValue(sourceCamp);
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        id: CAMP_ID_2,
-        name: 'Camp Ete 2026 - Copie',
-        status: 'DRAFT',
-        createdBy: OTHER_STAFF_USER.id,
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          id: CAMP_ID_2,
+          name: 'Camp Ete 2026 - Copie',
+          status: 'DRAFT',
+          createdBy: OTHER_STAFF_USER.id,
+        }),
+      );
 
       const result = await caller.camps.duplicate(duplicateInput);
       expect(result.id).toBe(CAMP_ID_2);
@@ -901,11 +929,13 @@ describe('camps.duplicate', () => {
     it('should allow ADMIN users', async () => {
       const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow());
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        id: CAMP_ID_2,
-        status: 'DRAFT',
-        createdBy: ADMIN_USER.id,
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          id: CAMP_ID_2,
+          status: 'DRAFT',
+          createdBy: ADMIN_USER.id,
+        }),
+      );
 
       const result = await caller.camps.duplicate(duplicateInput);
       expect(result.id).toBe(CAMP_ID_2);
@@ -923,17 +953,21 @@ describe('camps.duplicate', () => {
     it('should throw NOT_FOUND when source camp does not exist', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
-      await expect(caller.camps.duplicate(duplicateInput)).rejects.toThrow('Camp source non trouvé');
+      await expect(caller.camps.duplicate(duplicateInput)).rejects.toThrow(
+        'Camp source non trouvé',
+      );
     });
 
     it('should create a copy with new name and DRAFT status', async () => {
       const sourceCamp = makeCampRow({ status: 'PUBLISHED' });
       mockPrisma.camp.findFirst.mockResolvedValue(sourceCamp);
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        id: CAMP_ID_2,
-        name: 'Camp Ete 2026 - Copie',
-        status: 'DRAFT',
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          id: CAMP_ID_2,
+          name: 'Camp Ete 2026 - Copie',
+          status: 'DRAFT',
+        }),
+      );
 
       await caller.camps.duplicate(duplicateInput);
 
@@ -948,14 +982,18 @@ describe('camps.duplicate', () => {
     });
 
     it('should set createdBy to the current user, not the original creator', async () => {
-      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow({
-        createdBy: 'd1a00000-0000-4000-a000-000000000099',
-      }));
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        id: CAMP_ID_2,
-        createdBy: OTHER_STAFF_USER.id,
-        status: 'DRAFT',
-      }));
+      mockPrisma.camp.findFirst.mockResolvedValue(
+        makeCampRow({
+          createdBy: 'd1a00000-0000-4000-a000-000000000099',
+        }),
+      );
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          id: CAMP_ID_2,
+          createdBy: OTHER_STAFF_USER.id,
+          status: 'DRAFT',
+        }),
+      );
 
       await caller.camps.duplicate(duplicateInput);
 
@@ -971,10 +1009,12 @@ describe('camps.duplicate', () => {
         pricePerDay: 2500,
       });
       mockPrisma.camp.findFirst.mockResolvedValue(sourceCamp);
-      mockPrisma.camp.create.mockResolvedValue(makeCampRow({
-        id: CAMP_ID_2,
-        status: 'DRAFT',
-      }));
+      mockPrisma.camp.create.mockResolvedValue(
+        makeCampRow({
+          id: CAMP_ID_2,
+          status: 'DRAFT',
+        }),
+      );
 
       await caller.camps.duplicate(duplicateInput);
 

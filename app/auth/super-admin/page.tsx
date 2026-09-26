@@ -16,7 +16,7 @@ export default function SuperAdminSignInPage() {
         <SignInForm superAdmin />
       </Suspense>
       <div className="flex justify-between text-sm text-primary">
-        <Link href="/auth/reset-password">Mot de passe oublié ?</Link>
+        <Link href="/auth/reset-password?portal=super-admin">Mot de passe oublié ?</Link>
         <Link href="/auth/signin">Connexion habituelle</Link>
       </div>
     </div>

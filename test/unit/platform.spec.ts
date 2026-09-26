@@ -75,7 +75,7 @@ describe('Séparation plateforme / entreprise', () => {
     await expect(assertProcedureEnabled(db, 'SUPER_ADMIN', path)).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
-    expect(db.appSetting.findUnique).not.toHaveBeenCalled();
+    expect(db.appSetting.findFirst).not.toHaveBeenCalled();
   });
   it('refuse les vrais appels tRPC de synthèse et de liste métier', async () => {
     const { caller, mockPrisma } = createTestCaller(SUPER_ADMIN_USER);
@@ -96,6 +96,8 @@ describe('Séparation plateforme / entreprise', () => {
           role: true,
           disabledAt: true,
           createdAt: true,
+          // Association de rattachement : identité publique uniquement.
+          organization: { select: { id: true, name: true, slug: true } },
         },
       }),
     );
@@ -113,8 +115,9 @@ describe('Configuration utilisée par les services', () => {
       supportEmail: 'support@example.org',
     };
     await caller.platform.saveBranding(branding);
-    const write = mockPrisma.appSetting.upsert.mock.calls[0][0];
-    mockPrisma.appSetting.findUnique.mockResolvedValue({ value: write.update.value });
+    // Identité globale de la plateforme : `platform_settings`, hors tenant.
+    const write = mockPrisma.platformSetting.upsert.mock.calls[0][0];
+    mockPrisma.platformSetting.findUnique.mockResolvedValue({ value: write.update.value });
     expect(await caller.platform.branding()).toEqual(branding);
     expect(mockPrisma.platformAuditLog.create).toHaveBeenCalledWith({
       data: {

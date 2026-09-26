@@ -1,13 +1,15 @@
 import { TRPCError } from '@trpc/server';
 import type { UserRole } from '@prisma/client';
 import type { ExtendedPrismaClient } from '@/server/db';
+import { lockTenant } from '@/server/db-context';
 type Tx = Omit<
   ExtendedPrismaClient,
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
-export async function lockAdministrators(tx: Tx) {
-  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(20260922, 1)::text');
+/** Sérialise les changements de comptes d'un même tenant (règle du dernier admin). */
+export async function lockAdministrators(tx: Pick<Tx, '$queryRaw'>) {
+  await lockTenant(tx, 'accounts');
 }
 
 export async function deactivateAccount(tx: Tx, id: string, actorRole: UserRole) {

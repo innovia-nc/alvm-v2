@@ -1,18 +1,19 @@
 import { effectiveInvoiceStatus, overdueWhere } from '@/server/helpers/invoice-status';
-import { issueInvoice, cancelUnpaidInvoice, validateInvoiceRegistrations } from '@/server/services/invoice-lifecycle.service';
+import {
+  issueInvoice,
+  cancelUnpaidInvoice,
+  validateInvoiceRegistrations,
+} from '@/server/services/invoice-lifecycle.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import {
-  router,
-  protectedProcedure,
-  staffProcedure,
-} from '@/server/trpc/init';
+import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 import { getTaxRateDecimal, getDefaultDueDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
 import { generateAndStoreInvoicePdf } from '@/server/services/invoice-pdf.service';
+import { lockTenant } from '@/server/db-context';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
@@ -65,12 +66,14 @@ const invoiceWithDetailsSchema = invoiceSchema.extend({
     postalCode: z.string(),
   }),
   lines: z.array(invoiceLineSchema),
-  payments: z.array(z.object({
-    id: z.string().uuid(),
-    amount: z.number(),
-    paymentDate: z.date(),
-    paymentMethod: z.string(),
-  })),
+  payments: z.array(
+    z.object({
+      id: z.string().uuid(),
+      amount: z.number(),
+      paymentDate: z.date(),
+      paymentMethod: z.string(),
+    }),
+  ),
   remainingAmount: z.number(),
   creatorName: z.string().nullable(),
   validatorName: z.string().nullable(),
@@ -135,12 +138,8 @@ function mapInvoiceWithDetails(inv: any, role?: string) {
   // Role-gating R3 : creatorName/validatorName sont null pour les PARENT.
   // Seuls STAFF et ADMIN voient ces champs de traçabilité interne.
   const isStaffOrAdmin = role !== 'PARENT';
-  const creatorName: string | null = isStaffOrAdmin
-    ? (inv.creator?.name ?? null)
-    : null;
-  const validatorName: string | null = isStaffOrAdmin
-    ? (inv.validator?.name ?? null)
-    : null;
+  const creatorName: string | null = isStaffOrAdmin ? (inv.creator?.name ?? null) : null;
+  const validatorName: string | null = isStaffOrAdmin ? (inv.validator?.name ?? null) : null;
 
   return {
     id: inv.id,
@@ -210,25 +209,36 @@ function mapInvoice(inv: any) {
 
 export const invoicesRouter = router({
   list: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      parentId: z.string().uuid().optional(),
-      status: invoiceStatusEnum.optional(),
-      /**
-       * Filtre multi-statuts, pour les sélecteurs qui n'exposent qu'un
-       * sous-ensemble de factures (ex. factures éligibles à un avoir).
-       * Ignoré si `status` est fourni.
-       */
-      statuses: z.array(invoiceStatusEnum).min(1).optional(),
-      search: z.string().optional(),
-      sortBy: z.enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent']).default('issueDate'),
-      sortOrder: z.enum(['asc', 'desc']).default('desc'),
-    }))
-    .output(z.object({
-      invoices: z.array(invoiceSchema.extend({ parent: z.object({ firstName: z.string(), lastName: z.string(), email: z.string() }), remainingAmount: z.number() })),
-      total: z.number(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        parentId: z.string().uuid().optional(),
+        status: invoiceStatusEnum.optional(),
+        /**
+         * Filtre multi-statuts, pour les sélecteurs qui n'exposent qu'un
+         * sous-ensemble de factures (ex. factures éligibles à un avoir).
+         * Ignoré si `status` est fourni.
+         */
+        statuses: z.array(invoiceStatusEnum).min(1).optional(),
+        search: z.string().optional(),
+        sortBy: z
+          .enum(['invoiceNumber', 'issueDate', 'dueDate', 'totalAmount', 'parent'])
+          .default('issueDate'),
+        sortOrder: z.enum(['asc', 'desc']).default('desc'),
+      }),
+    )
+    .output(
+      z.object({
+        invoices: z.array(
+          invoiceSchema.extend({
+            parent: z.object({ firstName: z.string(), lastName: z.string(), email: z.string() }),
+            remainingAmount: z.number(),
+          }),
+        ),
+        total: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, offset, parentId, status, statuses, search, sortBy, sortOrder } = input;
 
@@ -244,7 +254,13 @@ export const invoicesRouter = router({
       }
 
       if (status === 'OVERDUE') Object.assign(where, overdueWhere());
-      else if (status === 'SENT') Object.assign(where, { status: 'SENT', dueDate: { gte: new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Noumea' })) } });
+      else if (status === 'SENT')
+        Object.assign(where, {
+          status: 'SENT',
+          dueDate: {
+            gte: new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Noumea' })),
+          },
+        });
       else if (status) where.status = status;
       else if (statuses && statuses.length > 0) where.status = { in: statuses };
 
@@ -258,12 +274,11 @@ export const invoicesRouter = router({
         ];
       }
 
-      const orderBy: Prisma.InvoiceOrderByWithRelationInput | Prisma.InvoiceOrderByWithRelationInput[] =
+      const orderBy:
+        | Prisma.InvoiceOrderByWithRelationInput
+        | Prisma.InvoiceOrderByWithRelationInput[] =
         sortBy === 'parent'
-          ? [
-              { parent: { lastName: sortOrder } },
-              { parent: { firstName: sortOrder } },
-            ]
+          ? [{ parent: { lastName: sortOrder } }, { parent: { firstName: sortOrder } }]
           : { [sortBy]: sortOrder };
 
       const [invoices, total] = await Promise.all([
@@ -305,26 +320,33 @@ export const invoicesRouter = router({
     }),
 
   create: staffProcedure
-    .input(z.object({
-      parentId: z.string().uuid(),
-      dueDate: z.string().date(),
-      lines: z.array(z.object({
-        registrationId: z.string().uuid().nullable(),
-        description: z.string().min(3),
-        quantity: z.number().min(1),
-        unitPrice: z.number().min(0),
-      })).min(1, 'Au moins une ligne requise'),
-    }))
+    .input(
+      z.object({
+        parentId: z.string().uuid(),
+        dueDate: z.string().date(),
+        lines: z
+          .array(
+            z.object({
+              registrationId: z.string().uuid().nullable(),
+              description: z.string().min(3),
+              quantity: z.number().min(1),
+              unitPrice: z.number().min(0),
+            }),
+          )
+          .min(1, 'Au moins une ligne requise'),
+      }),
+    )
     .output(invoiceSchema)
     .mutation(async ({ ctx, input }) => {
-      const subtotalHt = input.lines.reduce(
-        (sum, line) => sum + line.quantity * line.unitPrice,
-        0,
-      );
+      const subtotalHt = input.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
-        await validateInvoiceRegistrations(tx, input.parentId, input.lines.map(l => l.registrationId));
+        await lockTenant(tx, 'billing');
+        await validateInvoiceRegistrations(
+          tx,
+          input.parentId,
+          input.lines.map((l) => l.registrationId),
+        );
         const taxRate = await getTaxRateDecimal(tx);
         const taxAmount = subtotalHt * taxRate;
         const totalAmount = subtotalHt + taxAmount;
@@ -364,18 +386,29 @@ export const invoicesRouter = router({
     }),
 
   createFromRegistration: staffProcedure
-    .input(z.object({
-      registrationId: z.string().uuid(),
-      dueDate: z.string().date().optional(),
-      status: z.enum(['DRAFT', 'SENT']).default('DRAFT'),
-    }))
+    .input(
+      z.object({
+        registrationId: z.string().uuid(),
+        dueDate: z.string().date().optional(),
+        status: z.enum(['DRAFT', 'SENT']).default('DRAFT'),
+      }),
+    )
     .output(invoiceSchema)
     .mutation(async ({ ctx, input }) => {
       // 1. Get registration with camp and child details
       const reg = await ctx.prisma.registration.findFirst({
         where: { id: input.registrationId, deletedAt: null },
         include: {
-          camp: { select: { name: true, startDate: true, endDate: true, pricePerDay: true, totalPrice: true, campType: { select: { accountingCode: true } } } },
+          camp: {
+            select: {
+              name: true,
+              startDate: true,
+              endDate: true,
+              pricePerDay: true,
+              totalPrice: true,
+              campType: { select: { accountingCode: true } },
+            },
+          },
           child: { select: { firstName: true, lastName: true } },
         },
       });
@@ -410,27 +443,22 @@ export const invoicesRouter = router({
       // 4. Calculate amounts
       const daysCount = computeDaysCount(reg.camp.startDate, reg.camp.endDate);
       const pricePerDay = toNum(reg.camp.pricePerDay);
-      const subtotalHt = reg.camp.totalPrice == null ? daysCount * pricePerDay : toNum(reg.camp.totalPrice);
+      const subtotalHt =
+        reg.camp.totalPrice == null ? daysCount * pricePerDay : toNum(reg.camp.totalPrice);
 
       // 5. Create invoice with line
-      const startStr = reg.camp.startDate
-        ? reg.camp.startDate.toLocaleDateString('fr-FR')
-        : '?';
-      const endStr = reg.camp.endDate
-        ? reg.camp.endDate.toLocaleDateString('fr-FR')
-        : '?';
+      const startStr = reg.camp.startDate ? reg.camp.startDate.toLocaleDateString('fr-FR') : '?';
+      const endStr = reg.camp.endDate ? reg.camp.endDate.toLocaleDateString('fr-FR') : '?';
       const description = `Camp "${reg.camp.name}" - ${reg.child.firstName} ${reg.child.lastName} (${startStr} - ${endStr})`;
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         await validateInvoiceRegistrations(tx, reg.parentId, [reg.id]);
         const taxRate = await getTaxRateDecimal(tx);
         const taxAmount = subtotalHt * taxRate;
         const totalAmount = subtotalHt + taxAmount;
 
-        const dueDate = input.dueDate
-          ? new Date(input.dueDate)
-          : await getDefaultDueDate(tx);
+        const dueDate = input.dueDate ? new Date(input.dueDate) : await getDefaultDueDate(tx);
         const invoiceNumber = await generateDocumentNumber(tx, 'INVOICE');
 
         const created = await tx.invoice.create({
@@ -467,16 +495,22 @@ export const invoicesRouter = router({
     }),
 
   update: staffProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      version: z.number().int().min(0),
-      lines: z.array(z.object({
-        registrationId: z.string().uuid().nullable(),
-        description: z.string().min(3),
-        quantity: z.number().int().min(1),
-        unitPrice: z.number().min(0),
-      })).min(1, 'Au moins une ligne requise'),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        version: z.number().int().min(0),
+        lines: z
+          .array(
+            z.object({
+              registrationId: z.string().uuid().nullable(),
+              description: z.string().min(3),
+              quantity: z.number().int().min(1),
+              unitPrice: z.number().min(0),
+            }),
+          )
+          .min(1, 'Au moins une ligne requise'),
+      }),
+    )
     .output(invoiceSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.invoice.findFirst({
@@ -493,17 +527,19 @@ export const invoicesRouter = router({
         });
       }
 
-      const subtotalHt = input.lines.reduce(
-        (sum, line) => sum + line.quantity * line.unitPrice,
-        0,
-      );
+      const subtotalHt = input.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
       const taxRate = existing.taxRate ? toNum(existing.taxRate) : 0;
       const taxAmount = subtotalHt * taxRate;
       const totalAmount = subtotalHt + taxAmount;
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
-        await validateInvoiceRegistrations(tx, existing.parentId, input.lines.map(l => l.registrationId), input.id);
+        await lockTenant(tx, 'billing');
+        await validateInvoiceRegistrations(
+          tx,
+          existing.parentId,
+          input.lines.map((l) => l.registrationId),
+          input.id,
+        );
         // Optimistic lock + recompute totals
         const result = await tx.invoice.updateMany({
           where: { id: input.id, version: input.version, status: 'DRAFT' },
@@ -548,32 +584,56 @@ export const invoicesRouter = router({
       return mapInvoice(invoice);
     }),
 
-  validate: staffProcedure.input(z.object({ id: z.string().uuid() })).output(invoiceSchema)
-    .mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
-      return mapInvoice(await issueInvoice(tx, input.id, ctx.user.id));
-    })),
+  validate: staffProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) =>
+      ctx.prisma.$transaction(async (tx) => {
+        await lockTenant(tx, 'billing');
+        return mapInvoice(await issueInvoice(tx, input.id, ctx.user.id));
+      }),
+    ),
 
-  updateStatus: staffProcedure.input(z.object({ id: z.string().uuid(), status: z.enum(['SENT', 'PAID', 'OVERDUE', 'CANCELLED']), version: z.number().int().min(0) })).output(invoiceSchema)
-    .mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
-      const invoice = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
-      if (!invoice) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
-      if (invoice.version !== input.version) throw new TRPCError({ code: 'CONFLICT', message: 'Rechargez la facture modifiée' });
-      if (input.status === 'SENT') return mapInvoice(await issueInvoice(tx, input.id, ctx.user.id));
-      if (input.status === 'CANCELLED') return mapInvoice(await cancelUnpaidInvoice(tx, input.id, ctx.user.id, input.version));
-      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Le statut de paiement et le retard sont calculés automatiquement' });
-    })),
+  updateStatus: staffProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        status: z.enum(['SENT', 'PAID', 'OVERDUE', 'CANCELLED']),
+        version: z.number().int().min(0),
+      }),
+    )
+    .output(invoiceSchema)
+    .mutation(async ({ ctx, input }) =>
+      ctx.prisma.$transaction(async (tx) => {
+        await lockTenant(tx, 'billing');
+        const invoice = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
+        if (!invoice) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+        if (invoice.version !== input.version)
+          throw new TRPCError({ code: 'CONFLICT', message: 'Rechargez la facture modifiée' });
+        if (input.status === 'SENT')
+          return mapInvoice(await issueInvoice(tx, input.id, ctx.user.id));
+        if (input.status === 'CANCELLED')
+          return mapInvoice(await cancelUnpaidInvoice(tx, input.id, ctx.user.id, input.version));
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Le statut de paiement et le retard sont calculés automatiquement',
+        });
+      }),
+    ),
 
   delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         const document = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
         if (!document) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
-        if (document.status !== 'DRAFT') throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Seul un brouillon peut être supprimé' });
+        if (document.status !== 'DRAFT')
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Seul un brouillon peut être supprimé',
+          });
         // Check for payments
         const paymentCount = await tx.payment.count({
           where: { invoiceId: input.id },
@@ -599,9 +659,7 @@ export const invoicesRouter = router({
           where: { invoiceId: input.id, registrationId: { not: null } },
           select: { registrationId: true },
         });
-        const regIds = lines
-          .map((l) => l.registrationId)
-          .filter((id): id is string => id !== null);
+        const regIds = lines.map((l) => l.registrationId).filter((id): id is string => id !== null);
 
         if (regIds.length > 0) {
           await tx.registration.updateMany({
@@ -649,10 +707,7 @@ export const invoicesRouter = router({
         });
       }
 
-      const { invoice, pdfBuffer } = await generateAndStoreInvoicePdf(
-        ctx.prisma,
-        input.id,
-      );
+      const { invoice, pdfBuffer } = await generateAndStoreInvoicePdf(ctx.prisma, input.id);
 
       const recipient: string | null = invoice.parent?.email ?? null;
       if (!recipient) {
@@ -696,9 +751,7 @@ export const invoicesRouter = router({
           to: recipient,
           subject,
           text: lines.join('\n\n'),
-          html: lines
-            .map((line) => `<p>${escapeHtml(line)}</p>`)
-            .join('\n'),
+          html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
           attachments: [
             {
               filename: `${label}-${invoice.invoiceNumber}.pdf`,
@@ -722,20 +775,24 @@ export const invoicesRouter = router({
 
   fetchUnpaidRegistrations: staffProcedure
     .input(z.object({ parentId: z.string().uuid() }))
-    .output(z.object({
-      registrations: z.array(z.object({
-        id: z.string().uuid(),
-        campId: z.string().uuid(),
-        campName: z.string(),
-        childId: z.string().uuid(),
-        childFirstName: z.string(),
-        childLastName: z.string(),
-        registrationDate: z.date(),
-        totalAmount: z.number(),
-        status: z.enum(['CONFIRMED']),
-        paymentStatus: z.enum(['UNPAID']),
-      })),
-    }))
+    .output(
+      z.object({
+        registrations: z.array(
+          z.object({
+            id: z.string().uuid(),
+            campId: z.string().uuid(),
+            campName: z.string(),
+            childId: z.string().uuid(),
+            childFirstName: z.string(),
+            childLastName: z.string(),
+            registrationDate: z.date(),
+            totalAmount: z.number(),
+            status: z.enum(['CONFIRMED']),
+            paymentStatus: z.enum(['UNPAID']),
+          }),
+        ),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const registrations = await ctx.prisma.registration.findMany({
         where: {
@@ -745,7 +802,16 @@ export const invoicesRouter = router({
           deletedAt: null,
         },
         include: {
-          camp: { select: { id: true, name: true, startDate: true, endDate: true, pricePerDay: true, totalPrice: true } },
+          camp: {
+            select: {
+              id: true,
+              name: true,
+              startDate: true,
+              endDate: true,
+              pricePerDay: true,
+              totalPrice: true,
+            },
+          },
           child: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { registrationDate: 'desc' },
@@ -762,7 +828,10 @@ export const invoicesRouter = router({
             childFirstName: r.child.firstName,
             childLastName: r.child.lastName,
             registrationDate: r.registrationDate,
-            totalAmount: r.camp.totalPrice == null ? daysCount * toNum(r.camp.pricePerDay) : toNum(r.camp.totalPrice),
+            totalAmount:
+              r.camp.totalPrice == null
+                ? daysCount * toNum(r.camp.pricePerDay)
+                : toNum(r.camp.totalPrice),
             status: 'CONFIRMED' as const,
             paymentStatus: 'UNPAID' as const,
           };

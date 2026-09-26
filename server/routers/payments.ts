@@ -1,17 +1,16 @@
 import { overdueWhere } from '@/server/helpers/invoice-status';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import {
-  router,
-  protectedProcedure,
-  staffProcedure,
-  adminProcedure,
-} from '@/server/trpc/init';
+import { router, protectedProcedure, staffProcedure, adminProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
-import { createPaymentEntries, cancelAccountingEntries } from '@/server/services/accounting.service';
+import {
+  createPaymentEntries,
+  cancelAccountingEntries,
+} from '@/server/services/accounting.service';
 import { restoreCreditOnPaymentDeletion } from '@/server/services/credit-application.service';
 import { toNum } from '@/server/helpers/decimal';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
+import { lockTenant } from '@/server/db-context';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
@@ -137,22 +136,27 @@ function mapPayment(p: any) {
 
 export const paymentsRouter = router({
   list: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      invoiceId: z.string().uuid().optional(),
-      parentId: z.string().uuid().optional(),
-      paymentMethodId: z.string().uuid().optional(),
-      search: z.string().optional(),
-      sortBy: z.enum(['paymentDate', 'amount']).default('paymentDate'),
-      sortOrder: z.enum(['asc', 'desc']).default('desc'),
-    }))
-    .output(z.object({
-      payments: z.array(paymentWithDetailsSchema),
-      total: z.number(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        invoiceId: z.string().uuid().optional(),
+        parentId: z.string().uuid().optional(),
+        paymentMethodId: z.string().uuid().optional(),
+        search: z.string().optional(),
+        sortBy: z.enum(['paymentDate', 'amount']).default('paymentDate'),
+        sortOrder: z.enum(['asc', 'desc']).default('desc'),
+      }),
+    )
+    .output(
+      z.object({
+        payments: z.array(paymentWithDetailsSchema),
+        total: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
-      const { limit, offset, invoiceId, parentId, paymentMethodId, search, sortBy, sortOrder } = input;
+      const { limit, offset, invoiceId, parentId, paymentMethodId, search, sortBy, sortOrder } =
+        input;
 
       const where: Prisma.PaymentWhereInput = {};
 
@@ -212,21 +216,23 @@ export const paymentsRouter = router({
     }),
 
   create: staffProcedure
-    .input(z.object({
-      invoiceId: z.string().uuid(),
-      amount: z.number().min(0.01, 'Montant doit être positif'),
-      paymentDate: z.string().date(),
-      paymentMethodId: z.string().uuid(),
-      creditNoteId: z.string().uuid().optional(),
-      reference: z.string().optional(),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        invoiceId: z.string().uuid(),
+        amount: z.number().min(0.01, 'Montant doit être positif'),
+        paymentDate: z.string().date(),
+        paymentMethodId: z.string().uuid(),
+        creditNoteId: z.string().uuid().optional(),
+        reference: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+    )
     .output(paymentSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
 
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         // 1. Verify invoice
         const invoice = await tx.invoice.findFirst({
           where: { id: input.invoiceId, invoiceType: 'INVOICE', deletedAt: null },
@@ -266,9 +272,18 @@ export const paymentsRouter = router({
           select: { code: true, accountingCode: true, active: true },
         });
 
-        if (!paymentMethod || !paymentMethod.active) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Méthode de paiement inactive ou inconnue' });
-        if ((paymentMethod.code === 'CREDIT_NOTE') !== Boolean(input.creditNoteId)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Un règlement par avoir exige un avoir, réservé à cette méthode' });
-        if (!['SENT', 'OVERDUE'].includes(invoice.status)) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Facture non payable' });
+        if (!paymentMethod || !paymentMethod.active)
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Méthode de paiement inactive ou inconnue',
+          });
+        if ((paymentMethod.code === 'CREDIT_NOTE') !== Boolean(input.creditNoteId))
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Un règlement par avoir exige un avoir, réservé à cette méthode',
+          });
+        if (!['SENT', 'OVERDUE'].includes(invoice.status))
+          throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Facture non payable' });
         let creditNoteIsFutureCredit: boolean | undefined;
 
         if (paymentMethod?.code === 'CREDIT_NOTE' && input.creditNoteId) {
@@ -292,9 +307,13 @@ export const paymentsRouter = router({
             });
           }
 
-          const usableCredit = await tx.parentCredit.findFirst({ where: { creditNoteId: input.creditNoteId } });
-          if (usableCredit?.expiresAt && usableCredit.expiresAt <= new Date()) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Avoir expiré' });
-          if (usableCredit && toNum(usableCredit.amountRemaining) < input.amount) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Solde de crédit insuffisant' });
+          const usableCredit = await tx.parentCredit.findFirst({
+            where: { creditNoteId: input.creditNoteId },
+          });
+          if (usableCredit?.expiresAt && usableCredit.expiresAt <= new Date())
+            throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Avoir expiré' });
+          if (usableCredit && toNum(usableCredit.amountRemaining) < input.amount)
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Solde de crédit insuffisant' });
           // Check available balance
           const allocations = await tx.creditNoteAllocation.aggregate({
             where: { creditNoteId: input.creditNoteId },
@@ -311,7 +330,12 @@ export const paymentsRouter = router({
           }
 
           await tx.creditNoteAllocation.upsert({
-            where: { creditNoteId_appliedToInvoiceId: { creditNoteId: input.creditNoteId, appliedToInvoiceId: input.invoiceId } },
+            where: {
+              creditNoteId_appliedToInvoiceId: {
+                creditNoteId: input.creditNoteId,
+                appliedToInvoiceId: input.invoiceId,
+              },
+            },
             update: { amount: { increment: input.amount } },
             create: {
               creditNoteId: input.creditNoteId,
@@ -380,11 +404,17 @@ export const paymentsRouter = router({
 
         // 5. Update invoice paid_amount and status
         const newPaidAmount = paidAmount + input.amount;
-        const newStatus = newPaidAmount >= totalAmount - toNum(invoice.creditedAmount) ? 'PAID' : invoice.status;
+        const newStatus =
+          newPaidAmount >= totalAmount - toNum(invoice.creditedAmount) ? 'PAID' : invoice.status;
 
         await tx.invoice.update({
           where: { id: input.invoiceId },
-          data: { paidAmount: newPaidAmount, status: newStatus, pdfUrl: null, version: { increment: 1 } },
+          data: {
+            paidAmount: newPaidAmount,
+            status: newStatus,
+            pdfUrl: null,
+            version: { increment: 1 },
+          },
         });
 
         // 6. Generate accounting entries (journal BQ)
@@ -410,7 +440,7 @@ export const paymentsRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         const payment = await tx.payment.findUnique({
           where: { id: input.id },
         });
@@ -457,16 +487,27 @@ export const paymentsRouter = router({
           where: { id: payment.invoiceId },
         });
 
-        const refundSum = await tx.refund.aggregate({ where: { payment: { invoiceId: payment.invoiceId }, deletedAt: null }, _sum: { amount: true } });
+        const refundSum = await tx.refund.aggregate({
+          where: { payment: { invoiceId: payment.invoiceId }, deletedAt: null },
+          _sum: { amount: true },
+        });
         const newPaidAmount = toNum(sumResult._sum.amount) - toNum(refundSum._sum.amount);
         const totalAmount = toNum(invoice.totalAmount);
-        const newStatus = newPaidAmount >= totalAmount - toNum(invoice.creditedAmount)
-          ? 'PAID'
-          : (invoice.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
+        const newStatus =
+          newPaidAmount >= totalAmount - toNum(invoice.creditedAmount)
+            ? 'PAID'
+            : invoice.status === 'OVERDUE'
+              ? 'OVERDUE'
+              : 'SENT';
 
         await tx.invoice.update({
           where: { id: payment.invoiceId },
-          data: { paidAmount: newPaidAmount, status: newStatus, pdfUrl: null, version: { increment: 1 } },
+          data: {
+            paidAmount: newPaidAmount,
+            status: newStatus,
+            pdfUrl: null,
+            version: { increment: 1 },
+          },
         });
 
         return { success: true };
@@ -474,20 +515,26 @@ export const paymentsRouter = router({
     }),
 
   statistics: adminProcedure
-    .input(z.object({
-      startDate: z.string().date().optional(),
-      endDate: z.string().date().optional(),
-    }))
-    .output(z.object({
-      totalPaid: z.number(),
-      totalPending: z.number(),
-      totalOverdue: z.number(),
-      paymentsByMethod: z.array(z.object({
-        method: z.string(),
-        total: z.number(),
-        count: z.number(),
-      })),
-    }))
+    .input(
+      z.object({
+        startDate: z.string().date().optional(),
+        endDate: z.string().date().optional(),
+      }),
+    )
+    .output(
+      z.object({
+        totalPaid: z.number(),
+        totalPending: z.number(),
+        totalOverdue: z.number(),
+        paymentsByMethod: z.array(
+          z.object({
+            method: z.string(),
+            total: z.number(),
+            count: z.number(),
+          }),
+        ),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const dateWhere: Prisma.PaymentWhereInput = {};
       if (input.startDate) dateWhere.paymentDate = { gte: new Date(input.startDate) };
@@ -537,8 +584,14 @@ export const paymentsRouter = router({
 
       return {
         totalPaid: toNum(paidResult._sum.amount),
-        totalPending: toNum(pendingResult._sum.totalAmount) - toNum(pendingResult._sum.paidAmount) - toNum(pendingResult._sum.creditedAmount),
-        totalOverdue: toNum(overdueResult._sum.totalAmount) - toNum(overdueResult._sum.paidAmount) - toNum(overdueResult._sum.creditedAmount),
+        totalPending:
+          toNum(pendingResult._sum.totalAmount) -
+          toNum(pendingResult._sum.paidAmount) -
+          toNum(pendingResult._sum.creditedAmount),
+        totalOverdue:
+          toNum(overdueResult._sum.totalAmount) -
+          toNum(overdueResult._sum.paidAmount) -
+          toNum(overdueResult._sum.creditedAmount),
         paymentsByMethod,
       };
     }),

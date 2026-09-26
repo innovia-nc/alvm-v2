@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { router, staffProcedure, adminProcedure } from '@/server/trpc/init';
 import type { AppSetting } from '@prisma/client';
 import { deleteFromStorageBestEffort } from '@/lib/storage/blob-storage';
-import { parseLogoValue } from '@/server/helpers/settings';
+import { parseLogoValue, upsertAppSetting } from '@/server/helpers/settings';
+import { isTenantBlobUrl } from '@/lib/storage/tenant-path';
+import { TRPCError } from '@trpc/server';
 
 const settingCategories = z.enum([
   'organization',
@@ -56,25 +58,14 @@ export const settingsRouter = router({
     )
     .output(z.object({ success: z.boolean(), count: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.$transaction(
-        input.settings.map((s) =>
-          ctx.prisma.appSetting.upsert({
-            where: {
-              category_key: { category: s.category, key: s.key },
-            },
-            create: {
-              category: s.category,
-              key: s.key,
-              value: JSON.stringify(s.value),
-              updatedBy: ctx.user.id,
-            },
-            update: {
-              value: JSON.stringify(s.value),
-              updatedBy: ctx.user.id,
-            },
-          }),
-        ),
-      );
+      for (const s of input.settings) {
+        await upsertAppSetting(ctx.prisma, ctx.organizationId, {
+          category: s.category,
+          key: s.key,
+          value: JSON.stringify(s.value),
+          updatedBy: ctx.user.id,
+        });
+      }
       return { success: true, count: input.settings.length };
     }),
 
@@ -103,27 +94,24 @@ export const settingsRouter = router({
     .input(z.object({ url: z.string().url() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
+      // Seul un objet téléversé par `/api/upload/logo` pour CETTE association
+      // est accepté : ni `javascript:`/`data:`, ni l'objet d'un autre tenant.
+      if (!isTenantBlobUrl(input.url, ctx.organizationId))
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Le logo doit être téléversé depuis cet écran.',
+        });
       // TD-006 : le logo remplacé n'est plus référencé nulle part — son blob
       // resterait facturé et public. On le lit AVANT l'upsert.
-      const previous = await ctx.prisma.appSetting.findUnique({
-        where: {
-          category_key: { category: 'organization', key: 'logo_url' },
-        },
+      const previous = await ctx.prisma.appSetting.findFirst({
+        where: { category: 'organization', key: 'logo_url' },
       });
       const previousUrl = parseLogoValue(previous?.value);
 
-      await ctx.prisma.appSetting.upsert({
-        where: {
-          category_key: { category: 'organization', key: 'logo_url' },
-        },
-        create: {
-          category: 'organization',
-          key: 'logo_url',
-          value: JSON.stringify(input.url),
-        },
-        update: {
-          value: JSON.stringify(input.url),
-        },
+      await upsertAppSetting(ctx.prisma, ctx.organizationId, {
+        category: 'organization',
+        key: 'logo_url',
+        value: JSON.stringify(input.url),
       });
 
       if (previousUrl && previousUrl !== input.url) {
@@ -134,10 +122,8 @@ export const settingsRouter = router({
     }),
 
   getLogoUrl: staffProcedure.output(z.string().url().nullable()).query(async ({ ctx }) => {
-    const setting = await ctx.prisma.appSetting.findUnique({
-      where: {
-        category_key: { category: 'organization', key: 'logo_url' },
-      },
+    const setting = await ctx.prisma.appSetting.findFirst({
+      where: { category: 'organization', key: 'logo_url' },
     });
     return parseLogoValue(setting?.value) ?? null;
   }),
@@ -147,10 +133,8 @@ export const settingsRouter = router({
     .mutation(async ({ ctx }) => {
       // TD-006 : lire l'URL avant de supprimer la ligne, sinon le blob devient
       // introuvable côté application tout en restant public et facturé.
-      const setting = await ctx.prisma.appSetting.findUnique({
-        where: {
-          category_key: { category: 'organization', key: 'logo_url' },
-        },
+      const setting = await ctx.prisma.appSetting.findFirst({
+        where: { category: 'organization', key: 'logo_url' },
       });
       const url = parseLogoValue(setting?.value);
 

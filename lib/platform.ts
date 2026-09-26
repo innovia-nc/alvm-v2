@@ -1,6 +1,6 @@
 export const DEFAULT_BRANDING = {
-  name: 'ALVM',
-  description: 'Camps, activités et inscriptions',
+  name: 'Asso SaaS',
+  description: 'Camps, activités et inscriptions des associations',
   supportEmail: '',
 };
 export type Branding = typeof DEFAULT_BRANDING;

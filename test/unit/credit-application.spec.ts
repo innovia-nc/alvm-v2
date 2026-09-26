@@ -73,7 +73,12 @@ beforeEach(() => {
 describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
   it('déduit un avoir de 2 000 sur une facture de 10 000 → reste dû 8 000', async () => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 2000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 2000,
+      }),
     ]);
 
     const result = await applyAvailableCreditsToInvoice(tx, baseParams());
@@ -88,9 +93,14 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
     });
   });
 
-  it('solde la facture et conserve le reliquat quand l\'avoir dépasse le montant dû', async () => {
+  it("solde la facture et conserve le reliquat quand l'avoir dépasse le montant dû", async () => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 15000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 15000,
+      }),
     ]);
 
     const result = await applyAvailableCreditsToInvoice(tx, baseParams());
@@ -107,16 +117,23 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
 
   it('applique plusieurs avoirs du plus ancien au plus récent', async () => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-ANCIEN', amountRemaining: 1000 }),
-      makeCredit({ id: 'cr2', creditNoteId: 'cn2', creditNoteNumber: 'AVO-RECENT', amountRemaining: 1500 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-ANCIEN',
+        amountRemaining: 1000,
+      }),
+      makeCredit({
+        id: 'cr2',
+        creditNoteId: 'cn2',
+        creditNoteNumber: 'AVO-RECENT',
+        amountRemaining: 1500,
+      }),
     ]);
 
     const result = await applyAvailableCreditsToInvoice(tx, baseParams());
 
-    expect(result.applied.map((a) => a.creditNoteNumber)).toEqual([
-      'AVO-ANCIEN',
-      'AVO-RECENT',
-    ]);
+    expect(result.applied.map((a) => a.creditNoteNumber)).toEqual(['AVO-ANCIEN', 'AVO-RECENT']);
     expect(result.totalApplied).toBe(2500);
     expect(result.remainingDue).toBe(7500);
   });
@@ -134,10 +151,20 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
     expect(call.where.OR).toEqual([{ expiresAt: null }, { expiresAt: { gt: NOW } }]);
   });
 
-  it('s\'arrête dès que la facture est soldée, sans toucher aux avoirs suivants', async () => {
+  it("s'arrête dès que la facture est soldée, sans toucher aux avoirs suivants", async () => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 10000 }),
-      makeCredit({ id: 'cr2', creditNoteId: 'cn2', creditNoteNumber: 'AVO-2', amountRemaining: 5000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 10000,
+      }),
+      makeCredit({
+        id: 'cr2',
+        creditNoteId: 'cn2',
+        creditNoteNumber: 'AVO-2',
+        amountRemaining: 5000,
+      }),
     ]);
 
     const result = await applyAvailableCreditsToInvoice(tx, baseParams());
@@ -149,8 +176,11 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
   it('ignore les avoirs annulés', async () => {
     tx.parentCredit.findMany.mockResolvedValue([
       makeCredit({
-        id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-ANNULE',
-        amountRemaining: 5000, status: 'CANCELLED',
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-ANNULE',
+        amountRemaining: 5000,
+        status: 'CANCELLED',
       }),
     ]);
 
@@ -160,7 +190,7 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
     expect(tx.payment.create).not.toHaveBeenCalled();
   });
 
-  it('ne fait rien quand le client n\'a aucun crédit', async () => {
+  it("ne fait rien quand le client n'a aucun crédit", async () => {
     tx.parentCredit.findMany.mockResolvedValue([]);
 
     const result = await applyAvailableCreditsToInvoice(tx, baseParams());
@@ -173,7 +203,7 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
   it('ne fait rien sur une facture déjà soldée', async () => {
     const result = await applyAvailableCreditsToInvoice(
       tx,
-      baseParams({ totalAmount: 10000, paidAmount: 10000 })
+      baseParams({ totalAmount: 10000, paidAmount: 10000 }),
     );
 
     expect(result.totalApplied).toBe(0);
@@ -191,7 +221,12 @@ describe('applyAvailableCreditsToInvoice — règle FIFO (US-FACT-02)', () => {
 describe('applyAvailableCreditsToInvoice — traçabilité', () => {
   beforeEach(() => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 2000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 2000,
+      }),
     ]);
   });
 
@@ -222,7 +257,7 @@ describe('applyAvailableCreditsToInvoice — traçabilité', () => {
     });
   });
 
-  it('crée un paiement « Avoir » rattaché à l\'avoir consommé', async () => {
+  it("crée un paiement « Avoir » rattaché à l'avoir consommé", async () => {
     await applyAvailableCreditsToInvoice(tx, baseParams());
 
     expect(tx.payment.create).toHaveBeenCalledWith({
@@ -240,7 +275,12 @@ describe('applyAvailableCreditsToInvoice — traçabilité', () => {
 describe('applyAvailableCreditsToInvoice — contrepartie comptable', () => {
   beforeEach(() => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 2000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 2000,
+      }),
     ]);
   });
 
@@ -248,7 +288,7 @@ describe('applyAvailableCreditsToInvoice — contrepartie comptable', () => {
     await applyAvailableCreditsToInvoice(tx, baseParams());
 
     const entries = tx.accountingEntry.create.mock.calls.map(
-      (c: unknown[]) => (c[0] as { data: Record<string, unknown> }).data
+      (c: unknown[]) => (c[0] as { data: Record<string, unknown> }).data,
     );
 
     expect(entries).toHaveLength(2);
@@ -281,15 +321,29 @@ describe('applyAvailableCreditsToInvoice — contrepartie comptable', () => {
 describe('applyAvailableCreditsToInvoice — imputation partielle multi-avoirs', () => {
   it('consomme entièrement le premier avoir puis entame le second', async () => {
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 3000 }),
-      makeCredit({ id: 'cr2', creditNoteId: 'cn2', creditNoteNumber: 'AVO-2', amountRemaining: 4000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 3000,
+      }),
+      makeCredit({
+        id: 'cr2',
+        creditNoteId: 'cn2',
+        creditNoteNumber: 'AVO-2',
+        amountRemaining: 4000,
+      }),
     ]);
 
     const result = await applyAvailableCreditsToInvoice(tx, baseParams({ totalAmount: 5000 }));
 
     expect(result.applied).toEqual([
       expect.objectContaining({ creditNoteNumber: 'AVO-1', amountUsed: 3000, amountRemaining: 0 }),
-      expect.objectContaining({ creditNoteNumber: 'AVO-2', amountUsed: 2000, amountRemaining: 2000 }),
+      expect.objectContaining({
+        creditNoteNumber: 'AVO-2',
+        amountUsed: 2000,
+        amountRemaining: 2000,
+      }),
     ]);
     expect(result.remainingDue).toBe(0);
   });
@@ -297,20 +351,31 @@ describe('applyAvailableCreditsToInvoice — imputation partielle multi-avoirs',
 
 describe('applyAvailableCreditsToInvoice — idempotence des numéros de paiement', () => {
   it('génère un numéro de paiement distinct par imputation', async () => {
+    // Compteur de pièces du tenant (`document_counters`) : une valeur par appel.
     let seq = 0;
-    tx.$queryRawUnsafe.mockImplementation(async (query: string) => {
-      if (query.includes('nextval(')) return [{ nextval: ++seq }];
+    tx.$queryRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+      if (strings.join('?').includes('document_counters')) return [{ value: ++seq }];
       return [];
     });
     tx.parentCredit.findMany.mockResolvedValue([
-      makeCredit({ id: 'cr1', creditNoteId: 'cn1', creditNoteNumber: 'AVO-1', amountRemaining: 1000 }),
-      makeCredit({ id: 'cr2', creditNoteId: 'cn2', creditNoteNumber: 'AVO-2', amountRemaining: 1000 }),
+      makeCredit({
+        id: 'cr1',
+        creditNoteId: 'cn1',
+        creditNoteNumber: 'AVO-1',
+        amountRemaining: 1000,
+      }),
+      makeCredit({
+        id: 'cr2',
+        creditNoteId: 'cn2',
+        creditNoteNumber: 'AVO-2',
+        amountRemaining: 1000,
+      }),
     ]);
 
     await applyAvailableCreditsToInvoice(tx, baseParams());
 
     const numbers = tx.payment.create.mock.calls.map(
-      (c: unknown[]) => (c[0] as { data: { paymentNumber: string } }).data.paymentNumber
+      (c: unknown[]) => (c[0] as { data: { paymentNumber: string } }).data.paymentNumber,
     );
     expect(new Set(numbers).size).toBe(2);
   });

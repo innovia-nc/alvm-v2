@@ -192,19 +192,17 @@ describe('users router', () => {
     });
 
     it('should deny STAFF access to update', async () => {
-      await expect(
-        staff.caller.users.update({ id: USER_ID, name: 'Updated' }),
-      ).rejects.toThrow(TRPCError);
+      await expect(staff.caller.users.update({ id: USER_ID, name: 'Updated' })).rejects.toThrow(
+        TRPCError,
+      );
     });
 
     it('should deny STAFF access to delete', async () => {
-      await expect(
-        staff.caller.users.delete({ id: USER_ID }),
-      ).rejects.toThrow(TRPCError);
+      await expect(staff.caller.users.delete({ id: USER_ID })).rejects.toThrow(TRPCError);
     });
 
     it('should allow STAFF access to resetPassword', async () => {
-      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: "PARENT" });
+      staff.mockPrisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: 'PARENT' });
       staff.mockPrisma.account.updateMany.mockResolvedValue({ count: 1 });
       const result = await staff.caller.users.resetPassword({ userId: USER_ID });
       expect(result.success).toBe(true);
@@ -418,7 +416,7 @@ describe('users router', () => {
     });
 
     it('should reject duplicate email', async () => {
-      admin.mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
+      admin.mockPrisma.user.findFirst.mockResolvedValue(makeDbUser());
 
       await expect(
         admin.caller.users.create({
@@ -432,9 +430,7 @@ describe('users router', () => {
             phone: '+687111111',
           },
         }),
-      ).rejects.toThrow(
-        expect.objectContaining({ code: 'CONFLICT' }),
-      );
+      ).rejects.toThrow(expect.objectContaining({ code: 'CONFLICT' }));
     });
 
     it('should reject PARENT role without parentProfile', async () => {
@@ -447,9 +443,7 @@ describe('users router', () => {
           role: 'PARENT',
           password: 'Password1',
         }),
-      ).rejects.toThrow(
-        expect.objectContaining({ code: 'BAD_REQUEST' }),
-      );
+      ).rejects.toThrow(expect.objectContaining({ code: 'BAD_REQUEST' }));
     });
 
     it('should reject STAFF role without staffProfile', async () => {
@@ -462,9 +456,7 @@ describe('users router', () => {
           role: 'STAFF',
           password: 'Password1',
         }),
-      ).rejects.toThrow(
-        expect.objectContaining({ code: 'BAD_REQUEST' }),
-      );
+      ).rejects.toThrow(expect.objectContaining({ code: 'BAD_REQUEST' }));
     });
 
     it('should reject password without uppercase letter', async () => {
@@ -538,9 +530,7 @@ describe('users router', () => {
     it('should reject update for non-existent user', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(
-        admin.caller.users.update({ id: USER_ID, name: 'Ghost' }),
-      ).rejects.toThrow(
+      await expect(admin.caller.users.update({ id: USER_ID, name: 'Ghost' })).rejects.toThrow(
         expect.objectContaining({ code: 'NOT_FOUND' }),
       );
     });
@@ -556,9 +546,7 @@ describe('users router', () => {
 
       await expect(
         admin.caller.users.update({ id: USER_ID, email: 'taken@test.com' }),
-      ).rejects.toThrow(
-        expect.objectContaining({ code: 'CONFLICT' }),
-      );
+      ).rejects.toThrow(expect.objectContaining({ code: 'CONFLICT' }));
     });
 
     it('should skip email uniqueness check when email unchanged', async () => {
@@ -664,9 +652,7 @@ describe('users router', () => {
     it('should reject deletion of non-existent user', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(
-        admin.caller.users.delete({ id: USER_ID }),
-      ).rejects.toThrow(
+      await expect(admin.caller.users.delete({ id: USER_ID })).rejects.toThrow(
         expect.objectContaining({ code: 'NOT_FOUND' }),
       );
     });
@@ -676,9 +662,7 @@ describe('users router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(adminUser);
       admin.mockPrisma.user.count.mockResolvedValue(1);
 
-      await expect(
-        admin.caller.users.delete({ id: USER_ID }),
-      ).rejects.toThrow(
+      await expect(admin.caller.users.delete({ id: USER_ID })).rejects.toThrow(
         expect.objectContaining({ code: 'PRECONDITION_FAILED' }),
       );
     });
@@ -702,9 +686,7 @@ describe('users router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(dbUser);
       admin.mockPrisma.registration.count.mockResolvedValue(2);
 
-      await expect(
-        admin.caller.users.delete({ id: USER_ID }),
-      ).rejects.toThrow(
+      await expect(admin.caller.users.delete({ id: USER_ID })).rejects.toThrow(
         expect.objectContaining({ code: 'PRECONDITION_FAILED' }),
       );
     });
@@ -721,9 +703,7 @@ describe('users router', () => {
       ]);
       // Child 1 has only this parent (count=1) → soft-delete
       // Child 2 has two parents (count=2) → keep
-      admin.mockPrisma.childParent.count
-        .mockResolvedValueOnce(1)
-        .mockResolvedValueOnce(2);
+      admin.mockPrisma.childParent.count.mockResolvedValueOnce(1).mockResolvedValueOnce(2);
       admin.mockPrisma.child.update.mockResolvedValue({});
       admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 2 });
 
@@ -746,9 +726,7 @@ describe('users router', () => {
       admin.mockPrisma.registration.count.mockResolvedValue(0);
       admin.mockPrisma.parent.updateMany.mockResolvedValue({ count: 1 });
       admin.mockPrisma.staffMember.updateMany.mockResolvedValue({ count: 0 });
-      admin.mockPrisma.childParent.findMany.mockResolvedValue([
-        { childId: CHILD_ID_1 },
-      ]);
+      admin.mockPrisma.childParent.findMany.mockResolvedValue([{ childId: CHILD_ID_1 }]);
       // Child has 2 parent links → not soft-deleted
       admin.mockPrisma.childParent.count.mockResolvedValue(2);
       admin.mockPrisma.childParent.deleteMany.mockResolvedValue({ count: 1 });
@@ -777,7 +755,11 @@ describe('users router', () => {
       expect(result.tempPassword).toBe('NewPass123');
       expect(admin.mockPrisma.account.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ userId: USER_ID, provider: 'credentials', providerAccountId: expect.any(String) }),
+          data: expect.objectContaining({
+            userId: USER_ID,
+            provider: 'credentials',
+            providerAccountId: expect.any(String),
+          }),
         }),
       );
     });
@@ -802,9 +784,7 @@ describe('users router', () => {
     it('should reject reset for non-existent user', async () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(
-        admin.caller.users.resetPassword({ userId: USER_ID }),
-      ).rejects.toThrow(
+      await expect(admin.caller.users.resetPassword({ userId: USER_ID })).rejects.toThrow(
         expect.objectContaining({ code: 'NOT_FOUND' }),
       );
     });
@@ -813,7 +793,11 @@ describe('users router', () => {
       admin.mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
       const result = await admin.caller.users.resetPassword({ userId: USER_ID });
       expect(result.success).toBe(true);
-      expect(admin.mockPrisma.account.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: USER_ID, provider: 'credentials' }) }));
+      expect(admin.mockPrisma.account.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: USER_ID, provider: 'credentials' }),
+        }),
+      );
     });
 
     it('should reject newPassword that does not meet complexity requirements', async () => {

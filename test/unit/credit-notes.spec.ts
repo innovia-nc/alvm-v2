@@ -22,6 +22,7 @@ import {
   STAFF_USER,
   PARENT_USER,
   type TestCaller,
+  TEST_ORGANIZATION_ID,
 } from '../helpers/test-caller';
 
 describe('creditNotes router', () => {
@@ -290,9 +291,9 @@ describe('creditNotes router', () => {
       status: 'SENT',
     });
 
-    await expect(
-      admin.caller.creditNotes.delete({ id: creditNoteId }),
-    ).rejects.toThrow('Seuls les avoirs en brouillon peuvent être supprimés');
+    await expect(admin.caller.creditNotes.delete({ id: creditNoteId })).rejects.toThrow(
+      'Seuls les avoirs en brouillon peuvent être supprimés',
+    );
   });
 
   it('should allow STAFF to delete credit notes', async () => {
@@ -373,7 +374,7 @@ describe('creditNotes router', () => {
         pdfUrl: `/api/documents/credit/${creditNoteId}`,
       });
       expect(uploadToStorage).toHaveBeenCalledWith(expect.anything(), {
-        pathname: `credit-notes/AVO-2025-0001-${creditNoteId}.pdf`,
+        pathname: `organizations/${TEST_ORGANIZATION_ID}/credit-notes/AVO-2025-0001-${creditNoteId}.pdf`,
         contentType: 'application/pdf',
         access: 'private',
       });
@@ -406,6 +407,8 @@ describe('creditNotes router', () => {
     it('should carry the credit note metadata (number, credited invoice, reason)', async () => {
       admin.mockPrisma.invoice.findFirst.mockResolvedValue(pdfCreditNote);
       admin.mockPrisma.invoice.update.mockResolvedValue({});
+      // Sans nom saisi dans les réglages : nom de l'association (tenant).
+      admin.mockPrisma.organization.findFirst.mockResolvedValue({ name: 'ALVM' });
 
       await admin.caller.creditNotes.generatePDF({ id: creditNoteId });
 

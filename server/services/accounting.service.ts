@@ -9,6 +9,8 @@
  * Atomicity is guaranteed by Prisma $transaction.
  */
 
+import { nextCounterValue } from '@/server/helpers/invoice-number';
+
 /**
  * Transaction client type — compatible with both PrismaClient and
  * extended clients (soft-delete extension, $transaction callback).
@@ -29,17 +31,13 @@ function deriveClientAux(parentId: string): string {
 
 /**
  * Generates the next accounting entry number for a given journal code.
- * Format: {journalCode} + YYYYMMDD + 4-digit sequence
+ * Format: {journalCode} + YYYYMMDD + 4-digit sequence (compteur du tenant).
  */
-
-
 async function nextEntryNum(tx: TxClient, journalCode: string): Promise<string> {
-  await tx.$executeRawUnsafe('CREATE SEQUENCE IF NOT EXISTS accounting_entry_seq');
-  const result: [{ entry_num: string }] = await tx.$queryRawUnsafe(
-    `SELECT $1 || TO_CHAR(NOW(), 'YYYYMMDD') || LPAD(n::TEXT, GREATEST(4, LENGTH(n::TEXT)), '0') as entry_num FROM (SELECT nextval('accounting_entry_seq') AS n) seq`,
-    journalCode,
-  );
-  return result[0].entry_num;
+  const value = await nextCounterValue(tx, 'ACCOUNTING_ENTRY');
+  const now = new Date();
+  const day = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  return `${journalCode}${day}${String(value).padStart(4, '0')}`;
 }
 
 // ============================================================================
@@ -134,30 +132,33 @@ export async function createInvoiceAccountingEntries(
   const sum = [...groups.values()].reduce((a, b) => a + b, 0);
   let allocated = 0;
   const grouped = [...groups.entries()].map(([code, value], index) => {
-    const amount = index === groups.size - 1 ? Math.round((subtotalHt - allocated) * 100) / 100 : Math.round((sum ? value / sum * subtotalHt : 0) * 100) / 100;
+    const amount =
+      index === groups.size - 1
+        ? Math.round((subtotalHt - allocated) * 100) / 100
+        : Math.round((sum ? (value / sum) * subtotalHt : 0) * 100) / 100;
     allocated += amount;
     return { code, amount };
   });
   for (const group of grouped) {
     if (group.amount === 0) continue;
-  await tx.accountingEntry.create({
-    data: {
-      invoiceId,
-      journalCode: 'VE',
-      journalLib: 'Journal de ventes',
-      entryNum,
-      entryDate: issueDate,
-      accountNumber: group.code,
-      accountLabel: 'Ventes',
-      pieceRef: invoiceNumber,
-      pieceDate: issueDate,
-      description,
-      debit: 0,
-      credit: group.amount,
-      validDate: issueDate,
-      createdBy: userId,
-    },
-  });
+    await tx.accountingEntry.create({
+      data: {
+        invoiceId,
+        journalCode: 'VE',
+        journalLib: 'Journal de ventes',
+        entryNum,
+        entryDate: issueDate,
+        accountNumber: group.code,
+        accountLabel: 'Ventes',
+        pieceRef: invoiceNumber,
+        pieceDate: issueDate,
+        description,
+        debit: 0,
+        credit: group.amount,
+        validDate: issueDate,
+        createdBy: userId,
+      },
+    });
   }
 
   // Credit: TGC (tax) if applicable
@@ -259,30 +260,33 @@ export async function createCreditNoteAccountingEntries(
   const sum = [...groups.values()].reduce((a, b) => a + b, 0);
   let allocated = 0;
   const grouped = [...groups.entries()].map(([code, value], index) => {
-    const amount = index === groups.size - 1 ? Math.round((subtotalHt - allocated) * 100) / 100 : Math.round((sum ? value / sum * subtotalHt : 0) * 100) / 100;
+    const amount =
+      index === groups.size - 1
+        ? Math.round((subtotalHt - allocated) * 100) / 100
+        : Math.round((sum ? (value / sum) * subtotalHt : 0) * 100) / 100;
     allocated += amount;
     return { code, amount };
   });
   for (const group of grouped) {
     if (group.amount === 0) continue;
-  await tx.accountingEntry.create({
-    data: {
-      creditNoteId,
-      journalCode: 'VE',
-      journalLib: 'Journal de ventes',
-      entryNum,
-      entryDate: issueDate,
-      accountNumber: group.code,
-      accountLabel: 'Ventes',
-      pieceRef: creditNoteNumber,
-      pieceDate: issueDate,
-      description,
-      debit: group.amount,
-      credit: 0,
-      validDate: issueDate,
-      createdBy: userId,
-    },
-  });
+    await tx.accountingEntry.create({
+      data: {
+        creditNoteId,
+        journalCode: 'VE',
+        journalLib: 'Journal de ventes',
+        entryNum,
+        entryDate: issueDate,
+        accountNumber: group.code,
+        accountLabel: 'Ventes',
+        pieceRef: creditNoteNumber,
+        pieceDate: issueDate,
+        description,
+        debit: group.amount,
+        credit: 0,
+        validDate: issueDate,
+        createdBy: userId,
+      },
+    });
   }
 
   // Debit: reverse TGC if applicable
@@ -552,14 +556,39 @@ export async function cancelAccountingEntries(
 }
 
 /** Preserve original entries; corrections are dated, balanced reversals. */
-export async function reverseAccountingEntries(tx: TxClient, filter: CancelEntriesFilter, userId: string): Promise<void> {
-  const entries = await tx.accountingEntry.findMany({ where: { ...filter, isCancelled: false, cancelledAt: null } });
+export async function reverseAccountingEntries(
+  tx: TxClient,
+  filter: CancelEntriesFilter,
+  userId: string,
+): Promise<void> {
+  const entries = await tx.accountingEntry.findMany({
+    where: { ...filter, isCancelled: false, cancelledAt: null },
+  });
   const numbers = new Map<string, string>();
   for (const entry of entries) {
-    if (!numbers.has(entry.entryNum)) numbers.set(entry.entryNum, await nextEntryNum(tx, entry.journalCode));
+    if (!numbers.has(entry.entryNum))
+      numbers.set(entry.entryNum, await nextEntryNum(tx, entry.journalCode));
     const { id, createdAt, updatedAt, ...data } = entry;
-    void createdAt; void updatedAt;
-    await tx.accountingEntry.create({ data: { ...data, entryNum: numbers.get(entry.entryNum), entryDate: new Date(), validDate: new Date(), debit: entry.credit, credit: entry.debit, description: `Contrepassation ${entry.entryNum}`, createdBy: userId, cancelledAt: new Date(), cancelledBy: userId, cancellationReason: 'Contrepassation' } });
-    await tx.accountingEntry.update({ where: { id }, data: { cancelledAt: new Date(), cancelledBy: userId, cancellationReason: 'Contrepassée' } });
+    void createdAt;
+    void updatedAt;
+    await tx.accountingEntry.create({
+      data: {
+        ...data,
+        entryNum: numbers.get(entry.entryNum),
+        entryDate: new Date(),
+        validDate: new Date(),
+        debit: entry.credit,
+        credit: entry.debit,
+        description: `Contrepassation ${entry.entryNum}`,
+        createdBy: userId,
+        cancelledAt: new Date(),
+        cancelledBy: userId,
+        cancellationReason: 'Contrepassation',
+      },
+    });
+    await tx.accountingEntry.update({
+      where: { id },
+      data: { cancelledAt: new Date(), cancelledBy: userId, cancellationReason: 'Contrepassée' },
+    });
   }
 }

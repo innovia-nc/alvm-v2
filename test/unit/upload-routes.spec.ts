@@ -22,27 +22,48 @@ const childParentFindFirst = vi.fn();
 const staffFindFirst = vi.fn();
 const staffDocumentCreate = vi.fn();
 
-vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
+const TENANT_ID = 'b0000000-0000-4000-b000-000000000001';
 
 vi.mock('@/lib/storage/blob-storage', () => ({
   uploadToStorage: (...args: unknown[]) => uploadToStorage(...args),
   deleteFromStorageBestEffort: (...args: unknown[]) => deleteFromStorageBestEffort(...args),
 }));
 
-vi.mock('@/server/db', () => ({
-  prisma: {
-    appSetting: { findUnique: (...a: unknown[]) => appSettingFindUnique(...a) },
-    staffMember: { findFirst: (...a: unknown[]) => staffFindFirst(...a) },
-    staffDocument: { create: (...a: unknown[]) => staffDocumentCreate(...a) },
-    childDocument: { create: (...a: unknown[]) => childDocumentCreate(...a) },
-    child: { findFirst: (...a: unknown[]) => childFindFirst(...a) },
-    childParent: { findFirst: (...a: unknown[]) => childParentFindFirst(...a) },
-  },
+// Les handlers ouvrent des transactions de contexte RLS : simulées ici sur un
+// client dont seuls les modèles utilisés sont définis.
+const tenantDb = {
+  organization: { findUnique: async () => ({ status: 'ACTIVE' }) },
+  appSetting: { findFirst: (...a: unknown[]) => appSettingFindUnique(...a) },
+  staffMember: { findFirst: (...a: unknown[]) => staffFindFirst(...a) },
+  staffDocument: { create: (...a: unknown[]) => staffDocumentCreate(...a) },
+  childDocument: { create: (...a: unknown[]) => childDocumentCreate(...a) },
+  child: { findFirst: (...a: unknown[]) => childFindFirst(...a) },
+  childParent: { findFirst: (...a: unknown[]) => childParentFindFirst(...a) },
+};
+vi.mock('@/server/db-context', () => ({
+  withDbContext: (_context: unknown, fn: (db: unknown) => unknown) => fn(tenantDb),
 }));
 
-import { POST as logoPost, DELETE as logoDelete } from '@/app/api/upload/logo/route';
-import { POST as documentPost } from '@/app/api/upload/child-documents/route';
-import { POST as staffPost } from '@/app/api/upload/staff-documents/route';
+import {
+  handleChildDocumentUpload,
+  handleLogoDelete,
+  handleLogoUpload,
+  handleStaffDocumentUpload,
+} from '@/server/http/uploads.handler';
+
+/** Session simulée → utilisateur de requête (tenant `TENANT_ID`). */
+async function currentUser() {
+  const session = (await authMock()) as { user: { id: string; role: string } } | null;
+  return session
+    ? ({ ...session.user, organizationId: TENANT_ID } as Parameters<typeof handleLogoUpload>[1])
+    : null;
+}
+const logoPost = async (request: Request) => handleLogoUpload(request, await currentUser());
+const logoDelete = async (request: Request) => handleLogoDelete(request, await currentUser());
+const documentPost = async (request: Request) =>
+  handleChildDocumentUpload(request, await currentUser());
+const staffPost = async (request: Request) =>
+  handleStaffDocumentUpload(request, await currentUser());
 
 const ADMIN = { user: { id: 'a0000000-0000-4000-a000-000000000001', role: 'ADMIN' } };
 const PARENT = { user: { id: 'a0000000-0000-4000-a000-000000000003', role: 'PARENT' } };
@@ -75,8 +96,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   appSettingFindUnique.mockResolvedValue(null);
   uploadToStorage.mockResolvedValue({
-    pathname: 'organization/logo.png',
-    url: 'https://blob.vercel-storage.com/organization/logo.png',
+    pathname: `organizations/${TENANT_ID}/logo.png`,
+    url: `https://store.public.blob.vercel-storage.com/organizations/${TENANT_ID}/logo.png`,
   });
   deleteFromStorageBestEffort.mockResolvedValue(true);
 });
@@ -135,10 +156,13 @@ describe('POST /api/upload/logo', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
-      url: 'https://blob.vercel-storage.com/organization/logo.png',
+      url: `https://store.public.blob.vercel-storage.com/organizations/${TENANT_ID}/logo.png`,
     });
+    // Rangé sous le préfixe de l'association : un autre tenant ne peut pas l'écraser.
     expect(uploadToStorage).toHaveBeenCalledWith(expect.any(Buffer), {
-      pathname: expect.stringMatching(/^organization\/logo-[0-9a-f-]{36}\.png$/),
+      pathname: expect.stringMatching(
+        new RegExp(`^organizations/${TENANT_ID}/logo-[0-9a-f-]{36}\\.png$`),
+      ),
       contentType: 'image/png',
     });
   });
@@ -182,7 +206,11 @@ describe('DELETE /api/upload/logo', () => {
 
   it('refuse une URL qui n’est pas le logo enregistré', async () => {
     authMock.mockResolvedValue(ADMIN);
-    appSettingFindUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: JSON.stringify('https://blob/organization/logo-1.png') });
+    appSettingFindUnique.mockImplementation(async ({ where }) =>
+      where.category === 'features'
+        ? null
+        : { value: JSON.stringify('https://blob/organization/logo-1.png') },
+    );
 
     const res = await logoDelete(deleteRequest({ url: 'https://blob/invoices/FA-2026-0001.pdf' }));
 
@@ -192,7 +220,11 @@ describe('DELETE /api/upload/logo', () => {
 
   it('supprime le blob du logo enregistré', async () => {
     authMock.mockResolvedValue(ADMIN);
-    appSettingFindUnique.mockImplementation(async ({ where }) => where.category_key.category === 'features' ? null : { value: JSON.stringify('https://blob/organization/logo-1.png') });
+    appSettingFindUnique.mockImplementation(async ({ where }) =>
+      where.category === 'features'
+        ? null
+        : { value: JSON.stringify('https://blob/organization/logo-1.png') },
+    );
 
     const res = await logoDelete(deleteRequest({ url: 'https://blob/organization/logo-1.png' }));
 
@@ -274,12 +306,13 @@ describe('POST /api/upload/child-documents', () => {
         fileSize: 1024,
         description: 'Certificat médical',
         uploadedBy: PARENT.user.id,
-        fileUrl: 'https://blob.vercel-storage.com/organization/logo.png',
+        fileUrl: `https://store.public.blob.vercel-storage.com/organizations/${TENANT_ID}/logo.png`,
       }),
+      select: expect.any(Object),
     });
     expect(uploadToStorage).toHaveBeenCalledWith(expect.any(Buffer), {
       pathname: expect.stringMatching(
-        new RegExp(`^child-documents/${CHILD_ID}/[0-9a-f-]{36}\\.pdf$`),
+        new RegExp(`^organizations/${TENANT_ID}/child-documents/${CHILD_ID}/[0-9a-f-]{36}\\.pdf$`),
       ),
       contentType: 'application/pdf',
       access: 'private',
@@ -295,7 +328,7 @@ describe('POST /api/upload/child-documents', () => {
 
     expect(res.status).toBe(500);
     expect(deleteFromStorageBestEffort).toHaveBeenCalledWith(
-      'https://blob.vercel-storage.com/organization/logo.png',
+      `https://store.public.blob.vercel-storage.com/organizations/${TENANT_ID}/logo.png`,
       expect.any(String),
     );
   });

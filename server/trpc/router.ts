@@ -6,6 +6,7 @@
  */
 
 import { platformRouter } from '@/server/routers/platform';
+import { organizationsRouter } from '@/server/routers/organizations';
 import { featuresRouter } from '@/server/routers/features';
 import { dashboardRouter } from '@/server/routers/dashboard';
 import { accountRouter } from '@/server/routers/account';
@@ -30,6 +31,7 @@ import { fecRouter } from '@/server/routers/fec';
 
 export const appRouter = router({
   platform: platformRouter,
+  organizations: organizationsRouter,
   features: featuresRouter,
   account: accountRouter,
   dashboard: dashboardRouter,

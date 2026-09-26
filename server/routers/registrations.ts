@@ -1,17 +1,14 @@
 import { cancelRegistrationWithAccounting } from '@/server/services/registration-cancellation.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import {
-  router,
-  protectedProcedure,
-  staffProcedure,
-} from '@/server/trpc/init';
+import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
 import type { Prisma, RegistrationStatus } from '@prisma/client';
 import { getCreditExpiryDate } from '@/server/helpers/settings';
 import { computeDaysCount } from '@/server/helpers/date';
 import { toNum } from '@/server/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
+import { lockTenant } from '@/server/db-context';
 
 type RegStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'WAITLIST';
 type CampStat = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'CANCELLED';
@@ -171,20 +168,24 @@ function mapRegistration(r: any) {
 
 export const registrationsRouter = router({
   list: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      campId: z.string().uuid().optional(),
-      childId: z.string().uuid().optional(),
-      status: registrationStatusEnum.optional(),
-      search: z.string().optional(),
-      sortBy: z.enum(['registrationDate', 'childName', 'status']).default('registrationDate'),
-      sortOrder: z.enum(['asc', 'desc']).default('asc'),
-    }))
-    .output(z.object({
-      registrations: z.array(registrationWithDetailsSchema),
-      total: z.number(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        campId: z.string().uuid().optional(),
+        childId: z.string().uuid().optional(),
+        status: registrationStatusEnum.optional(),
+        search: z.string().optional(),
+        sortBy: z.enum(['registrationDate', 'childName', 'status']).default('registrationDate'),
+        sortOrder: z.enum(['asc', 'desc']).default('asc'),
+      }),
+    )
+    .output(
+      z.object({
+        registrations: z.array(registrationWithDetailsSchema),
+        total: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, offset, campId, childId, status, search, sortBy, sortOrder } = input;
 
@@ -254,316 +255,390 @@ export const registrationsRouter = router({
     }),
 
   create: protectedProcedure
-    .input(z.object({
-      campId: z.string().uuid(),
-      childId: z.string().uuid(),
-      parentId: z.string().uuid().optional(),
-      specialRequirements: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        campId: z.string().uuid(),
+        childId: z.string().uuid(),
+        parentId: z.string().uuid().optional(),
+        specialRequirements: z.string().optional(),
+      }),
+    )
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
 
-      if (ctx.user.role === 'PARENT' && input.parentId && input.parentId !== ctx.user.id) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Inscription réservée à votre famille' });
-      }
-      const parentId = ctx.user.role === 'PARENT' ? ctx.user.id : (input.parentId || ctx.user.id);
+        if (ctx.user.role === 'PARENT' && input.parentId && input.parentId !== ctx.user.id) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Inscription réservée à votre famille',
+          });
+        }
+        const parentId = ctx.user.role === 'PARENT' ? ctx.user.id : input.parentId || ctx.user.id;
 
-      // 1. Verify child exists and belongs to parent
-      const childLink = await tx.childParent.findFirst({
-        where: {
-          childId: input.childId,
-          parentId,
-          child: { deletedAt: null },
-        },
-      });
-      if (!childLink) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Enfant non trouvé ou ne correspond pas au parent spécifié',
+        // 1. Verify child exists and belongs to parent
+        const childLink = await tx.childParent.findFirst({
+          where: {
+            childId: input.childId,
+            parentId,
+            child: { deletedAt: null },
+          },
         });
-      }
+        if (!childLink) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Enfant non trouvé ou ne correspond pas au parent spécifié',
+          });
+        }
 
-      // 2. Verify camp is published and open for registration
-      const camp = await tx.camp.findFirst({
-        where: { id: input.campId, deletedAt: null },
-        select: {
-          id: true,
-          status: true,
-          registrationDeadline: true,
-          maxCapacity: true,
-          _count: {
-            select: {
-              registrations: {
-                where: { status: 'CONFIRMED', deletedAt: null },
+        // 2. Verify camp is published and open for registration
+        const camp = await tx.camp.findFirst({
+          where: { id: input.campId, deletedAt: null },
+          select: {
+            id: true,
+            status: true,
+            registrationDeadline: true,
+            maxCapacity: true,
+            _count: {
+              select: {
+                registrations: {
+                  where: { status: 'CONFIRMED', deletedAt: null },
+                },
               },
             },
           },
-        },
-      });
-      if (!camp) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
-      }
-
-      if (camp.status !== 'PUBLISHED') {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: "Ce camp n'est pas encore ouvert aux inscriptions",
         });
-      }
+        if (!camp) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
+        }
 
-      if (camp.registrationDeadline < new Date()) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: "La date limite d'inscription est dépassée",
+        if (camp.status !== 'PUBLISHED') {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: "Ce camp n'est pas encore ouvert aux inscriptions",
+          });
+        }
+
+        if (camp.registrationDeadline < new Date()) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: "La date limite d'inscription est dépassée",
+          });
+        }
+
+        // 3. Check no existing registration for this child at this camp
+        const existing = await tx.registration.findFirst({
+          where: {
+            campId: input.campId,
+            childId: input.childId,
+            deletedAt: null,
+            status: { not: 'CANCELLED' },
+          },
         });
-      }
+        if (existing) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Cet enfant est déjà inscrit à ce camp',
+          });
+        }
 
-      // 3. Check no existing registration for this child at this camp
-      const existing = await tx.registration.findFirst({
-        where: { campId: input.campId, childId: input.childId, deletedAt: null, status: { not: 'CANCELLED' } },
-      });
-      if (existing) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: 'Cet enfant est déjà inscrit à ce camp',
+        // 4. Get all camp_days for selected_days
+        const campDays = await tx.campDay.findMany({
+          where: { campId: input.campId },
+          select: { id: true },
+          orderBy: { date: 'asc' },
         });
-      }
+        const selectedDays = campDays.map((d) => d.id);
 
-      // 4. Get all camp_days for selected_days
-      const campDays = await tx.campDay.findMany({
-        where: { campId: input.campId },
-        select: { id: true },
-        orderBy: { date: 'asc' },
-      });
-      const selectedDays = campDays.map((d) => d.id);
+        // 5. Determine initial status
+        const initialStatus: RegistrationStatus =
+          camp._count.registrations >= camp.maxCapacity ? 'WAITLIST' : 'PENDING';
 
-      // 5. Determine initial status
-      const initialStatus: RegistrationStatus =
-        camp._count.registrations >= camp.maxCapacity ? 'WAITLIST' : 'PENDING';
+        // 6. Create registration
+        const registration = await tx.registration.create({
+          data: {
+            campId: input.campId,
+            childId: input.childId,
+            parentId,
+            status: initialStatus,
+            specialRequirements: input.specialRequirements || null,
+            selectedDays,
+            paymentStatus: 'UNPAID',
+          },
+        });
 
-      // 6. Create registration
-      const registration = await tx.registration.create({
-        data: {
-          campId: input.campId,
-          childId: input.childId,
-          parentId,
-          status: initialStatus,
-          specialRequirements: input.specialRequirements || null,
-          selectedDays,
-          paymentStatus: 'UNPAID',
-        },
-      });
-
-      return mapRegistration(registration);
+        return mapRegistration(registration);
       });
     }),
 
   createByStaff: staffProcedure
-    .input(z.object({
-      campId: z.string().uuid(),
-      childId: z.string().uuid(),
-      parentId: z.string().uuid(),
-      specialRequirements: z.string().optional(),
-      status: z.enum(['PENDING', 'CONFIRMED', 'WAITLIST']).default('PENDING'),
-    }))
+    .input(
+      z.object({
+        campId: z.string().uuid(),
+        childId: z.string().uuid(),
+        parentId: z.string().uuid(),
+        specialRequirements: z.string().optional(),
+        status: z.enum(['PENDING', 'CONFIRMED', 'WAITLIST']).default('PENDING'),
+      }),
+    )
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
 
-      // 1. Verify child belongs to parent
-      const childLink = await tx.childParent.findFirst({
-        where: {
-          childId: input.childId,
-          parentId: input.parentId,
-          child: { deletedAt: null },
-        },
-      });
-      if (!childLink) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Enfant non trouvé ou ne correspond pas au parent spécifié',
+        // 1. Verify child belongs to parent
+        const childLink = await tx.childParent.findFirst({
+          where: {
+            childId: input.childId,
+            parentId: input.parentId,
+            child: { deletedAt: null },
+          },
         });
-      }
+        if (!childLink) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Enfant non trouvé ou ne correspond pas au parent spécifié',
+          });
+        }
 
-      // 2. Verify camp exists
-      const camp = await tx.camp.findFirst({
-        where: { id: input.campId, deletedAt: null },
-      });
-      if (!camp) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
-      }
-
-      // 3. Check no duplicate
-      const existing = await tx.registration.findFirst({
-        where: { campId: input.campId, childId: input.childId, deletedAt: null, status: { not: 'CANCELLED' } },
-      });
-      if (existing) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: 'Cet enfant est déjà inscrit à ce camp',
+        // 2. Verify camp exists
+        const camp = await tx.camp.findFirst({
+          where: { id: input.campId, deletedAt: null },
         });
-      }
+        if (!camp) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
+        }
 
-      // 4. Get camp_days for selected_days
-      const campDays = await tx.campDay.findMany({
-        where: { campId: input.campId },
-        select: { id: true },
-        orderBy: { date: 'asc' },
-      });
-      const selectedDays = campDays.map((d) => d.id);
+        // 3. Check no duplicate
+        const existing = await tx.registration.findFirst({
+          where: {
+            campId: input.campId,
+            childId: input.childId,
+            deletedAt: null,
+            status: { not: 'CANCELLED' },
+          },
+        });
+        if (existing) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Cet enfant est déjà inscrit à ce camp',
+          });
+        }
 
-      // 5. Create with staff-specified status
-      if (input.status === 'CONFIRMED' && await tx.registration.count({ where: { campId: input.campId, status: 'CONFIRMED', deletedAt: null } }) >= camp.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité du camp atteinte' });
-      const registration = await tx.registration.create({
-        data: {
-          campId: input.campId,
-          childId: input.childId,
-          parentId: input.parentId,
-          status: input.status,
-          specialRequirements: input.specialRequirements || null,
-          selectedDays,
-          paymentStatus: 'UNPAID',
-        },
-      });
+        // 4. Get camp_days for selected_days
+        const campDays = await tx.campDay.findMany({
+          where: { campId: input.campId },
+          select: { id: true },
+          orderBy: { date: 'asc' },
+        });
+        const selectedDays = campDays.map((d) => d.id);
 
-      return mapRegistration(registration);
+        // 5. Create with staff-specified status
+        if (
+          input.status === 'CONFIRMED' &&
+          (await tx.registration.count({
+            where: { campId: input.campId, status: 'CONFIRMED', deletedAt: null },
+          })) >= camp.maxCapacity
+        )
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Capacité du camp atteinte',
+          });
+        const registration = await tx.registration.create({
+          data: {
+            campId: input.campId,
+            childId: input.childId,
+            parentId: input.parentId,
+            status: input.status,
+            specialRequirements: input.specialRequirements || null,
+            selectedDays,
+            paymentStatus: 'UNPAID',
+          },
+        });
+
+        return mapRegistration(registration);
       });
     }),
 
   updateByStaff: staffProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      specialRequirements: z.string().optional(),
-      status: registrationStatusEnum.optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        specialRequirements: z.string().optional(),
+        status: registrationStatusEnum.optional(),
+      }),
+    )
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
 
-      const { id, ...updates } = input;
+        const { id, ...updates } = input;
 
-      const existing = await tx.registration.findFirst({
-        where: { id, deletedAt: null },
-      });
-      if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
-      }
-
-      if (existing.paymentStatus === 'PAID') {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a déjà été payée et ne peut plus être modifiée',
+        const existing = await tx.registration.findFirst({
+          where: { id, deletedAt: null },
         });
-      }
+        if (!existing) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
+        }
 
-      const data: Prisma.RegistrationUpdateInput = {};
-      if (updates.specialRequirements !== undefined) data.specialRequirements = updates.specialRequirements || null;
-      if (updates.status !== undefined) data.status = updates.status;
+        if (existing.paymentStatus === 'PAID') {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Cette inscription a déjà été payée et ne peut plus être modifiée',
+          });
+        }
 
-      if (Object.keys(data).length === 0) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Aucune modification fournie' });
-      }
+        const data: Prisma.RegistrationUpdateInput = {};
+        if (updates.specialRequirements !== undefined)
+          data.specialRequirements = updates.specialRequirements || null;
+        if (updates.status !== undefined) data.status = updates.status;
 
-      if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
-        const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
-        const count = await tx.registration.count({ where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null } });
-        if (!camp || count >= camp.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité du camp atteinte' });
-      }
-      if (input.status && input.status !== 'CONFIRMED' && await tx.invoiceLine.count({ where: { registrationId: existing.id, deletedAt: null, invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } } } }) > 0) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Utilisez le parcours d’annulation avec traitement de la facture' });
-      const registration = await tx.registration.update({
-        where: { id },
-        data,
-      });
+        if (Object.keys(data).length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Aucune modification fournie' });
+        }
 
-      return mapRegistration(registration);
+        if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
+          const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
+          const count = await tx.registration.count({
+            where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null },
+          });
+          if (!camp || count >= camp.maxCapacity)
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Capacité du camp atteinte',
+            });
+        }
+        if (
+          input.status &&
+          input.status !== 'CONFIRMED' &&
+          (await tx.invoiceLine.count({
+            where: {
+              registrationId: existing.id,
+              deletedAt: null,
+              invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } },
+            },
+          })) > 0
+        )
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Utilisez le parcours d’annulation avec traitement de la facture',
+          });
+        const registration = await tx.registration.update({
+          where: { id },
+          data,
+        });
+
+        return mapRegistration(registration);
       });
     }),
 
   updateStatus: staffProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      status: z.enum(['CONFIRMED', 'CANCELLED', 'WAITLIST']),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        status: z.enum(['CONFIRMED', 'CANCELLED', 'WAITLIST']),
+      }),
+    )
     .output(registrationSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
 
-      const existing = await tx.registration.findFirst({
-        where: { id: input.id, deletedAt: null },
-      });
-      if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
-      }
-
-      // Confirmer une inscription payée est légitime (le paiement vaut
-      // engagement) — sans quoi une inscription facturée en PENDING ne peut
-      // plus jamais être confirmée ni pointée en présence (deadlock détecté
-      // par la campagne smoke 2026-07-06). Annulation/waitlist restent
-      // bloquées ici : l'annulation d'une inscription payée passe par
-      // cancelWithAccounting (remboursement/avoir).
-      if (existing.paymentStatus === 'PAID' && input.status !== 'CONFIRMED') {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a déjà été payée : seule la confirmation est possible (annulation via le parcours remboursement)',
+        const existing = await tx.registration.findFirst({
+          where: { id: input.id, deletedAt: null },
         });
-      }
+        if (!existing) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
+        }
 
-      if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
-        const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
-        const count = await tx.registration.count({ where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null } });
-        if (!camp || count >= camp.maxCapacity) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Capacité du camp atteinte' });
-      }
-      if (input.status && input.status !== 'CONFIRMED' && await tx.invoiceLine.count({ where: { registrationId: existing.id, deletedAt: null, invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } } } }) > 0) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Utilisez le parcours d’annulation avec traitement de la facture' });
-      const registration = await tx.registration.update({
-        where: { id: input.id },
-        data: { status: input.status },
-      });
-
-      // Promote waitlisted registration when a spot opens
-      if (input.status === 'CANCELLED') {
-        const nextInLine = await tx.registration.findFirst({
-          where: {
-            campId: existing.campId,
-            status: 'WAITLIST',
-            deletedAt: null,
-          },
-          orderBy: { createdAt: 'asc' },
-        });
-        if (nextInLine) {
-          await tx.registration.update({
-            where: { id: nextInLine.id },
-            data: { status: 'PENDING' },
+        // Confirmer une inscription payée est légitime (le paiement vaut
+        // engagement) — sans quoi une inscription facturée en PENDING ne peut
+        // plus jamais être confirmée ni pointée en présence (deadlock détecté
+        // par la campagne smoke 2026-07-06). Annulation/waitlist restent
+        // bloquées ici : l'annulation d'une inscription payée passe par
+        // cancelWithAccounting (remboursement/avoir).
+        if (existing.paymentStatus === 'PAID' && input.status !== 'CONFIRMED') {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message:
+              'Cette inscription a déjà été payée : seule la confirmation est possible (annulation via le parcours remboursement)',
           });
         }
-      }
 
-      return mapRegistration(registration);
+        if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
+          const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
+          const count = await tx.registration.count({
+            where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null },
+          });
+          if (!camp || count >= camp.maxCapacity)
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Capacité du camp atteinte',
+            });
+        }
+        if (
+          input.status &&
+          input.status !== 'CONFIRMED' &&
+          (await tx.invoiceLine.count({
+            where: {
+              registrationId: existing.id,
+              deletedAt: null,
+              invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } },
+            },
+          })) > 0
+        )
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Utilisez le parcours d’annulation avec traitement de la facture',
+          });
+        const registration = await tx.registration.update({
+          where: { id: input.id },
+          data: { status: input.status },
+        });
+
+        // Promote waitlisted registration when a spot opens
+        if (input.status === 'CANCELLED') {
+          const nextInLine = await tx.registration.findFirst({
+            where: {
+              campId: existing.campId,
+              status: 'WAITLIST',
+              deletedAt: null,
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+          if (nextInLine) {
+            await tx.registration.update({
+              where: { id: nextInLine.id },
+              data: { status: 'PENDING' },
+            });
+          }
+        }
+
+        return mapRegistration(registration);
       });
     }),
 
   analyzeRegistrationStatus: staffProcedure
     .input(z.object({ registrationId: z.string().uuid() }))
-    .output(z.object({
-      hasInvoice: z.boolean(),
-      invoiceStatus: z.string().nullable(),
-      totalAmount: z.number(),
-      paidAmount: z.number(),
-      suggestedCase: z.enum([
-        'NO_INVOICE',
-        'DRAFT_INVOICE',
-        'SENT_UNPAID',
-        'PARTIALLY_PAID',
-        'FULLY_PAID',
-      ]),
-      requiredSteps: z.number(),
-      requiresRefundChoice: z.boolean(),
-      requiresPaymentMethod: z.boolean(),
-    }))
+    .output(
+      z.object({
+        hasInvoice: z.boolean(),
+        invoiceStatus: z.string().nullable(),
+        totalAmount: z.number(),
+        paidAmount: z.number(),
+        suggestedCase: z.enum([
+          'NO_INVOICE',
+          'DRAFT_INVOICE',
+          'SENT_UNPAID',
+          'PARTIALLY_PAID',
+          'FULLY_PAID',
+        ]),
+        requiredSteps: z.number(),
+        requiresRefundChoice: z.boolean(),
+        requiresPaymentMethod: z.boolean(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const reg = await ctx.prisma.registration.findFirst({
         where: { id: input.registrationId, deletedAt: null },
@@ -597,7 +672,10 @@ export const registrationsRouter = router({
           paidAmount: true,
           creditedAmount: true,
           taxRate: true,
-          lines: { where: { registrationId: input.registrationId, deletedAt: null }, select: { totalPrice: true } },
+          lines: {
+            where: { registrationId: input.registrationId, deletedAt: null },
+            select: { totalPrice: true },
+          },
         },
       });
 
@@ -614,9 +692,19 @@ export const registrationsRouter = router({
         };
       }
 
-      const totalAmount = Math.round(invoice.lines.reduce((sum, line) => sum + toNum(line.totalPrice), 0) * (1 + toNum(invoice.taxRate)) * 100) / 100;
+      const totalAmount =
+        Math.round(
+          invoice.lines.reduce((sum, line) => sum + toNum(line.totalPrice), 0) *
+            (1 + toNum(invoice.taxRate)) *
+            100,
+        ) / 100;
       const effective = toNum(invoice.totalAmount) - toNum(invoice.creditedAmount);
-      const paidAmount = effective > 0 ? Math.round(Math.min(totalAmount, toNum(invoice.paidAmount) * totalAmount / effective) * 100) / 100 : 0;
+      const paidAmount =
+        effective > 0
+          ? Math.round(
+              Math.min(totalAmount, (toNum(invoice.paidAmount) * totalAmount) / effective) * 100,
+            ) / 100
+          : 0;
 
       if (invoice.status === 'DRAFT') {
         return {
@@ -677,116 +765,163 @@ export const registrationsRouter = router({
     }),
 
   cancelWithAccounting: staffProcedure
-    .input(z.object({
-      registrationId: z.string().uuid(),
-      reason: z.string().min(10, 'Le motif doit contenir au moins 10 caractères'),
-      refundChoice: z.enum(['IMMEDIATE_REFUND', 'FUTURE_CREDIT']).optional(),
-      paymentMethodCode: z.enum(['CASH', 'CHECK', 'BANK_TRANSFER']).optional(),
-    }))
-    .output(z.object({
-      success: z.boolean(),
-      case: z.enum([
-        'NO_INVOICE',
-        'DRAFT_INVOICE',
-        'SENT_UNPAID',
-        'PARTIALLY_PAID',
-        'FULLY_PAID_REFUND',
-        'FULLY_PAID_CREDIT',
-      ]),
-      invoice: z.object({
-        id: z.string().uuid(),
-        invoiceNumber: z.string(),
-        status: z.string(),
-        totalAmount: z.number(),
-        paidAmount: z.number(),
-      }).nullable(),
-      creditNote: z.object({
-        id: z.string().uuid(),
-        invoiceNumber: z.string(),
-        amount: z.number(),
-      }).nullable(),
-      refund: z.object({
-        id: z.string().uuid(),
-        amount: z.number(),
-        method: z.string(),
-      }).nullable(),
-    }))
-    .mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
-      return cancelRegistrationWithAccounting(tx, input, ctx.user.id);
-    }, { timeout: 20000 })),
+    .input(
+      z.object({
+        registrationId: z.string().uuid(),
+        reason: z.string().min(10, 'Le motif doit contenir au moins 10 caractères'),
+        refundChoice: z.enum(['IMMEDIATE_REFUND', 'FUTURE_CREDIT']).optional(),
+        paymentMethodCode: z.enum(['CASH', 'CHECK', 'BANK_TRANSFER']).optional(),
+      }),
+    )
+    .output(
+      z.object({
+        success: z.boolean(),
+        case: z.enum([
+          'NO_INVOICE',
+          'DRAFT_INVOICE',
+          'SENT_UNPAID',
+          'PARTIALLY_PAID',
+          'FULLY_PAID_REFUND',
+          'FULLY_PAID_CREDIT',
+        ]),
+        invoice: z
+          .object({
+            id: z.string().uuid(),
+            invoiceNumber: z.string(),
+            status: z.string(),
+            totalAmount: z.number(),
+            paidAmount: z.number(),
+          })
+          .nullable(),
+        creditNote: z
+          .object({
+            id: z.string().uuid(),
+            invoiceNumber: z.string(),
+            amount: z.number(),
+          })
+          .nullable(),
+        refund: z
+          .object({
+            id: z.string().uuid(),
+            amount: z.number(),
+            method: z.string(),
+          })
+          .nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) =>
+      ctx.prisma.$transaction(
+        async (tx) => {
+          await lockTenant(tx, 'billing');
+          return cancelRegistrationWithAccounting(tx, input, ctx.user.id);
+        },
+        { timeout: 20000 },
+      ),
+    ),
 
   delete: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
 
-      const existing = await tx.registration.findFirst({
-        where: { id: input.id, deletedAt: null },
-      });
-      if (!existing) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
-      }
-
-      if (existing.paymentStatus === 'PAID') {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Cette inscription a déjà été payée et ne peut plus être supprimée',
+        const existing = await tx.registration.findFirst({
+          where: { id: input.id, deletedAt: null },
         });
-      }
+        if (!existing) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
+        }
 
-      // Check for associated invoices
-      const hasInvoice = await tx.invoiceLine.findFirst({
-        where: {
-          registrationId: input.id,
-          deletedAt: null,
-          invoice: { deletedAt: null },
-        },
-      });
-      if (hasInvoice) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Impossible de supprimer cette inscription : une facture existe',
+        if (existing.paymentStatus === 'PAID') {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Cette inscription a déjà été payée et ne peut plus être supprimée',
+          });
+        }
+
+        // Check for associated invoices
+        const hasInvoice = await tx.invoiceLine.findFirst({
+          where: {
+            registrationId: input.id,
+            deletedAt: null,
+            invoice: { deletedAt: null },
+          },
         });
-      }
+        if (hasInvoice) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Impossible de supprimer cette inscription : une facture existe',
+          });
+        }
 
-      await tx.registration.update({
-        where: { id: input.id },
-        data: { deletedAt: new Date() },
-      });
+        await tx.registration.update({
+          where: { id: input.id },
+          data: { deletedAt: new Date() },
+        });
 
-      return { success: true };
+        return { success: true };
       });
     }),
 
-  requestCancellation: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => ctx.prisma.$transaction(async tx => {
-    await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
-    const registration = await tx.registration.findFirst({ where: { id: input.id, parentId: ctx.user.id, deletedAt: null }, include: { camp: true } });
-    if (!registration) throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
-    if (registration.camp.startDate <= new Date() || registration.status === 'CANCELLED') throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Contactez le secrétariat pour cette inscription' });
-    const invoice = await tx.invoiceLine.count({ where: { registrationId: registration.id, deletedAt: null, invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } } } });
-    const cancelled = !invoice && ['PENDING', 'WAITLIST'].includes(registration.status);
-    await tx.registration.update({ where: { id: registration.id }, data: cancelled ? { status: 'CANCELLED', cancellationDate: new Date(), cancelledBy: ctx.user.id, cancellationReason: 'Désistement du client' } : { cancellationRequestedAt: registration.cancellationRequestedAt ?? new Date() } });
-    return { cancelled };
-  })),
+  requestCancellation: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) =>
+      ctx.prisma.$transaction(async (tx) => {
+        await lockTenant(tx, 'billing');
+        const registration = await tx.registration.findFirst({
+          where: { id: input.id, parentId: ctx.user.id, deletedAt: null },
+          include: { camp: true },
+        });
+        if (!registration)
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
+        if (registration.camp.startDate <= new Date() || registration.status === 'CANCELLED')
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Contactez le secrétariat pour cette inscription',
+          });
+        const invoice = await tx.invoiceLine.count({
+          where: {
+            registrationId: registration.id,
+            deletedAt: null,
+            invoice: { deletedAt: null, status: { notIn: ['CANCELLED', 'CREDITED'] } },
+          },
+        });
+        const cancelled = !invoice && ['PENDING', 'WAITLIST'].includes(registration.status);
+        await tx.registration.update({
+          where: { id: registration.id },
+          data: cancelled
+            ? {
+                status: 'CANCELLED',
+                cancellationDate: new Date(),
+                cancelledBy: ctx.user.id,
+                cancellationReason: 'Désistement du client',
+              }
+            : { cancellationRequestedAt: registration.cancellationRequestedAt ?? new Date() },
+        });
+        return { cancelled };
+      }),
+    ),
 
   getAvailableCredits: protectedProcedure
     .input(z.object({ parentId: z.string().uuid() }))
-    .output(z.object({
-      credits: z.array(z.object({
-        creditId: z.string().uuid(),
-        creditNoteId: z.string().uuid(),
-        creditNoteNumber: z.string(),
-        amountOriginal: z.number(),
-        amountRemaining: z.number(),
-        createdAt: z.date(),
-        expiresAt: z.date().nullable(),
-        daysUntilExpiry: z.number().nullable(),
-      })),
-      totalAvailable: z.number(),
-    }))
+    .output(
+      z.object({
+        credits: z.array(
+          z.object({
+            creditId: z.string().uuid(),
+            creditNoteId: z.string().uuid(),
+            creditNoteNumber: z.string(),
+            amountOriginal: z.number(),
+            amountRemaining: z.number(),
+            createdAt: z.date(),
+            expiresAt: z.date().nullable(),
+            daysUntilExpiry: z.number().nullable(),
+          }),
+        ),
+        totalAvailable: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       if (ctx.user.role === 'PARENT' && input.parentId !== ctx.user.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Accès réservé à votre famille' });
@@ -797,10 +932,7 @@ export const registrationsRouter = router({
         where: {
           parentId: input.parentId,
           amountRemaining: { gt: 0 },
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } },
-          ],
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
           creditNote: { deletedAt: null, status: 'SENT' },
         },
         include: {
@@ -832,5 +964,4 @@ export const registrationsRouter = router({
 
       return { credits: mapped, totalAvailable };
     }),
-
 });

@@ -5,6 +5,7 @@ import { router, adminProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
 import { toNum } from '@/server/helpers/decimal';
 import { getFecSiren, normalizeSiren } from '@/server/helpers/settings';
+import { lockTenant } from '@/server/db-context';
 
 // ============================================================================
 // SCHEMAS
@@ -80,7 +81,7 @@ function generateFECContent(entries: any[]): string {
       entry.credit.toFixed(2).replace('.', ','),
       entry.ecritureLet || '',
       entry.dateLet
-        ? new Date(entry.dateLet).toISOString().split('T')[0]?.replace(/-/g, '') ?? ''
+        ? (new Date(entry.dateLet).toISOString().split('T')[0]?.replace(/-/g, '') ?? '')
         : '',
       validDate.toISOString().split('T')[0]!.replace(/-/g, ''),
       entry.montantDevise ? entry.montantDevise.toFixed(2).replace('.', ',') : '',
@@ -102,11 +103,7 @@ function generateFECContent(entries: any[]): string {
  * reste exploitable par un logiciel comptable, mais il n'est pas conforme au
  * nommage attendu par l'administration. Le router le signale via `siren: null`.
  */
-function buildFECFilename(
-  siren: string | null,
-  startDate: string,
-  endDate: string,
-): string {
+function buildFECFilename(siren: string | null, startDate: string, endDate: string): string {
   const fileEndDate = endDate.replace(/-/g, '');
   if (siren) return `${siren}FEC${fileEndDate}.txt`;
   return `FEC_${startDate.replace(/-/g, '')}_${fileEndDate}.txt`;
@@ -140,18 +137,43 @@ function mapEntry(e: any) {
 // ============================================================================
 
 export const fecRouter = router({
-  history: adminProcedure.input(z.object({ offset: z.number().int().min(0).default(0) })).query(({ ctx, input }) => ctx.prisma.fecExport.findMany({ skip: input.offset, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, startDate: true, endDate: true, createdAt: true, createdBy: true, filename: true, sha256: true, entryCount: true } })),
-  downloadExport: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const row = await ctx.prisma.fecExport.findUnique({ where: { id: input.id }, select: { filename: true, content: true, sha256: true } });
-    if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'Export non trouvé' });
-    return row;
-  }),
+  history: adminProcedure
+    .input(z.object({ offset: z.number().int().min(0).default(0) }))
+    .query(({ ctx, input }) =>
+      ctx.prisma.fecExport.findMany({
+        skip: input.offset,
+        take: 20,
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          createdAt: true,
+          createdBy: true,
+          filename: true,
+          sha256: true,
+          entryCount: true,
+        },
+      }),
+    ),
+  downloadExport: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const row = await ctx.prisma.fecExport.findUnique({
+        where: { id: input.id },
+        select: { filename: true, content: true, sha256: true },
+      });
+      if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'Export non trouvé' });
+      return row;
+    }),
   getEntries: adminProcedure
-    .input(z.object({
-      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
-      endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
-      journalCode: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+        journalCode: z.string().optional(),
+      }),
+    )
     .output(z.array(accountingEntrySchema))
     .query(async ({ ctx, input }) => {
       const where: Prisma.AccountingEntryWhereInput = {
@@ -180,119 +202,148 @@ export const fecRouter = router({
     }),
 
   generateFEC: adminProcedure
-    .input(z.object({
-      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
-      endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
-      // SIREN de l'exportateur : sert UNIQUEMENT au nom du fichier (A47 A-1).
-      // Vide ou absent → on prend celui des settings (accounting.fec_siren).
-      siren: z.string().optional(),
-    }))
-    .output(z.object({
-      content: z.string(),
-      filename: z.string(),
-      /** SIREN effectivement utilisé pour nommer le fichier, `null` si aucun. */
-      siren: z.string().nullable(),
-      entryCount: z.number(),
-      totalDebit: z.number(),
-      totalCredit: z.number(),
-      balance: z.number(),
-    }))
+    .input(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+        // SIREN de l'exportateur : sert UNIQUEMENT au nom du fichier (A47 A-1).
+        // Vide ou absent → on prend celui des settings (accounting.fec_siren).
+        siren: z.string().optional(),
+      }),
+    )
+    .output(
+      z.object({
+        content: z.string(),
+        filename: z.string(),
+        /** SIREN effectivement utilisé pour nommer le fichier, `null` si aucun. */
+        siren: z.string().nullable(),
+        entryCount: z.number(),
+        totalDebit: z.number(),
+        totalCredit: z.number(),
+        balance: z.number(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.$transaction(async tx => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+      return ctx.prisma.$transaction(async (tx) => {
+        await lockTenant(tx, 'billing');
 
-      // Un SIREN saisi mais illisible est une erreur de l'utilisateur : le
-      // laisser passer silencieusement produirait un fichier mal nommé, ce que
-      // le trésorier ne verrait qu'au dépôt.
-      const typedSiren = input.siren?.trim() ? normalizeSiren(input.siren) : null;
-      if (input.siren?.trim() && !typedSiren) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'SIREN invalide : 9 chiffres attendus',
-        });
-      }
+        // Un SIREN saisi mais illisible est une erreur de l'utilisateur : le
+        // laisser passer silencieusement produirait un fichier mal nommé, ce que
+        // le trésorier ne verrait qu'au dépôt.
+        const typedSiren = input.siren?.trim() ? normalizeSiren(input.siren) : null;
+        if (input.siren?.trim() && !typedSiren) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'SIREN invalide : 9 chiffres attendus',
+          });
+        }
 
-      const siren = typedSiren ?? (await getFecSiren(tx));
+        const siren = typedSiren ?? (await getFecSiren(tx));
 
-      const entries = await tx.accountingEntry.findMany({
-        where: {
-          entryDate: {
-            gte: new Date(input.startDate),
-            lte: new Date(input.endDate),
+        const entries = await tx.accountingEntry.findMany({
+          where: {
+            entryDate: {
+              gte: new Date(input.startDate),
+              lte: new Date(input.endDate),
+            },
+            isCancelled: false,
           },
-          isCancelled: false,
-        },
-        orderBy: [
-          { entryDate: 'asc' },
-          { journalCode: 'asc' },
-          { accountNumber: 'asc' },
-          { id: 'asc' },
-        ],
-      });
-
-      if (entries.length === 0) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Aucune écriture comptable trouvée pour cette période',
+          orderBy: [
+            { entryDate: 'asc' },
+            { journalCode: 'asc' },
+            { accountNumber: 'asc' },
+            { id: 'asc' },
+          ],
         });
-      }
 
-      const mapped = entries.map((e) => ({
-        ...e,
-        debit: toNum(e.debit),
-        credit: toNum(e.credit),
-        montantDevise: e.montantDevise ? toNum(e.montantDevise) : undefined,
-      }));
+        if (entries.length === 0) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Aucune écriture comptable trouvée pour cette période',
+          });
+        }
 
-      const totalDebit = mapped.reduce((sum, e) => sum + e.debit, 0);
-      const totalCredit = mapped.reduce((sum, e) => sum + e.credit, 0);
-      const balance = totalDebit - totalCredit;
+        const mapped = entries.map((e) => ({
+          ...e,
+          debit: toNum(e.debit),
+          credit: toNum(e.credit),
+          montantDevise: e.montantDevise ? toNum(e.montantDevise) : undefined,
+        }));
 
-      if (Math.abs(balance) > 0.01) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: `Balance comptable déséquilibrée : ${balance.toFixed(2)} XPF`,
+        const totalDebit = mapped.reduce((sum, e) => sum + e.debit, 0);
+        const totalCredit = mapped.reduce((sum, e) => sum + e.credit, 0);
+        const balance = totalDebit - totalCredit;
+
+        if (Math.abs(balance) > 0.01) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Balance comptable déséquilibrée : ${balance.toFixed(2)} XPF`,
+          });
+        }
+
+        const content = generateFECContent(mapped);
+
+        const filename = buildFECFilename(siren, input.startDate, input.endDate);
+
+        await tx.fecExport.create({
+          data: {
+            startDate: new Date(input.startDate),
+            endDate: new Date(input.endDate),
+            createdBy: ctx.user.id,
+            filename,
+            content,
+            sha256: createHash('sha256').update(content).digest('hex'),
+            entryCount: entries.length,
+          },
         });
-      }
-
-      const content = generateFECContent(mapped);
-
-      const filename = buildFECFilename(siren, input.startDate, input.endDate);
-
-      await tx.fecExport.create({ data: { startDate: new Date(input.startDate), endDate: new Date(input.endDate), createdBy: ctx.user.id, filename, content, sha256: createHash('sha256').update(content).digest('hex'), entryCount: entries.length } });
-      const invoiceIds = [...new Set(entries.flatMap(e => [e.invoiceId, e.creditNoteId]).filter((id): id is string => id !== null))];
-      await tx.invoice.updateMany({ where: { id: { in: invoiceIds }, accountingExportedAt: null }, data: { accountingExportedAt: new Date() } });
-      return {
-        content,
-        filename,
-        siren,
-        entryCount: entries.length,
-        totalDebit,
-        totalCredit,
-        balance,
-      };
+        const invoiceIds = [
+          ...new Set(
+            entries
+              .flatMap((e) => [e.invoiceId, e.creditNoteId])
+              .filter((id): id is string => id !== null),
+          ),
+        ];
+        await tx.invoice.updateMany({
+          where: { id: { in: invoiceIds }, accountingExportedAt: null },
+          data: { accountingExportedAt: new Date() },
+        });
+        return {
+          content,
+          filename,
+          siren,
+          entryCount: entries.length,
+          totalDebit,
+          totalCredit,
+          balance,
+        };
       });
     }),
 
   getStats: adminProcedure
-    .input(z.object({
-      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
-      endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
-      journalCode: z.string().optional(),
-    }))
-    .output(z.object({
-      totalEntries: z.number(),
-      totalDebit: z.number(),
-      totalCredit: z.number(),
-      balance: z.number(),
-      byJournal: z.array(z.object({
-        journalCode: z.string(),
-        journalLib: z.string(),
-        count: z.number(),
-        debit: z.number(),
-        credit: z.number(),
-      })),
-    }))
+    .input(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)'),
+        journalCode: z.string().optional(),
+      }),
+    )
+    .output(
+      z.object({
+        totalEntries: z.number(),
+        totalDebit: z.number(),
+        totalCredit: z.number(),
+        balance: z.number(),
+        byJournal: z.array(
+          z.object({
+            journalCode: z.string(),
+            journalLib: z.string(),
+            count: z.number(),
+            debit: z.number(),
+            credit: z.number(),
+          }),
+        ),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const where: Prisma.AccountingEntryWhereInput = {
         entryDate: {
@@ -318,7 +369,10 @@ export const fecRouter = router({
 
       let totalDebit = 0;
       let totalCredit = 0;
-      const journalMap = new Map<string, { journalLib: string; count: number; debit: number; credit: number }>();
+      const journalMap = new Map<
+        string,
+        { journalLib: string; count: number; debit: number; credit: number }
+      >();
 
       for (const e of entries) {
         const debit = toNum(e.debit);

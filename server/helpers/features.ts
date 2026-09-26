@@ -3,15 +3,18 @@ import { defaultFeatures, type FeatureKey, type FeatureState } from '@/lib/featu
 
 type SettingsReader = {
   appSetting: {
-    findUnique: (args: {
-      where: { category_key: { category: string; key: string } };
+    findFirst: (args: {
+      where: { category: string; key: string };
+      select: { value: true };
     }) => Promise<{ value: string | null } | null>;
   };
 };
 
+/** Modules du tenant de la transaction courante (réglés par la super administration). */
 export async function getFeatures(db: SettingsReader): Promise<FeatureState> {
-  const row = await db.appSetting.findUnique({
-    where: { category_key: { category: 'features', key: 'modules' } },
+  const row = await db.appSetting.findFirst({
+    where: { category: 'features', key: 'modules' },
+    select: { value: true },
   });
   if (!row) return { ...defaultFeatures };
   try {

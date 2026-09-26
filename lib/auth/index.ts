@@ -32,13 +32,22 @@ export async function requireRole(
       : '/auth/signin',
   );
 
-  if (
-    !session.user.role ||
-    !allowedRoles.includes(session.user.role)
-  ) {
+  if (!session.user.role || !allowedRoles.includes(session.user.role)) {
     const { redirect } = await import('next/navigation');
     redirect('/dashboard');
   }
 
   return session;
+}
+
+/** Utilisateur de la requête pour les handlers HTTP de `server/http/`. */
+export async function requestUser(): Promise<
+  import('@/server/http/tenant-request').RequestUser | null
+> {
+  const { auth } = await import('./config');
+  const session = await auth();
+  const user = session?.user;
+  return user?.id && user.role && user.organizationId
+    ? { id: user.id, role: user.role, organizationId: user.organizationId }
+    : null;
 }

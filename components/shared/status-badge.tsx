@@ -41,7 +41,8 @@ type StatusBadgeType =
   | 'attendance'
   | 'creditNote'
   | 'refund'
-  | 'camp';
+  | 'camp'
+  | 'organization';
 
 interface StatusBadgeProps {
   type: StatusBadgeType;
@@ -126,6 +127,12 @@ const REFUND_MAP: Record<string, StatusInfo> = {
   },
 };
 
+// Association (tenant) vue par la super administration.
+const ORGANIZATION_MAP: Record<string, StatusInfo> = {
+  ACTIVE: { label: 'Active', className: 'status-badge-confirmed', icon: CheckCircle },
+  SUSPENDED: { label: 'Suspendue', className: 'status-badge-cancelled', icon: PauseCircle },
+};
+
 const TYPE_MAPS: Record<StatusBadgeType, Record<string, StatusInfo>> = {
   invoice: INVOICE_MAP,
   registration: REGISTRATION_MAP,
@@ -133,6 +140,7 @@ const TYPE_MAPS: Record<StatusBadgeType, Record<string, StatusInfo>> = {
   creditNote: CREDIT_NOTE_MAP,
   camp: CAMP_MAP,
   refund: REFUND_MAP,
+  organization: ORGANIZATION_MAP,
 };
 
 /**
@@ -149,12 +157,7 @@ export function getStatusInfo(type: StatusBadgeType, status: string): StatusInfo
 // COMPONENT
 // ============================================================================
 
-export function StatusBadge({
-  type,
-  status,
-  showIcon = true,
-  className,
-}: StatusBadgeProps) {
+export function StatusBadge({ type, status, showIcon = true, className }: StatusBadgeProps) {
   const info = getStatusInfo(type, status);
   const Icon = info.icon;
 

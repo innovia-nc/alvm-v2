@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, adminProcedure } from '@/server/trpc/init';
+import { router, protectedProcedure, adminProcedure } from '@/server/trpc/init';
 import { getPricingSetting } from '@/server/helpers/settings';
 
 const paymentMethodSchema = z.object({
@@ -17,29 +17,31 @@ const paymentMethodSchema = z.object({
 });
 
 export const paymentMethodsRouter = router({
-  list: publicProcedure
-    .output(z.array(paymentMethodSchema))
-    .query(async ({ ctx }) => {
-      return ctx.prisma.paymentMethod.findMany({
-        where: { active: true },
-        orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
-      });
-    }),
+  // Moyens de paiement de l'association de la session (données de tenant).
+  list: protectedProcedure.output(z.array(paymentMethodSchema)).query(async ({ ctx }) => {
+    return ctx.prisma.paymentMethod.findMany({
+      where: { active: true },
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+    });
+  }),
 
-  listAll: adminProcedure
-    .output(z.array(paymentMethodSchema))
-    .query(async ({ ctx }) => {
-      return ctx.prisma.paymentMethod.findMany({
-        orderBy: [{ active: 'desc' }, { displayOrder: 'asc' }, { name: 'asc' }],
-      });
-    }),
+  listAll: adminProcedure.output(z.array(paymentMethodSchema)).query(async ({ ctx }) => {
+    return ctx.prisma.paymentMethod.findMany({
+      orderBy: [{ active: 'desc' }, { displayOrder: 'asc' }, { name: 'asc' }],
+    });
+  }),
 
   create: adminProcedure
-    .input(z.object({
-      name: z.string().min(2).max(100),
-      description: z.string().optional(),
-      accountingCode: z.string().regex(/^\d{6,10}$/).optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(2).max(100),
+        description: z.string().optional(),
+        accountingCode: z
+          .string()
+          .regex(/^\d{6,10}$/)
+          .optional(),
+      }),
+    )
     .output(paymentMethodSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.paymentMethod.findFirst({
@@ -71,13 +73,19 @@ export const paymentMethodsRouter = router({
     }),
 
   update: adminProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      name: z.string().min(2).max(100).optional(),
-      description: z.string().nullable().optional(),
-      accountingCode: z.string().regex(/^\d{6,10}$/).nullable().optional(),
-      active: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(2).max(100).optional(),
+        description: z.string().nullable().optional(),
+        accountingCode: z
+          .string()
+          .regex(/^\d{6,10}$/)
+          .nullable()
+          .optional(),
+        active: z.boolean().optional(),
+      }),
+    )
     .output(paymentMethodSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.paymentMethod.findUnique({

@@ -1,16 +1,17 @@
 import { reverseAccountingEntries } from '@/server/services/accounting.service';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import {
-  router,
-  protectedProcedure,
-  staffProcedure,
-} from '@/server/trpc/init';
+import { router, protectedProcedure, staffProcedure } from '@/server/trpc/init';
 import type { Prisma } from '@prisma/client';
-import { getTaxRateDecimal, getDefaultDueDate, getCreditExpiryDate } from '@/server/helpers/settings';
+import {
+  getTaxRateDecimal,
+  getDefaultDueDate,
+  getCreditExpiryDate,
+} from '@/server/helpers/settings';
 import { toNum } from '@/server/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@/server/services/accounting.service';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
+import { lockTenant } from '@/server/db-context';
 
 type CreditNoteStatus = 'DRAFT' | 'SENT' | 'CANCELLED';
 
@@ -53,11 +54,13 @@ const creditNoteSchema = z.object({
 });
 
 const creditNoteWithDetailsSchema = creditNoteSchema.extend({
-  originalInvoice: z.object({
-    invoiceNumber: z.string(),
-    totalAmount: z.number(),
-    status: z.string(),
-  }).nullable(),
+  originalInvoice: z
+    .object({
+      invoiceNumber: z.string(),
+      totalAmount: z.number(),
+      status: z.string(),
+    })
+    .nullable(),
   parent: z.object({
     firstName: z.string(),
     lastName: z.string(),
@@ -77,7 +80,7 @@ const creditNoteWithDetailsSchema = creditNoteSchema.extend({
       appliedAt: z.date(),
       invoiceId: z.string().uuid().nullable(),
       invoiceNumber: z.string().nullable(),
-    })
+    }),
   ),
 });
 
@@ -155,12 +158,8 @@ function mapCreditNoteWithDetails(cn: any) {
       unitPrice: toNum(l.unitPrice),
       totalHt: toNum(l.totalHt),
     })),
-    availableCredit: cn.parentCredits?.[0]
-      ? toNum(cn.parentCredits[0].amountRemaining)
-      : null,
-    creditOriginalAmount: cn.parentCredits?.[0]
-      ? toNum(cn.parentCredits[0].amountOriginal)
-      : null,
+    availableCredit: cn.parentCredits?.[0] ? toNum(cn.parentCredits[0].amountRemaining) : null,
+    creditOriginalAmount: cn.parentCredits?.[0] ? toNum(cn.parentCredits[0].amountOriginal) : null,
     creditExpiresAt: cn.parentCredits?.[0]?.expiresAt ?? null,
     creditApplications: (cn.parentCredits?.[0]?.applications ?? []).map((a: any) => ({
       id: a.id,
@@ -199,23 +198,37 @@ function mapCreditNote(cn: any) {
 
 export const creditNotesRouter = router({
   list: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      creditedInvoiceId: z.string().uuid().optional(),
-      parentId: z.string().uuid().optional(),
-      status: creditNoteStatusEnum.optional(),
-      refundMethod: refundMethodEnum.optional(),
-      search: z.string().optional(),
-      sortBy: z.enum(['creditNoteNumber', 'issueDate', 'totalAmount']).default('issueDate'),
-      sortOrder: z.enum(['asc', 'desc']).default('desc'),
-    }))
-    .output(z.object({
-      creditNotes: z.array(creditNoteWithDetailsSchema),
-      total: z.number(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        creditedInvoiceId: z.string().uuid().optional(),
+        parentId: z.string().uuid().optional(),
+        status: creditNoteStatusEnum.optional(),
+        refundMethod: refundMethodEnum.optional(),
+        search: z.string().optional(),
+        sortBy: z.enum(['creditNoteNumber', 'issueDate', 'totalAmount']).default('issueDate'),
+        sortOrder: z.enum(['asc', 'desc']).default('desc'),
+      }),
+    )
+    .output(
+      z.object({
+        creditNotes: z.array(creditNoteWithDetailsSchema),
+        total: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
-      const { limit, offset, creditedInvoiceId, parentId, status, refundMethod, search, sortBy, sortOrder } = input;
+      const {
+        limit,
+        offset,
+        creditedInvoiceId,
+        parentId,
+        status,
+        refundMethod,
+        search,
+        sortBy,
+        sortOrder,
+      } = input;
 
       const where: Prisma.InvoiceWhereInput = {
         invoiceType: 'CREDIT_NOTE',
@@ -289,22 +302,28 @@ export const creditNotesRouter = router({
     }),
 
   create: staffProcedure
-    .input(z.object({
-      creditedInvoiceId: z.string().uuid().optional(),
-      parentId: z.string().uuid(),
-      refundMethod: refundMethodEnum,
-      reason: z.string().min(10),
-      lines: z.array(z.object({
-        registrationId: z.string().uuid().nullable(),
-        description: z.string().min(3),
-        quantity: z.number().min(1),
-        unitPrice: z.number().min(0),
-      })).min(1, 'Au moins une ligne requise'),
-    }))
+    .input(
+      z.object({
+        creditedInvoiceId: z.string().uuid().optional(),
+        parentId: z.string().uuid(),
+        refundMethod: refundMethodEnum,
+        reason: z.string().min(10),
+        lines: z
+          .array(
+            z.object({
+              registrationId: z.string().uuid().nullable(),
+              description: z.string().min(3),
+              quantity: z.number().min(1),
+              unitPrice: z.number().min(0),
+            }),
+          )
+          .min(1, 'Au moins une ligne requise'),
+      }),
+    )
     .output(creditNoteSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         // Verify original invoice if provided
         if (input.creditedInvoiceId) {
           const origInvoice = await tx.invoice.findFirst({
@@ -373,14 +392,16 @@ export const creditNotesRouter = router({
     }),
 
   updateStatus: staffProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      status: creditNoteStatusEnum,
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        status: creditNoteStatusEnum,
+      }),
+    )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         const cn = await tx.invoice.findFirst({
           where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
         });
@@ -402,14 +423,35 @@ export const creditNotesRouter = router({
         }
 
         if (input.status === 'CANCELLED') {
-          const cancelledService = await tx.invoiceLine.count({ where: { invoiceId: cn.id, deletedAt: null, registration: { status: 'CANCELLED' } } });
-          if (cancelledService) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Cet avoir clôt une annulation de prestation et ne peut pas être annulé isolément' });
-          const allocations = await tx.creditNoteAllocation.count({ where: { creditNoteId: cn.id } });
-          const applications = await tx.creditApplication.count({ where: { parentCredit: { creditNoteId: cn.id } } });
-          const refunds = await tx.refund.count({ where: { creditNoteId: cn.id, deletedAt: null } });
-          if (allocations || applications || refunds) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Impossible d’annuler un avoir utilisé ou lié à un remboursement' });
-          if (cn.status === 'SENT') await reverseAccountingEntries(tx, { creditNoteId: cn.id }, ctx.user.id);
-          await tx.parentCredit.updateMany({ where: { creditNoteId: cn.id }, data: { amountRemaining: 0 } });
+          const cancelledService = await tx.invoiceLine.count({
+            where: { invoiceId: cn.id, deletedAt: null, registration: { status: 'CANCELLED' } },
+          });
+          if (cancelledService)
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message:
+                'Cet avoir clôt une annulation de prestation et ne peut pas être annulé isolément',
+            });
+          const allocations = await tx.creditNoteAllocation.count({
+            where: { creditNoteId: cn.id },
+          });
+          const applications = await tx.creditApplication.count({
+            where: { parentCredit: { creditNoteId: cn.id } },
+          });
+          const refunds = await tx.refund.count({
+            where: { creditNoteId: cn.id, deletedAt: null },
+          });
+          if (allocations || applications || refunds)
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Impossible d’annuler un avoir utilisé ou lié à un remboursement',
+            });
+          if (cn.status === 'SENT')
+            await reverseAccountingEntries(tx, { creditNoteId: cn.id }, ctx.user.id);
+          await tx.parentCredit.updateMany({
+            where: { creditNoteId: cn.id },
+            data: { amountRemaining: 0 },
+          });
         }
         await tx.invoice.update({
           where: { id: input.id },
@@ -575,7 +617,11 @@ export const creditNotesRouter = router({
         footerMention: pdfSettings.mentions.creditNote || undefined,
       });
 
-      const pathname = `credit-notes/${creditNote.invoiceNumber}-${creditNote.id}.pdf`;
+      const { tenantBlobPath } = await import('@/lib/storage/tenant-path');
+      const pathname = tenantBlobPath(
+        ctx.organizationId,
+        `credit-notes/${creditNote.invoiceNumber}-${creditNote.id}.pdf`,
+      );
 
       const { url } = await uploadToStorage(pdfBuffer, {
         pathname,

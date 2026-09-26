@@ -1,6 +1,7 @@
 'use client';
 
 import { ApplicationName } from '@/components/providers/branding-provider';
+import { OrganizationName } from '@/components/layout/organization-name';
 import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -67,8 +68,8 @@ export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
-        <div className="min-w-0 flex-1 pl-12 text-sm font-medium text-muted-foreground md:pl-0">
-          Espace <ApplicationName />
+        <div className="min-w-0 flex-1 truncate pl-12 text-sm font-medium text-muted-foreground md:pl-0">
+          Espace <OrganizationName enabled={Boolean(session?.user) && !isSuperAdmin} />
         </div>
 
         {/* Actions header */}

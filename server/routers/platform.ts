@@ -21,6 +21,7 @@ const accountSelect = {
   role: true,
   disabledAt: true,
   createdAt: true,
+  organization: { select: { id: true, name: true, slug: true } },
 } as const;
 const brandingSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -34,7 +35,7 @@ export const platformRouter = router({
     branding: await getBranding(ctx.prisma),
     encryptionReady: Buffer.from(process.env.PLATFORM_ENCRYPTION_KEY ?? '', 'base64').length === 32,
     infrastructure: {
-      database: Boolean(process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING),
+      database: Boolean(process.env.DATABASE_URL),
       authentication: Boolean(process.env.AUTH_SECRET),
       publicUrl: process.env.AUTH_URL ?? null,
     },
@@ -42,9 +43,9 @@ export const platformRouter = router({
   saveBranding: superAdminProcedure.input(brandingSchema).mutation(async ({ ctx, input }) => {
     await ctx.prisma.$transaction(async (tx) => {
       const value = JSON.stringify(input);
-      await tx.appSetting.upsert({
-        where: { category_key: { category: 'platform', key: 'branding' } },
-        create: { category: 'platform', key: 'branding', value, updatedBy: ctx.user.id },
+      await tx.platformSetting.upsert({
+        where: { key: 'branding' },
+        create: { key: 'branding', value, updatedBy: ctx.user.id },
         update: { value, updatedBy: ctx.user.id },
       });
       await recordPlatformAudit(tx, ctx.user.id, 'platform.branding.updated', 'branding');
@@ -168,19 +169,23 @@ export const platformRouter = router({
     .input(
       z.object({
         search: z.string().max(100).default(''),
+        organizationId: z.string().uuid().optional(),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(50).default(20),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const where = input.search
-        ? {
-            OR: [
-              { name: { contains: input.search, mode: 'insensitive' as const } },
-              { email: { contains: input.search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {};
+      const where = {
+        ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+        ...(input.search
+          ? {
+              OR: [
+                { name: { contains: input.search, mode: 'insensitive' as const } },
+                { email: { contains: input.search, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      };
       const [accounts, total] = await Promise.all([
         ctx.prisma.user.findMany({
           where,
@@ -206,13 +211,23 @@ export const platformRouter = router({
       const passwordHash = await hash(input.password, BCRYPT_ROUNDS);
       return ctx.prisma.$transaction(async (tx) => {
         await lockAdministrators(tx);
-        if (await tx.user.findUnique({ where: { email: input.email } }))
+        const platform = await tx.organization.findFirst({
+          where: { kind: 'PLATFORM' },
+          select: { id: true },
+        });
+        if (!platform)
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Espace de plateforme absent : initialisez la base (create-super-admin).',
+          });
+        if (await tx.user.findFirst({ where: { organizationId: platform.id, email: input.email } }))
           throw new TRPCError({
             code: 'CONFLICT',
             message: 'Cette adresse possède déjà un compte.',
           });
         const account = await tx.user.create({
           data: {
+            organizationId: platform.id,
             name: input.name,
             email: input.email,
             role: input.role,
@@ -259,15 +274,23 @@ export const platformRouter = router({
           input.disabled &&
           !current.disabledAt &&
           ['ADMIN', 'SUPER_ADMIN'].includes(current.role) &&
-          (await tx.user.count({ where: { role: current.role, disabledAt: null } })) <= 1
+          (await tx.user.count({
+            where: {
+              organizationId: current.organizationId,
+              role: current.role,
+              disabledAt: null,
+            },
+          })) <= 1
         )
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: 'Impossible de désactiver le dernier compte actif de ce rôle.',
+            message: 'Impossible de désactiver le dernier compte actif de ce rôle dans cet espace.',
           });
         if (
           input.email !== current.email &&
-          (await tx.user.findUnique({ where: { email: input.email } }))
+          (await tx.user.findFirst({
+            where: { organizationId: current.organizationId, email: input.email },
+          }))
         )
           throw new TRPCError({
             code: 'CONFLICT',

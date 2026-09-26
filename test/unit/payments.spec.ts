@@ -25,7 +25,8 @@ describe('payments router', () => {
 
   const fakePaymentMethod = {
     name: 'Especes',
-    code: 'CASH', active: true,
+    code: 'CASH',
+    active: true,
     accountingCode: '530000',
   };
 
@@ -136,7 +137,6 @@ describe('payments router', () => {
     it('should deny PARENT access to delete', async () => {
       await expect(parent.caller.payments.delete({ id: PAYMENT_ID })).rejects.toThrow(TRPCError);
     });
-
 
     it('should deny unauthenticated access to statistics', async () => {
       const { caller } = createTestCaller(null);
@@ -386,9 +386,7 @@ describe('payments router', () => {
     it('should throw NOT_FOUND when invoice does not exist', async () => {
       staff.mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-      await expect(staff.caller.payments.create(validInput)).rejects.toThrow(
-        'Facture non trouvée',
-      );
+      await expect(staff.caller.payments.create(validInput)).rejects.toThrow('Facture non trouvée');
     });
 
     it('should throw PRECONDITION_FAILED for CANCELLED invoice', async () => {
@@ -417,18 +415,18 @@ describe('payments router', () => {
       // totalAmount=50000, paidAmount=10000, remaining=40000
       staff.mockPrisma.invoice.findFirst.mockResolvedValue(fakeInvoice);
 
-      await expect(
-        staff.caller.payments.create({ ...validInput, amount: 50000 }),
-      ).rejects.toThrow('Le montant dépasse le reste à payer (40000 XPF)');
+      await expect(staff.caller.payments.create({ ...validInput, amount: 50000 })).rejects.toThrow(
+        'Le montant dépasse le reste à payer (40000 XPF)',
+      );
     });
 
     it('should throw BAD_REQUEST when amount exactly exceeds remaining by small margin', async () => {
       const almostPaid = { ...fakeInvoice, paidAmount: 49999 };
       staff.mockPrisma.invoice.findFirst.mockResolvedValue(almostPaid);
 
-      await expect(
-        staff.caller.payments.create({ ...validInput, amount: 2 }),
-      ).rejects.toThrow('Le montant dépasse le reste à payer (1 XPF)');
+      await expect(staff.caller.payments.create({ ...validInput, amount: 2 })).rejects.toThrow(
+        'Le montant dépasse le reste à payer (1 XPF)',
+      );
     });
 
     it('should allow payment for exact remaining amount', async () => {
@@ -493,10 +491,10 @@ describe('payments router', () => {
 
       await staff.caller.payments.create(validInput);
 
-      // Should call $queryRawUnsafe for entry number generation
-      expect(staff.mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('nextval'),
-        'BQ',
+      // Numéro d'écriture : compteur ACCOUNTING_ENTRY du tenant (`document_counters`).
+      expect(staff.mockPrisma.$queryRaw).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.stringContaining('document_counters')]),
+        'ACCOUNTING_ENTRY',
       );
 
       // Should create 2 accounting entries (debit + credit)
@@ -529,20 +527,19 @@ describe('payments router', () => {
 
     it('should create D 4191 / C 411000 entries for future credit payment', async () => {
       // Setup credit note payment with isFutureCredit=true
-      staff.mockPrisma.invoice.findFirst
-        .mockResolvedValueOnce(fakeInvoice)
-        .mockResolvedValueOnce({
-          id: CREDIT_NOTE_ID,
-          invoiceType: 'CREDIT_NOTE',
-          totalAmount: -20000,
-          status: 'SENT',
-          parentId: PARENT_USER.id,
-          deletedAt: null,
-          isFutureCredit: true,
-        });
+      staff.mockPrisma.invoice.findFirst.mockResolvedValueOnce(fakeInvoice).mockResolvedValueOnce({
+        id: CREDIT_NOTE_ID,
+        invoiceType: 'CREDIT_NOTE',
+        totalAmount: -20000,
+        status: 'SENT',
+        parentId: PARENT_USER.id,
+        deletedAt: null,
+        isFutureCredit: true,
+      });
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
         name: 'Avoir',
-        code: 'CREDIT_NOTE', active: true,
+        code: 'CREDIT_NOTE',
+        active: true,
         accountingCode: '411000',
       });
       staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
@@ -578,7 +575,7 @@ describe('payments router', () => {
     // -----------------------------------------------------------------------
     // TD-003 — le chemin manuel doit tenir à jour LES DEUX vues du solde
     // -----------------------------------------------------------------------
-    describe('TD-003 — cohérence du solde de l\'avoir', () => {
+    describe("TD-003 — cohérence du solde de l'avoir", () => {
       /** Règlement manuel de 15 000 par un avoir de 20 000 ouvrant un crédit. */
       function arrangeManualCreditPayment() {
         staff.mockPrisma.invoice.findFirst
@@ -594,7 +591,8 @@ describe('payments router', () => {
           });
         staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
           name: 'Avoir',
-          code: 'CREDIT_NOTE', active: true,
+          code: 'CREDIT_NOTE',
+          active: true,
           accountingCode: '411000',
         });
         staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
@@ -616,7 +614,7 @@ describe('payments router', () => {
         creditNoteId: CREDIT_NOTE_ID,
       };
 
-      it('décrémente amountRemaining pour que le FIFO ne réimpute pas l\'avoir', async () => {
+      it("décrémente amountRemaining pour que le FIFO ne réimpute pas l'avoir", async () => {
         // Sans cette décrémentation, l'imputation automatique voyait l'avoir
         // encore « plein » et le réimputait sur une autre facture : le compte
         // 4191 était débité de plus qu'il n'avait été crédité.
@@ -669,20 +667,19 @@ describe('payments router', () => {
     });
 
     it('should skip accounting entries for immediate credit note payment', async () => {
-      staff.mockPrisma.invoice.findFirst
-        .mockResolvedValueOnce(fakeInvoice)
-        .mockResolvedValueOnce({
-          id: CREDIT_NOTE_ID,
-          invoiceType: 'CREDIT_NOTE',
-          totalAmount: -20000,
-          status: 'SENT',
-          parentId: PARENT_USER.id,
-          deletedAt: null,
-          isFutureCredit: false,
-        });
+      staff.mockPrisma.invoice.findFirst.mockResolvedValueOnce(fakeInvoice).mockResolvedValueOnce({
+        id: CREDIT_NOTE_ID,
+        invoiceType: 'CREDIT_NOTE',
+        totalAmount: -20000,
+        status: 'SENT',
+        parentId: PARENT_USER.id,
+        deletedAt: null,
+        isFutureCredit: false,
+      });
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue({
         name: 'Avoir',
-        code: 'CREDIT_NOTE', active: true,
+        code: 'CREDIT_NOTE',
+        active: true,
         accountingCode: '411000',
       });
       staff.mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
@@ -711,7 +708,12 @@ describe('payments router', () => {
   // ==========================================================================
 
   describe('create with credit note', () => {
-    const creditNotePaymentMethod = { name: 'Avoir', code: 'CREDIT_NOTE', active: true, accountingCode: '411000' };
+    const creditNotePaymentMethod = {
+      name: 'Avoir',
+      code: 'CREDIT_NOTE',
+      active: true,
+      accountingCode: '411000',
+    };
 
     const fakeCreditNote = {
       id: CREDIT_NOTE_ID,
@@ -733,8 +735,8 @@ describe('payments router', () => {
 
     function setupCreditNoteMocks(mockPrisma: TestCaller['mockPrisma']) {
       mockPrisma.invoice.findFirst
-        .mockResolvedValueOnce(fakeInvoice)        // invoice lookup
-        .mockResolvedValueOnce(fakeCreditNote);     // credit note lookup
+        .mockResolvedValueOnce(fakeInvoice) // invoice lookup
+        .mockResolvedValueOnce(fakeCreditNote); // credit note lookup
       mockPrisma.paymentMethod.findUnique.mockResolvedValue(creditNotePaymentMethod);
       mockPrisma.creditNoteAllocation.aggregate.mockResolvedValue({
         _sum: { amount: 0 },
@@ -757,14 +759,16 @@ describe('payments router', () => {
       const result = await staff.caller.payments.create(creditNoteInput);
 
       expect(result).toBeDefined();
-      expect(staff.mockPrisma.creditNoteAllocation.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        create: expect.objectContaining({
-          creditNoteId: CREDIT_NOTE_ID,
-          appliedToInvoiceId: INVOICE_ID,
-          amount: 15000,
-          recordedBy: STAFF_USER.id,
+      expect(staff.mockPrisma.creditNoteAllocation.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            creditNoteId: CREDIT_NOTE_ID,
+            appliedToInvoiceId: INVOICE_ID,
+            amount: 15000,
+            recordedBy: STAFF_USER.id,
+          }),
         }),
-      }));
+      );
     });
 
     it('should throw NOT_FOUND when credit note does not exist', async () => {
@@ -790,12 +794,10 @@ describe('payments router', () => {
     });
 
     it('should throw BAD_REQUEST when credit note belongs to different parent', async () => {
-      staff.mockPrisma.invoice.findFirst
-        .mockResolvedValueOnce(fakeInvoice)
-        .mockResolvedValueOnce({
-          ...fakeCreditNote,
-          parentId: 'b0000000-0000-4000-a000-999999999999',
-        });
+      staff.mockPrisma.invoice.findFirst.mockResolvedValueOnce(fakeInvoice).mockResolvedValueOnce({
+        ...fakeCreditNote,
+        parentId: 'b0000000-0000-4000-a000-999999999999',
+      });
       staff.mockPrisma.paymentMethod.findUnique.mockResolvedValue(creditNotePaymentMethod);
 
       await expect(staff.caller.payments.create(creditNoteInput)).rejects.toThrow(
@@ -911,7 +913,7 @@ describe('payments router', () => {
         mockPrisma.creditApplication.findFirst.mockResolvedValue({ id: 'app1' });
       }
 
-      it('recrédite le solde de l\'avoir', async () => {
+      it("recrédite le solde de l'avoir", async () => {
         setupCreditDeleteMocks(admin.mockPrisma);
 
         await admin.caller.payments.delete({ id: PAYMENT_ID });
@@ -922,7 +924,7 @@ describe('payments router', () => {
         });
       });
 
-      it('supprime allocation et ligne d\'historique', async () => {
+      it("supprime allocation et ligne d'historique", async () => {
         setupCreditDeleteMocks(admin.mockPrisma);
 
         await admin.caller.payments.delete({ id: PAYMENT_ID });
@@ -1056,7 +1058,15 @@ describe('payments router', () => {
 
       await admin.caller.payments.delete({ id: PAYMENT_ID });
 
-      expect(admin.mockPrisma.accountingEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ paymentId: PAYMENT_ID, isCancelled: false, cancelledAt: null }) }));
+      expect(admin.mockPrisma.accountingEntry.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            paymentId: PAYMENT_ID,
+            isCancelled: false,
+            cancelledAt: null,
+          }),
+        }),
+      );
     });
 
     it('should throw NOT_FOUND when payment does not exist', async () => {
@@ -1102,8 +1112,8 @@ describe('payments router', () => {
       const result = await admin.caller.payments.statistics({});
 
       expect(result.totalPaid).toBe(150000);
-      expect(result.totalPending).toBe(100000);   // 200000 - 100000
-      expect(result.totalOverdue).toBe(50000);     // 80000 - 30000
+      expect(result.totalPending).toBe(100000); // 200000 - 100000
+      expect(result.totalOverdue).toBe(50000); // 80000 - 30000
       expect(result.paymentsByMethod).toHaveLength(2);
       // Sorted by total descending
       expect(result.paymentsByMethod[0]).toEqual({ method: 'Especes', total: 120000, count: 2 });

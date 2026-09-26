@@ -6,6 +6,7 @@ import type { Prisma, RefundMethod } from '@prisma/client';
 import { createRefundEntries, cancelAccountingEntries } from '@/server/services/accounting.service';
 import { toNum } from '@/server/helpers/decimal';
 import { generateDocumentNumber } from '@/server/helpers/invoice-number';
+import { lockTenant } from '@/server/db-context';
 
 // ============================================================================
 // SCHEMAS
@@ -119,18 +120,22 @@ function mapRefund(r: any) {
 
 export const refundsRouter = router({
   list: staffProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-      sortBy: z.enum(['refundDate', 'amount', 'createdAt']).default('refundDate'),
-      sortOrder: z.enum(['asc', 'desc']).default('desc'),
-      search: z.string().optional(),
-      paymentId: z.string().uuid().optional(),
-    }))
-    .output(z.object({
-      refunds: z.array(refundWithRelationsSchema),
-      total: z.number(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        sortBy: z.enum(['refundDate', 'amount', 'createdAt']).default('refundDate'),
+        sortOrder: z.enum(['asc', 'desc']).default('desc'),
+        search: z.string().optional(),
+        paymentId: z.string().uuid().optional(),
+      }),
+    )
+    .output(
+      z.object({
+        refunds: z.array(refundWithRelationsSchema),
+        total: z.number(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, offset, sortBy, sortOrder, search, paymentId } = input;
 
@@ -180,19 +185,21 @@ export const refundsRouter = router({
     }),
 
   create: staffProcedure
-    .input(z.object({
-      paymentId: z.string().uuid(),
-      amount: z.number().min(0.01),
-      refundDate: z.string().min(1),
-      refundMethod: refundMethodEnum,
-      reason: z.string().min(3),
-      reference: z.string().optional(),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        paymentId: z.string().uuid(),
+        amount: z.number().min(0.01),
+        refundDate: z.string().min(1),
+        refundMethod: refundMethodEnum,
+        reason: z.string().min(3),
+        reference: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+    )
     .output(refundSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         // Verify payment exists with its method and invoice
         const payment = await tx.payment.findUnique({
           where: { id: input.paymentId },
@@ -228,16 +235,33 @@ export const refundsRouter = router({
         if (totalRefunded + input.amount > paymentAmount) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Le montant total des remboursements (${(totalRefunded + input.amount)} XPF) dépasse le montant du paiement (${paymentAmount} XPF)`,
+            message: `Le montant total des remboursements (${totalRefunded + input.amount} XPF) dépasse le montant du paiement (${paymentAmount} XPF)`,
           });
         }
 
-        if (payment.creditNoteId) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Un règlement par avoir doit être restitué par suppression de son imputation' });
+        if (payment.creditNoteId)
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Un règlement par avoir doit être restitué par suppression de son imputation',
+          });
         let creditNoteId: string | null = null;
         if (input.refundMethod === 'FUTURE_CREDIT') {
-          const remainingCharge = toNum(payment.invoice.totalAmount) - toNum(payment.invoice.creditedAmount);
-          if (input.amount > remainingCharge) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Montant supérieur à la prestation non compensée' });
-          const credit = await createCompensationCredit(tx, { invoiceId: payment.invoice.id, parentId: payment.invoice.parentId, amount: input.amount, taxRate: toNum(payment.invoice.taxRate), future: true, userId: ctx.user.id, reason: input.reason });
+          const remainingCharge =
+            toNum(payment.invoice.totalAmount) - toNum(payment.invoice.creditedAmount);
+          if (input.amount > remainingCharge)
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Montant supérieur à la prestation non compensée',
+            });
+          const credit = await createCompensationCredit(tx, {
+            invoiceId: payment.invoice.id,
+            parentId: payment.invoice.parentId,
+            amount: input.amount,
+            taxRate: toNum(payment.invoice.taxRate),
+            future: true,
+            userId: ctx.user.id,
+            reason: input.reason,
+          });
           creditNoteId = credit.id;
         }
         const refundNumber = await generateDocumentNumber(tx, 'REFUND');
@@ -274,12 +298,24 @@ export const refundsRouter = router({
         // devient un avoir — le paiement reste acquis sur cette facture.
         {
           const newPaidAmount = Math.max(0, toNum(payment.invoice.paidAmount) - input.amount);
-          const newStatus = newPaidAmount >= toNum(payment.invoice.totalAmount) - toNum(payment.invoice.creditedAmount) - (creditNoteId ? input.amount : 0)
-            ? 'PAID'
-            : (payment.invoice.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
+          const newStatus =
+            newPaidAmount >=
+            toNum(payment.invoice.totalAmount) -
+              toNum(payment.invoice.creditedAmount) -
+              (creditNoteId ? input.amount : 0)
+              ? 'PAID'
+              : payment.invoice.status === 'OVERDUE'
+                ? 'OVERDUE'
+                : 'SENT';
           await tx.invoice.update({
             where: { id: payment.invoice.id },
-            data: { paidAmount: newPaidAmount, status: newStatus, pdfUrl: null, version: { increment: 1 }, ...(creditNoteId ? { creditedAmount: { increment: input.amount } } : {}) },
+            data: {
+              paidAmount: newPaidAmount,
+              status: newStatus,
+              pdfUrl: null,
+              version: { increment: 1 },
+              ...(creditNoteId ? { creditedAmount: { increment: input.amount } } : {}),
+            },
           });
         }
 
@@ -292,13 +328,21 @@ export const refundsRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(20260922, 2)::text");
+        await lockTenant(tx, 'billing');
         const refund = await tx.refund.findUnique({
           where: { id: input.id },
           include: {
             payment: {
               select: {
-                invoice: { select: { id: true, totalAmount: true, creditedAmount: true, paidAmount: true, status: true } },
+                invoice: {
+                  select: {
+                    id: true,
+                    totalAmount: true,
+                    creditedAmount: true,
+                    paidAmount: true,
+                    status: true,
+                  },
+                },
               },
             },
           },
@@ -307,14 +351,31 @@ export const refundsRouter = router({
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Remboursement non trouvé' });
         }
 
-        if (refund.notes?.startsWith('Avoir ')) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Ce remboursement clôt une annulation d’inscription et ne peut pas être supprimé isolément' });
+        if (refund.notes?.startsWith('Avoir '))
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message:
+              'Ce remboursement clôt une annulation d’inscription et ne peut pas être supprimé isolément',
+          });
         if (refund.creditNoteId) {
-          const credit = await tx.parentCredit.findFirst({ where: { creditNoteId: refund.creditNoteId } });
-          const used = await tx.creditNoteAllocation.count({ where: { creditNoteId: refund.creditNoteId } });
-          if (!credit || used > 0 || toNum(credit.amountRemaining) !== toNum(credit.amountOriginal)) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Cet avoir a déjà été utilisé : annulez ses imputations avant le remboursement' });
+          const credit = await tx.parentCredit.findFirst({
+            where: { creditNoteId: refund.creditNoteId },
+          });
+          const used = await tx.creditNoteAllocation.count({
+            where: { creditNoteId: refund.creditNoteId },
+          });
+          if (!credit || used > 0 || toNum(credit.amountRemaining) !== toNum(credit.amountOriginal))
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message:
+                'Cet avoir a déjà été utilisé : annulez ses imputations avant le remboursement',
+            });
           await cancelAccountingEntries(tx, { creditNoteId: refund.creditNoteId }, ctx.user.id);
           await tx.parentCredit.update({ where: { id: credit.id }, data: { amountRemaining: 0 } });
-          await tx.invoice.update({ where: { id: refund.creditNoteId }, data: { status: 'CANCELLED', pdfUrl: null, version: { increment: 1 } } });
+          await tx.invoice.update({
+            where: { id: refund.creditNoteId },
+            data: { status: 'CANCELLED', pdfUrl: null, version: { increment: 1 } },
+          });
         }
         // Cancel associated accounting entries
         await cancelAccountingEntries(tx, { refundId: input.id }, ctx.user.id);
@@ -326,13 +387,23 @@ export const refundsRouter = router({
         if (refund.payment?.invoice) {
           const inv = refund.payment.invoice;
           const newPaidAmount = toNum(inv.paidAmount) + toNum(refund.amount);
-          const credited = toNum(inv.creditedAmount) - (refund.creditNoteId ? toNum(refund.amount) : 0);
-          const newStatus = newPaidAmount >= toNum(inv.totalAmount) - credited
-            ? 'PAID'
-            : (inv.status === 'OVERDUE' ? 'OVERDUE' : 'SENT');
+          const credited =
+            toNum(inv.creditedAmount) - (refund.creditNoteId ? toNum(refund.amount) : 0);
+          const newStatus =
+            newPaidAmount >= toNum(inv.totalAmount) - credited
+              ? 'PAID'
+              : inv.status === 'OVERDUE'
+                ? 'OVERDUE'
+                : 'SENT';
           await tx.invoice.update({
             where: { id: inv.id },
-            data: { paidAmount: newPaidAmount, creditedAmount: credited, status: newStatus, pdfUrl: null, version: { increment: 1 } },
+            data: {
+              paidAmount: newPaidAmount,
+              creditedAmount: credited,
+              status: newStatus,
+              pdfUrl: null,
+              version: { increment: 1 },
+            },
           });
         }
 

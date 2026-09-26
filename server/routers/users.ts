@@ -215,7 +215,7 @@ export const usersRouter = router({
     )
     .output(userSchema)
     .mutation(async ({ ctx, input }) => {
-      const existingUser = await ctx.prisma.user.findUnique({
+      const existingUser = await ctx.prisma.user.findFirst({
         where: { email: input.email },
       });
       if (existingUser) {

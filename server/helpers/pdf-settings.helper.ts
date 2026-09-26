@@ -5,8 +5,10 @@
  * Une seule requête Prisma pour les 2 catégories. Retourne une structure
  * typée prête à être passée au composant `<PDFFooter>`.
  *
- * Fallbacks sûrs : `org.name` au minimum `'ALVM'` (le pied de page doit
- * toujours afficher au moins le nom). Les autres champs sont vides/undefined.
+ * Fallbacks sûrs : `org.name` retombe sur le nom de l'association (table
+ * `organizations`, tenant de la transaction) — le pied de page doit toujours
+ * afficher au moins le nom. Aucune identité d'organisation n'est codée en dur
+ * (CLAUDE.md InnovIA §5.13). Les autres champs sont vides/undefined.
  */
 
 import type { OrgInfo } from '@/lib/pdf/shared/pdf-footer';
@@ -33,6 +35,10 @@ interface HasAppSettingFindMany {
       where: { category: { in: string[] } };
       select: { category: true; key: true; value: true };
     }) => Promise<Array<{ category: string; key: string; value: string | null }>>;
+  };
+  /** Association de la transaction (la RLS n'en laisse voir qu'une). */
+  organization?: {
+    findFirst: (args: { select: { name: true } }) => Promise<{ name: string } | null>;
   };
 }
 
@@ -76,9 +82,7 @@ function categoryMap(
  * @param prisma client Prisma (compatible client étendu soft-delete)
  * @returns données prêtes à passer aux composants PDF
  */
-export async function getPdfSettings(
-  prisma: HasAppSettingFindMany,
-): Promise<PdfSettingsData> {
+export async function getPdfSettings(prisma: HasAppSettingFindMany): Promise<PdfSettingsData> {
   const rows = await prisma.appSetting.findMany({
     where: { category: { in: ['organization', 'documents'] } },
     select: { category: true, key: true, value: true },
@@ -86,9 +90,13 @@ export async function getPdfSettings(
 
   const org = categoryMap(rows, 'organization');
   const docs = categoryMap(rows, 'documents');
+  const fallbackName =
+    (org.get('name')
+      ? undefined
+      : (await prisma.organization?.findFirst({ select: { name: true } }))?.name) ?? '';
 
   const orgInfo: OrgInfo = {
-    name: org.get('name') ?? 'ALVM',
+    name: org.get('name') ?? fallbackName,
     shortName: org.get('short_name'),
     address: org.get('address'),
     city: org.get('city'),
