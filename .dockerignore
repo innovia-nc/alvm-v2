@@ -1,18 +1,36 @@
-node_modules
-.next
-.git
-.github
-.gitignore
+# Contexte de build = RACINE du monorepo, pour les deux images :
+#   docker build -f alvm-back/Dockerfile  .
+#   docker build -f alvm-front/Dockerfile .
+# Ce qui n'entre dans aucune image reste dehors : contexte léger, cache de
+# couches stable, aucun secret local embarqué.
+
+# Dépendances et sorties de build locales (réinstallées / reconstruites dans l'image)
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/playwright-report
+**/test-results
+
+# Secrets et configuration locale : jamais dans une image
+**/.env
+**/.env.*
 .vercel
-.env
-.env.*
-!.env.example
 .claude
 .vscode
 .idea
-coverage
+
+# Dépôt, CI, documentation, fichiers de déploiement
+.git
+.gitignore
+.github
 docs
-test
-*.tsbuildinfo
-Dockerfile
+deploy
+*.md
+compose*.yml
+**/Dockerfile
 .dockerignore
+
+# Tests : hors build (le typecheck de `next build` n'en a pas besoin)
+**/test
