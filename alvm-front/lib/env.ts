@@ -3,8 +3,11 @@
  * (`instrumentation.ts`, CLAUDE.md InnovIA §5.10 / §5.13). Serveur uniquement :
  * aucune variable `NEXT_PUBLIC_*` — le navigateur ne parle qu'au front.
  *
- * `SKIP_ENV_VALIDATION=1` ne sert qu'au `next build` (image Docker, CI) : les
- * pages sont dynamiques, les secrets ne sont lus qu'à l'exécution.
+ * La validation est sautée pendant `next build` (phase de build de Next, ou
+ * `SKIP_ENV_VALIDATION=1`) : les pages sont dynamiques, les secrets ne sont lus
+ * qu'à l'exécution — le build (image Docker, CI) ne dépend d'aucun secret. Au
+ * démarrage du serveur, `instrumentation.ts` valide et arrête le processus si
+ * la configuration est invalide.
  */
 import { createEnv } from '@t3-oss/env-nextjs';
 import { z } from 'zod';
@@ -24,5 +27,7 @@ export const env = createEnv({
   },
   experimental__runtimeEnv: {},
   emptyStringAsUndefined: true,
-  skipValidation: Boolean(process.env.SKIP_ENV_VALIDATION),
+  skipValidation:
+    Boolean(process.env.SKIP_ENV_VALIDATION) ||
+    process.env.NEXT_PHASE === 'phase-production-build',
 });
