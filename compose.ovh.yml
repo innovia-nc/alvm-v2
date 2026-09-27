@@ -7,9 +7,10 @@
 # que les réglages Coolify de docs/deploiement-ovh.md. Il sert aussi de
 # répétition « comme en prod » sur un hôte Docker quelconque :
 #
-#   export IMAGE_TAG=$(git rev-parse --short HEAD)
+#   export IMAGE_TAG=<sha court publié par la CI>  # ou $(git rev-parse --short HEAD) + dc build
 #   dc() { docker compose -f compose.ovh.yml --env-file deploy/ovh/.env "$@"; }
-#   dc build
+#   dc pull                                            # images publiées par la CI (ghcr.io)
+#   # dc build                                         # répétition locale d'un commit non publié
 #   dc up -d postgres redis
 #   dc --profile ops run --rm migrate                      # schéma + droits de alvm_app
 #   dc run --rm -e SUPER_ADMIN_EMAIL -e SUPER_ADMIN_PASSWORD back create-super-admin
@@ -54,7 +55,7 @@ x-back-build: &back-build
 
 services:
   front:
-    image: asso-saas-front:${IMAGE_TAG:?IMAGE_TAG absent}
+    image: ghcr.io/innovia-noumea/asso-saas-front:${IMAGE_TAG:?IMAGE_TAG absent}
     build:
       context: .
       dockerfile: alvm-front/Dockerfile
@@ -78,7 +79,7 @@ services:
     networks: [app]
 
   back:
-    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
+    image: ghcr.io/innovia-noumea/asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
     build: *back-build
     restart: unless-stopped
     logging: *logging
@@ -96,7 +97,7 @@ services:
       data: {}
 
   worker:
-    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
+    image: ghcr.io/innovia-noumea/asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
     # Même build que le back (entièrement en cache) : l'image existe toujours
     # localement, quel que soit l'ordre dans lequel Compose traite les services.
     build: *back-build
@@ -115,7 +116,7 @@ services:
   # One-shot, seul détenteur des identifiants propriétaire :
   #   docker compose -f compose.ovh.yml --profile ops run --rm migrate
   migrate:
-    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
+    image: ghcr.io/innovia-noumea/asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
     command: ['migrate']
     profiles: [ops]
     restart: 'no'

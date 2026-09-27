@@ -124,11 +124,20 @@ jobs:
 
   images:
     name: Image ${{ matrix.service }}
+    # Seule une version verte est publiée : qualité ET intégration d'abord.
+    needs: [quality, integration]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
         service: [back, front]
+    env:
+      # Publication sur ghcr.io uniquement pour un push sur master ; une PR
+      # construit l'image sans la pousser.
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -136,14 +145,31 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Construite, jamais poussée ici : la publication (ghcr.io) viendra avec
-      # le workflow de déploiement. Contexte = racine du monorepo.
+      - name: Tag court (SHA du commit)
+        id: tag
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Connexion à ghcr.io
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Contexte = racine du monorepo. Image taguée au SHA court, jamais
+      # `latest` (CLAUDE.md §7.1) : le staging puis la production servent CE
+      # tag — l'artefact validé en staging est celui qui part en production
+      # (docs/deploiement-ovh.md § 6).
       - name: Build alvm-${{ matrix.service }}/Dockerfile
         uses: docker/build-push-action@v6
         with:
           context: .
           file: alvm-${{ matrix.service }}/Dockerfile
-          push: false
-          tags: asso-saas-${{ matrix.service }}:${{ github.sha }}
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ghcr.io/innovia-noumea/asso-saas-${{ matrix.service }}:${{ steps.tag.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/innovia-noumea/asso-saas
+            org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}

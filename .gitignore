@@ -56,3 +56,7 @@ docs/**/*.pdf
 .env*
 !.env.example
 dist-scripts/
+
+# Staging srv-innovia : identifiants générés sur le serveur (jamais versionnés)
+deploy/staging/.superadmin
+deploy/staging/.seed-password
