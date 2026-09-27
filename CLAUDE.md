@@ -171,13 +171,24 @@ routes `app/api/upload/*`, qui portent AUSSI la creation de la ligne en base
 La regle d'acces a un enfant est partagee entre le routeur et la route dans
 `server/helpers/child-access.helper.ts` — ne pas la redupliquer.
 
-### Envoi d'email (TD-008)
-`server/services/email.service.ts` est le seul point d'envoi (API REST Resend).
-La cle vit dans l'environnement (`RESEND_API_KEY`), l'identite d'expedition dans
-les settings `email`. Un environnement sans cle n'est pas un bug : les
-procedures levent `PRECONDITION_FAILED` et les ecrans desactivent le bouton via
-`settings.isEmailConfigured`. Ne jamais inventer de code d'erreur tRPC — c'est
-exactement ce que faisait le `'NOT_IMPLEMENTED' as any` supprime par TD-008.
+### Envoi d'email (TD-008) — file `alvm-email`
+Tout envoi passe par la file BullMQ `alvm-email` (CLAUDE.md InnovIA §5.11) :
+les procedures (`invoices.sendEmail`, `account.requestReset`) verifient les
+preconditions puis appellent `enqueueEmail()` (`alvm-back/src/queues/email.queue.ts`)
+en DERNIER dans la transaction du tenant ; le worker (`src/worker.ts`, processus
+separe, meme image) compose et envoie via `email.service.ts` (API REST Resend).
+Regles :
+- la ligne `email_messages` est l'autorite (historique : `invoices.emailHistory`) ;
+  le worker n'envoie jamais sans elle. Ni corps ni jeton en base ; le job ne
+  porte que des identifiants (+ le lien de reinitialisation, ephemere) ;
+- sans `RESEND_API_KEY` ou sans `REDIS_URL` : `PRECONDITION_FAILED` explicite,
+  et `settings.isEmailConfigured` desactive les boutons. Redis injoignable :
+  `SERVICE_UNAVAILABLE` (la transaction annule la ligne) ;
+- `account.requestReset` repond pareil que le compte existe ou non, meme si
+  la file tombe apres la recherche du compte (erreur journalisee cote serveur).
+Ne jamais inventer de code d'erreur tRPC — c'est exactement ce que faisait le
+`'NOT_IMPLEMENTED' as any` supprime par TD-008. Detail et verification :
+`docs/file-emails.md`.
 
 ### Un enfant a toujours au moins un parent
 Invariant porte par un **trigger legacy** de la BDD (absent du depot, donc
@@ -231,6 +242,7 @@ Pour chaque router :
 ## Documents
 
 - `docs/deploiement.md` — topologie Vercel/Neon, vars d'env, procedure de migration, incident 2025-11.
+- `docs/file-emails.md` — file d'emails BullMQ `alvm-email` : producteur, worker, statuts, commandes de verification.
 - `docs/deploiement-ovh.md` — **deploiement de reference** : staging srv-innovia, prod srv-ovh (Coolify), base neuve via `db-init`, vars d'env, `TRUSTED_PROXY_HOPS`.
 - `docs/dette-technique.md` — registre de dette (OPEN : TD-001 typage any des mappers ; TD-005 triggers legacy absents du depot — « dernier parent » et `payment_status` ; TD-009 aucune limitation de debit sur l'authentification ; TD-010 procedures tRPC sans ecran ; TD-011 auto-inscription parent sans serveur ; TD-014 route de presence en double, sans lien ; TD-015 modeles NextAuth `Session`/`VerificationToken` inutilises ; TD-016 aucun ecran « mon compte » self-service ; TD-017 ecran d'habilitations `/dashboard/admin/users` hors navigation ; TD-018 colonnes Prisma jamais lues ni ecrites ; TD-019 `isPasswordStrong` sans appelant serveur ; TD-020 `prisma/reset-data.sql` orphelin et trompeur ; TD-021 `user.name`/`user.emailVerified` transportes sans lecteur ; TD-022 douze formatages de date dupliques ; TD-023 sous-composants shadcn jamais rendus dans `components/ui/` ; TD-024 aucune borne d'age sur un camp ; TD-026 quatre ecrans dupliques entre ADMIN et STAFF ; TD-027 pointage de presence : trois champs d'entree qu'aucun ecran ne remplit. DONE : TD-002 factures legacy 0 XPF ; TD-003 divergence des deux vues du solde d'un avoir ; TD-004 reserve du pied de page PDF ; TD-006 blobs orphelins ; TD-007 PDF d'avoir cable ; TD-008 envoi d'email implemente ; TD-012 SIREN du FEC cable ; TD-013 statuts affiches via StatusBadge ; TD-025 routes `/api/upload/*` livrees ; TD-A2 couverture PDF facture).
 - `docs/stories/BACKLOG.md` — backlog produit + **backlog MIKADO livre le 2026-08-09** (7 US, arbitrages US-FACT-02 tranches) + **retours de recette livres le 2026-08-10** (4 US : PDF facture, selecteur d'avoir, suppression de parent).
