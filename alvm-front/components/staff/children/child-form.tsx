@@ -30,6 +30,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Info, Save, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -322,6 +323,25 @@ export function ChildForm({
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Le formulaire ne stocke que l'identifiant, le rôle principal et le lien de
+  // parenté de chaque parent (contrat `children.create`). Son identité (nom,
+  // email, téléphone), reçue de la recherche, est conservée à part pour que la
+  // carte du parent sélectionné le désigne sans ambiguïté : une carte vide ne
+  // permet pas de vérifier qu'on a choisi le bon parent parmi des homonymes.
+  const [parentIdentities, setParentIdentities] = useState<
+    Record<string, Pick<SelectedParent, 'firstName' | 'lastName' | 'email' | 'phone'>>
+  >({});
+  const rememberParentIdentities = (parents: SelectedParent[]) =>
+    setParentIdentities((known) => ({
+      ...known,
+      ...Object.fromEntries(
+        parents.map((p) => [
+          p.parentId,
+          { firstName: p.firstName, lastName: p.lastName, email: p.email, phone: p.phone },
+        ]),
+      ),
+    }));
+
   // Convertir les parents pour le ParentMultiSelect
   const selectedParents: SelectedParent[] =
     mode === 'edit' && initialData
@@ -358,14 +378,15 @@ export function ChildForm({
                         value={field.value.map((p) => ({
                           id: '',
                           parentId: p.parentId,
-                          firstName: '',
-                          lastName: '',
-                          email: '',
-                          phone: '',
+                          firstName: parentIdentities[p.parentId]?.firstName ?? '',
+                          lastName: parentIdentities[p.parentId]?.lastName ?? '',
+                          email: parentIdentities[p.parentId]?.email ?? '',
+                          phone: parentIdentities[p.parentId]?.phone ?? '',
                           isPrimary: p.isPrimary,
                           relationship: p.relationship || null,
                         }))}
                         onChange={(parents) => {
+                          rememberParentIdentities(parents);
                           field.onChange(
                             parents.map((p) => ({
                               parentId: p.parentId,

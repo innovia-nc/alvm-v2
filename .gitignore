@@ -44,6 +44,9 @@ Thumbs.db
 
 # test
 coverage/
+# Playwright (sorties locales ; les preuves de recette vivent dans docs/test-evidence/)
+test-results/
+playwright-report/
 
 # binaires de documentation (héberger sur Drive/Notion, pas dans git)
 docs/**/*.docx

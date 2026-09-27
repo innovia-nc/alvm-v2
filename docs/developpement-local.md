@@ -39,7 +39,7 @@ Mot de passe de tous les comptes : `Test1234!Seed` (ou `SEED_PASSWORD`).
 |----------|--------|
 | `pnpm test:all` | lint + tsc + tests unitaires des trois paquets (à lancer avant tout push) |
 | `pnpm test:integration` | PostgreSQL réel (base `alvm_integration`, rôle non-superuser) : isolation RLS, flux métier, routes HTTP — **échoue** si PostgreSQL est absent |
-| `pnpm e2e` | parcours navigateur Playwright (front + back démarrés) |
+| `scripts/e2e-stack.sh up` puis `test` | recette Playwright sur un banc isolé (base `alvm_e2e`, back :4102, front :3102) — `alvm-front/tests/e2e/README.md` |
 | `pnpm build:all` | build tsup du back, `next build` du front |
 
 ## Nouvelle migration

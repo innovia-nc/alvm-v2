@@ -19,8 +19,8 @@ Créer une association pose en une transaction l'espace (nom, identifiant de
 connexion définitif), ses moyens de paiement système, sa tarification par
 défaut (TGC 0 %) et son premier compte ADMIN (mot de passe initial transmis
 par l'opérateur). Le détail d'une association permet de la renommer, de la
-suspendre (connexions refusées, sessions révoquées à la requête suivante,
-données conservées), de régler ses **modules** et de gérer ses comptes. Les
+suspendre (connexions refusées, sessions révoquées à la requête suivante —
+définitivement : après réactivation, chacun se reconnecte —, données conservées), de régler ses **modules** et de gérer ses comptes. Les
 modules sont réglés **par association** : désactiver un module chez l'une
 n'affecte pas les autres.
 
