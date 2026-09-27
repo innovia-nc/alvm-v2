@@ -385,6 +385,54 @@ describe('dans son association', () => {
   });
 });
 
+describe('PDF archivés par les procédures tRPC (seul le stockage est simulé)', () => {
+  it('facture : rendu réel, objet rangé sous l’association, URL enregistrée sur la ligne', async () => {
+    const result = await A.tenant.adminCaller.invoices.generatePDF({ id: A.invoiceId });
+    expect(result.pdfUrl).toBe(`/api/documents/invoice/${A.invoiceId}`);
+    const [pathname, data, options] = blob.put.mock.calls[0];
+    expect(pathname).toMatch(
+      new RegExp(
+        `^organizations/${A.tenant.organization.id}/invoices/FAC-\\d{4}-\\d{4}-${A.invoiceId}\\.pdf$`,
+      ),
+    );
+    expect(options).toMatchObject({ access: 'private', contentType: 'application/pdf' });
+    expect(Buffer.from(data).subarray(0, 5).toString()).toBe('%PDF-');
+    const row = await owner.invoice.findUniqueOrThrow({ where: { id: A.invoiceId } });
+    expect(row.pdfUrl).toBe(`${PRIVATE_HOST}/${pathname}`);
+  });
+
+  it('avoir : même chaîne, sous le préfixe de l’association', async () => {
+    await A.tenant.adminCaller.creditNotes.generatePDF({ id: A.creditNoteId });
+    const [pathname] = blob.put.mock.calls[0];
+    expect(pathname).toMatch(
+      new RegExp(
+        `^organizations/${A.tenant.organization.id}/credit-notes/AVO-\\d{4}-\\d{4}-${A.creditNoteId}\\.pdf$`,
+      ),
+    );
+  });
+
+  it('une pièce de A est introuvable pour l’admin de B, rien n’est archivé', async () => {
+    expect(await trpcCodeOf(B.tenant.adminCaller.invoices.generatePDF({ id: A.invoiceId }))).toBe(
+      'NOT_FOUND',
+    );
+    expect(
+      await trpcCodeOf(B.tenant.adminCaller.creditNotes.generatePDF({ id: A.creditNoteId })),
+    ).toBe('NOT_FOUND');
+    expect(blob.put).not.toHaveBeenCalled();
+  });
+
+  it('envoi par email sans clé configurée : refus explicite, écran désactivé', async () => {
+    expect(await A.tenant.adminCaller.settings.isEmailConfigured()).toEqual({
+      configured: false,
+      fromEmail: null,
+    });
+    expect(await trpcCodeOf(A.tenant.adminCaller.invoices.sendEmail({ id: A.invoiceId }))).toBe(
+      'PRECONDITION_FAILED',
+    );
+    expect(blob.put).not.toHaveBeenCalled();
+  });
+});
+
 describe('session réelle : cookie Auth.js revalidé en base à chaque requête', () => {
   async function cookieFor(user: RequestUser, overrides: Record<string, unknown> = {}) {
     const { sessionVersion } = await owner.user.findUniqueOrThrow({ where: { id: user.id } });
