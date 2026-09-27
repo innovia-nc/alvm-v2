@@ -112,7 +112,14 @@ export async function handleAttendanceListPdf(
   );
 }
 
-/** Fiche d'un enfant (données sensibles) — même règle d'accès que les procédures. */
+/**
+ * Fiche d'un enfant (données sensibles) — même règle d'accès que les procédures.
+ *
+ * Enfant d'une autre association, d'une autre famille ou inexistant : même
+ * 404 indistinct que `/api/documents` et les téléversements. Un 403 ici ne
+ * s'obtenait que pour un identifiant hors de portée (la branche 404 était
+ * inatteignable) et répondait « interdit » à une ressource d'un autre tenant.
+ */
 export async function handleChildProfilePdf(
   childId: string,
   user: RequestUser | null,
@@ -122,7 +129,7 @@ export async function handleChildProfilePdf(
   if (!UUID.test(childId)) return textError('Non trouvé', 404);
 
   const data = await tenant.run(async (db) => {
-    if (!(await hasChildAccess(db, tenant.user.id, tenant.user.role, childId))) return 'forbidden';
+    if (!(await hasChildAccess(db, tenant.user.id, tenant.user.role, childId))) return null;
     const child = await db.child.findFirst({
       where: { id: childId, deletedAt: null },
       select: {
@@ -158,7 +165,6 @@ export async function handleChildProfilePdf(
     });
     return child ? { child, settings: await getPdfSettings(db) } : null;
   });
-  if (data === 'forbidden') return textError('Non autorisé', 403);
   if (!data) return textError('Non trouvé', 404);
   const { child, settings } = data;
 
