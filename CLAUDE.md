@@ -37,6 +37,7 @@ association cliente.
 | `docs/super-admin.md` | super administration : associations, modules, intégrations, audit |
 | `docs/dette-technique.md` | registre de dette priorisé (P0–P3, OPEN / PARTIEL / DONE) |
 | `docs/bug-patterns.md` | pièges récurrents (RLS + RETURNING, middlewares tRPC, verrous…) |
+| `docs/audit-select-2026-09-27.md` | audit §5.9 : champs exposés par procédure, avant / après, projections par rôle |
 | `docs/retros.md` | rétrospectives et post-mortems (historisé, on ajoute) |
 | `docs/test-evidence/` | preuves de recette visuelle (Playwright, captures par critère) |
 | `docs/stories/BACKLOG.md` | backlog produit |

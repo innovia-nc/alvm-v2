@@ -1600,8 +1600,9 @@ describe('invoices router', () => {
         });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
-        expect(findFirstCall.include).toHaveProperty('payments');
-        expect(findFirstCall.include.payments.select).toEqual({
+        expect(findFirstCall.include).toBeUndefined();
+        expect(findFirstCall.select).toHaveProperty('payments');
+        expect(findFirstCall.select.payments.select).toEqual({
           amount: true,
           paymentDate: true,
           paymentMethod: { select: { name: true } },
@@ -1611,7 +1612,7 @@ describe('invoices router', () => {
         });
       });
 
-      it('includes parent, lines and payments together in the findFirst query', async () => {
+      it('selects parent, lines and payments together, and no internal invoice field (§5.9)', async () => {
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
         await expect(caller.invoices.generatePDF({ id: INVOICE_ID })).rejects.toMatchObject({
@@ -1619,9 +1620,11 @@ describe('invoices router', () => {
         });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
-        expect(findFirstCall.include).toHaveProperty('parent');
-        expect(findFirstCall.include).toHaveProperty('lines');
-        expect(findFirstCall.include).toHaveProperty('payments');
+        expect(findFirstCall.select).toHaveProperty('parent');
+        expect(findFirstCall.select).toHaveProperty('lines');
+        expect(findFirstCall.select).toHaveProperty('payments');
+        for (const internal of ['notes', 'createdById', 'validatedById', 'version', 'pdfUrl'])
+          expect(findFirstCall.select).not.toHaveProperty(internal);
       });
 
       it('does not expose sensitive fields in the payments select (no id, no invoiceId, no parentId)', async () => {
@@ -1632,7 +1635,7 @@ describe('invoices router', () => {
         });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
-        const paymentsSelect = findFirstCall.include.payments.select;
+        const paymentsSelect = findFirstCall.select.payments.select;
         expect(paymentsSelect).not.toHaveProperty('id');
         expect(paymentsSelect).not.toHaveProperty('invoiceId');
         expect(paymentsSelect).not.toHaveProperty('parentId');
