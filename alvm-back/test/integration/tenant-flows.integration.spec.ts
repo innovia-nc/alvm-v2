@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isSessionValid, verifyCredentials } from '@back/services/auth.service';
 import { SYSTEM_PAYMENT_METHODS } from '@back/services/tenant-defaults';
 import { createOwnerClient, trpcCodeOf } from './helpers/db';
+import { crossTenantReferences } from './helpers/integrity';
 import {
   callerFor,
   createChild,
@@ -840,6 +841,49 @@ describe('accès entre associations', () => {
     );
   });
 
+  it('l’admin de A ne rattache aucune pièce à un client, une inscription ou un type de B', async () => {
+    // Les clés étrangères sont vérifiées hors RLS : sans contrôle applicatif,
+    // ces identifiants de B étaient acceptés et créaient des références
+    // croisées entre associations.
+    const admin = A.adminCaller;
+    const line = { registrationId: null, description: 'Intrusion', quantity: 1, unitPrice: 100 };
+    expect(
+      await trpcCodeOf(
+        admin.invoices.create({ parentId: parentB.id, dueDate: isoDay(30), lines: [line] }),
+      ),
+    ).toBe('NOT_FOUND');
+    expect(
+      await trpcCodeOf(
+        admin.creditNotes.create({
+          parentId: parentB.id,
+          refundMethod: 'FUTURE_CREDIT',
+          reason: 'Intrusion entre associations',
+          lines: [line],
+        }),
+      ),
+    ).toBe('NOT_FOUND');
+    expect(
+      await trpcCodeOf(
+        admin.creditNotes.create({
+          parentId: parentA.id,
+          refundMethod: 'FUTURE_CREDIT',
+          reason: 'Intrusion entre associations',
+          lines: [{ ...line, registrationId: registrationB }],
+        }),
+      ),
+    ).toBe('BAD_REQUEST');
+    const campTypeB = (await owner.camp.findUniqueOrThrow({ where: { id: campB } })).campTypeId;
+    expect(await trpcCodeOf(admin.camps.update({ id: campA, campTypeId: campTypeB }))).toBe(
+      'NOT_FOUND',
+    );
+    expect(
+      await owner.invoice.count({
+        where: { organizationId: A.organization.id, parentId: parentB.id },
+      }),
+    ).toBe(0);
+    expect(await crossTenantReferences(owner)).toEqual([]);
+  });
+
   it('un export FEC de B est introuvable depuis A', async () => {
     await B.adminCaller.fec.generateFEC({ startDate: `${YEAR}-01-01`, endDate: `${YEAR}-12-31` });
     const [exportB] = await B.adminCaller.fec.history({ offset: 0 });
@@ -1150,5 +1194,11 @@ describe('super administration', () => {
         }),
       ),
     ).toBe('FORBIDDEN');
+  });
+});
+
+describe('intégrité inter-tenants de la base après tous les parcours', () => {
+  it('aucune ligne ne référence une ligne d’une autre association', async () => {
+    expect(await crossTenantReferences(owner)).toEqual([]);
   });
 });

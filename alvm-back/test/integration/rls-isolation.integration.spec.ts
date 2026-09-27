@@ -40,6 +40,7 @@ import {
   type ContextRunner,
 } from './helpers/db';
 import { seedTenantDataset, type TenantDataset } from './helpers/dataset';
+import { crossTenantReferences } from './helpers/integrity';
 import {
   callerFor,
   createParent,
@@ -715,5 +716,11 @@ describe('unicité par tenant', () => {
         }),
       ),
     );
+  });
+});
+
+describe('intégrité inter-tenants', () => {
+  it('aucune ligne de A ne référence une ligne de B (clés étrangères vérifiées hors RLS)', async () => {
+    expect(await crossTenantReferences(owner)).toEqual([]);
   });
 });
