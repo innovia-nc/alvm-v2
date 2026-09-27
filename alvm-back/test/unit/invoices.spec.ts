@@ -1,6 +1,11 @@
 vi.mock('@back/db', () => ({
   prisma: { platformIntegration: { findUnique: vi.fn().mockResolvedValue(null) } },
 }));
+// File alvm-email simulée : aucun Redis en test unitaire.
+vi.mock('bullmq', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('bullmq')>()),
+  Queue: (await import('../helpers/fake-email-queue')).FakeQueue,
+}));
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TRPCError } from '@trpc/server';
 
@@ -28,6 +33,7 @@ import {
   TEST_ORGANIZATION_ID,
 } from '../helpers/test-caller';
 import type { MockPrisma } from '../helpers/mock-prisma';
+import { queueAdd, resetFakeEmailQueue } from '../helpers/fake-email-queue';
 
 // ---------------------------------------------------------------------------
 // Valid RFC 4122 UUIDs for test fixtures
@@ -1619,75 +1625,53 @@ describe('invoices router', () => {
   });
 
   // =========================================================================
-  // sendEmail
+  // sendEmail — programmation dans la file alvm-email
   // =========================================================================
 
-  describe('sendEmail (TD-008)', () => {
-    const PDF_URL = 'https://store.blob.vercel-storage.com/invoices/FAC-2026-0001.pdf';
+  describe('sendEmail (TD-008, file alvm-email)', () => {
+    const MESSAGE_ID = 'e0000000-0000-4000-a000-000000000001';
     let fetchMock: ReturnType<typeof vi.fn>;
 
-    /** Facture complète telle que la lit `generateAndStoreInvoicePdf`. */
-    function makeInvoiceForPdf(overrides: Record<string, any> = {}) {
+    /** Facture telle que la lit la procédure (select whitelist). */
+    function makeInvoiceForEmail(overrides: Record<string, any> = {}) {
       return {
+        id: INVOICE_ID,
+        invoiceNumber: 'FAC-2026-0001',
         // Facture émise par défaut : le cas brouillon (« devis ») a son test.
-        ...makeInvoiceRow({ status: 'SENT' }),
-        parent: {
-          firstName: 'Jean',
-          lastName: 'Dupont',
-          email: 'jean.dupont@example.nc',
-          address: '15 Rue de la Baie',
-          city: 'Noumea',
-          postalCode: '98800',
-        },
-        lines: [
-          {
-            description: 'Camp ete',
-            quantity: 1,
-            unitPrice: 10000,
-            totalPrice: 10000,
-          },
-        ],
-        payments: [],
+        status: 'SENT',
+        totalAmount: 10000,
+        dueDate,
+        parent: { firstName: 'Jean', lastName: 'Dupont', email: 'jean.dupont@example.nc' },
         ...overrides,
       };
     }
 
-    function arrangeHappyPath(invoice: Record<string, any> = makeInvoiceForPdf()) {
+    function arrangeHappyPath(invoice: Record<string, any> = makeInvoiceForEmail()) {
       mockPrisma.invoice.findFirst.mockResolvedValue(invoice);
-      mockPrisma.invoice.update.mockResolvedValue({});
-      mockPrisma.appSetting.findUnique.mockResolvedValue(null);
       mockPrisma.appSetting.findMany.mockResolvedValue([
         { category: 'organization', key: 'short_name', value: '"ALVM"' },
         { category: 'email', key: 'from_name', value: '"ALVM"' },
         { category: 'email', key: 'from_email', value: '"noreply@alvm.nc"' },
         { category: 'email', key: 'reply_to', value: '"contact@alvm.nc"' },
       ]);
-      generateInvoicePDF.mockResolvedValue(Buffer.from('%PDF-facture'));
-      uploadToStorage.mockResolvedValue({ pathname: 'invoices/x.pdf', url: PDF_URL });
+      mockPrisma.emailMessage.create.mockResolvedValue({ id: MESSAGE_ID });
     }
 
-    /** Corps JSON envoyé au fournisseur d'email. */
-    function sentPayload() {
-      return JSON.parse(fetchMock.mock.calls[0]![1].body);
-    }
-
-    beforeEach(() => {
+    beforeEach(async () => {
       ({ caller, mockPrisma } = createTestCaller(ADMIN_USER));
+      await resetFakeEmailQueue();
       generateInvoicePDF.mockReset();
       uploadToStorage.mockReset();
-      process.env.RESEND_API_KEY = 'resend_test_key';
-      fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({ id: 'email_123' }),
-        text: async () => '',
-      });
+      vi.stubEnv('RESEND_API_KEY', 'resend_test_key');
+      vi.stubEnv('REDIS_URL', 'redis://localhost:6380');
+      fetchMock = vi.fn();
       vi.stubGlobal('fetch', fetchMock);
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+      await resetFakeEmailQueue();
       vi.unstubAllGlobals();
-      delete process.env.RESEND_API_KEY;
+      vi.unstubAllEnvs();
     });
 
     it('rejects PARENT users', async () => {
@@ -1695,18 +1679,43 @@ describe('invoices router', () => {
       await expect(parentCaller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
         code: 'FORBIDDEN',
       });
+      expect(queueAdd).not.toHaveBeenCalled();
+    });
+
+    it('is blocked when the email module is disabled for the association', async () => {
+      arrangeHappyPath();
+      mockPrisma.appSetting.findFirst.mockResolvedValue({
+        value: JSON.stringify({ email: false }),
+      });
+
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      expect(mockPrisma.emailMessage.create).not.toHaveBeenCalled();
+      expect(queueAdd).not.toHaveBeenCalled();
     });
 
     it('fails with an explicit precondition error when email is not configured', async () => {
-      delete process.env.RESEND_API_KEY;
+      vi.stubEnv('RESEND_API_KEY', '');
 
       await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
         code: 'PRECONDITION_FAILED',
+        message: expect.stringContaining('RESEND_API_KEY'),
       });
+      expect(mockPrisma.emailMessage.create).not.toHaveBeenCalled();
+      expect(queueAdd).not.toHaveBeenCalled();
+    });
 
-      // Aucun PDF généré, aucun appel réseau : on s'arrête avant.
-      expect(generateInvoicePDF).not.toHaveBeenCalled();
-      expect(fetchMock).not.toHaveBeenCalled();
+    it('fails with an explicit precondition error when the queue is not configured (no REDIS_URL)', async () => {
+      arrangeHappyPath();
+      vi.stubEnv('REDIS_URL', '');
+
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'PRECONDITION_FAILED',
+        message: expect.stringContaining('REDIS_URL'),
+      });
+      expect(mockPrisma.emailMessage.create).not.toHaveBeenCalled();
+      expect(queueAdd).not.toHaveBeenCalled();
     });
 
     it('throws NOT_FOUND when the invoice does not exist', async () => {
@@ -1715,82 +1724,115 @@ describe('invoices router', () => {
       await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
         code: 'NOT_FOUND',
       });
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(queueAdd).not.toHaveBeenCalled();
     });
 
-    it('sends the invoice with its PDF attached', async () => {
+    it('queues the email instead of sending it inline', async () => {
       arrangeHappyPath();
 
       const result = await caller.invoices.sendEmail({ id: INVOICE_ID });
 
-      expect(result).toEqual({ success: true, sentTo: 'jean.dupont@example.nc' });
-      expect(fetchMock).toHaveBeenCalledOnce();
-
-      const payload = sentPayload();
-      expect(payload.to).toEqual(['jean.dupont@example.nc']);
-      expect(payload.from).toBe('ALVM <noreply@alvm.nc>');
-      expect(payload.reply_to).toBe('contact@alvm.nc');
-      expect(payload.subject).toContain('FAC-2026-0001');
-      expect(payload.attachments).toHaveLength(1);
-      expect(payload.attachments[0].filename).toBe('facture-FAC-2026-0001.pdf');
-      expect(Buffer.from(payload.attachments[0].content, 'base64').toString()).toBe('%PDF-facture');
+      expect(result).toEqual({
+        success: true,
+        status: 'QUEUED',
+        recipient: 'jean.dupont@example.nc',
+        emailMessageId: MESSAGE_ID,
+      });
+      // Ni appel au fournisseur, ni rendu PDF dans la requête : c'est le worker.
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(generateInvoicePDF).not.toHaveBeenCalled();
+      expect(uploadToStorage).not.toHaveBeenCalled();
     });
 
-    it('archives the freshly generated PDF on the invoice', async () => {
+    it('records the message (QUEUED) in the tenant transaction, then adds the job', async () => {
       arrangeHappyPath();
 
       await caller.invoices.sendEmail({ id: INVOICE_ID });
 
-      expect(uploadToStorage).toHaveBeenCalledOnce();
-      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
-        where: { id: INVOICE_ID },
-        data: { pdfUrl: PDF_URL },
+      expect(mockPrisma.emailMessage.create).toHaveBeenCalledWith({
+        data: {
+          organizationId: TEST_ORGANIZATION_ID,
+          kind: 'invoice',
+          recipient: 'jean.dupont@example.nc',
+          subject: 'Votre facture FAC-2026-0001 — ALVM',
+          relatedId: INVOICE_ID,
+          createdBy: ADMIN_USER.id,
+        },
+        select: { id: true },
+      });
+      expect(queueAdd).toHaveBeenCalledOnce();
+      const [name, data, opts] = queueAdd.mock.calls[0]!;
+      expect(name).toBe('invoice');
+      // Payload minimal : le worker relit la ligne et régénère le PDF.
+      expect(data).toEqual({
+        organizationId: TEST_ORGANIZATION_ID,
+        emailMessageId: MESSAGE_ID,
+        kind: 'invoice',
+      });
+      expect(opts).toMatchObject({
+        jobId: MESSAGE_ID,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 15_000 },
+        removeOnComplete: true,
+      });
+    });
+
+    it('reads the invoice with a select whitelist', async () => {
+      arrangeHappyPath();
+
+      await caller.invoices.sendEmail({ id: INVOICE_ID });
+
+      const args = mockPrisma.invoice.findFirst.mock.calls[0]![0];
+      expect(args.where).toEqual({ id: INVOICE_ID, deletedAt: null });
+      expect(args).not.toHaveProperty('include');
+      expect(args.select.parent).toEqual({
+        select: { firstName: true, lastName: true, email: true },
       });
     });
 
     it('announces a quote (devis) while the invoice is still a draft', async () => {
-      arrangeHappyPath(makeInvoiceForPdf({ status: 'DRAFT' }));
+      arrangeHappyPath(makeInvoiceForEmail({ status: 'DRAFT' }));
 
       await caller.invoices.sendEmail({ id: INVOICE_ID });
 
-      const payload = sentPayload();
-      expect(payload.subject).toContain('devis');
-      expect(payload.attachments[0].filename).toBe('devis-FAC-2026-0001.pdf');
+      expect(mockPrisma.emailMessage.create.mock.calls[0]![0].data.subject).toBe(
+        'Votre devis FAC-2026-0001 — ALVM',
+      );
     });
 
     it('refuses to send when the client has no email address', async () => {
       arrangeHappyPath(
-        makeInvoiceForPdf({
-          parent: {
-            firstName: 'Jean',
-            lastName: 'Dupont',
-            email: null,
-            address: '15 Rue de la Baie',
-            city: 'Noumea',
-            postalCode: '98800',
-          },
-        }),
+        makeInvoiceForEmail({ parent: { firstName: 'Jean', lastName: 'Dupont', email: null } }),
       );
 
       await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
         code: 'BAD_REQUEST',
       });
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(mockPrisma.emailMessage.create).not.toHaveBeenCalled();
+      expect(queueAdd).not.toHaveBeenCalled();
     });
 
-    it('surfaces a provider failure as a readable error', async () => {
+    it('refuses to queue when no sender address is configured', async () => {
       arrangeHappyPath();
-      fetchMock.mockResolvedValue({
-        ok: false,
-        status: 422,
-        text: async () => 'domain is not verified',
-        json: async () => ({}),
-      });
+      mockPrisma.appSetting.findMany.mockResolvedValue([]);
+      vi.stubEnv('EMAIL_FROM_ADDRESS', '');
 
       await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: expect.stringContaining('422'),
+        code: 'PRECONDITION_FAILED',
+        message: expect.stringContaining("Adresse d'expédition absente"),
       });
+      expect(queueAdd).not.toHaveBeenCalled();
+    });
+
+    it('surfaces an unreachable queue as SERVICE_UNAVAILABLE', async () => {
+      arrangeHappyPath();
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      queueAdd.mockRejectedValue(new Error('Connection is closed.'));
+
+      await expect(caller.invoices.sendEmail({ id: INVOICE_ID })).rejects.toMatchObject({
+        code: 'SERVICE_UNAVAILABLE',
+      });
+      error.mockRestore();
     });
 
     it('allows STAFF to send', async () => {
@@ -1799,7 +1841,60 @@ describe('invoices router', () => {
 
       const result = await caller.invoices.sendEmail({ id: INVOICE_ID });
 
-      expect(result.success).toBe(true);
+      expect(result.status).toBe('QUEUED');
+      expect(mockPrisma.emailMessage.create.mock.calls[0]![0].data.createdBy).toBe(STAFF_USER.id);
+    });
+  });
+
+  // =========================================================================
+  // emailHistory
+  // =========================================================================
+
+  describe('emailHistory', () => {
+    it('rejects unauthenticated users and PARENT users', async () => {
+      await expect(
+        createTestCaller(null).caller.invoices.emailHistory({ id: INVOICE_ID }),
+      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+      await expect(
+        createTestCaller(PARENT_USER).caller.invoices.emailHistory({ id: INVOICE_ID }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it("lists the invoice's emails, newest first, with a select whitelist", async () => {
+      const row = {
+        id: 'e0000000-0000-4000-a000-000000000001',
+        recipient: 'jean.dupont@example.nc',
+        subject: 'Votre facture FAC-2026-0001 — ALVM',
+        status: 'FAILED',
+        attempts: 3,
+        lastError: "Le fournisseur d'email a refusé l'envoi (HTTP 422).",
+        createdAt: now,
+        sentAt: null,
+      };
+      const { caller: staffCaller, mockPrisma: staffPrisma } = createTestCaller(STAFF_USER);
+      staffPrisma.emailMessage.findMany.mockResolvedValue([row]);
+      await expect(staffCaller.invoices.emailHistory({ id: INVOICE_ID })).resolves.toEqual([row]);
+
+      expect(staffPrisma.emailMessage.findMany).toHaveBeenCalledWith({
+        where: { kind: 'invoice', relatedId: INVOICE_ID },
+        select: {
+          id: true,
+          recipient: true,
+          subject: true,
+          status: true,
+          attempts: true,
+          lastError: true,
+          createdAt: true,
+          sentAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+      // Jamais exposés : identifiant fournisseur, auteur, tenant.
+      const select = staffPrisma.emailMessage.findMany.mock.calls[0]![0].select;
+      expect(select).not.toHaveProperty('providerMessageId');
+      expect(select).not.toHaveProperty('createdBy');
+      expect(select).not.toHaveProperty('organizationId');
     });
   });
 

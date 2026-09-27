@@ -5,6 +5,7 @@ import { deleteFromStorageBestEffort } from '@back/storage/blob-storage';
 import { parseLogoValue, upsertAppSetting } from '@back/helpers/settings';
 import { isTenantBlobUrl } from '@back/storage/tenant-path';
 import { TRPCError } from '@trpc/server';
+import { isEmailQueueConfigured } from '@back/queues/email.queue';
 
 const settingCategories = z.enum([
   'organization',
@@ -73,7 +74,8 @@ export const settingsRouter = router({
    * Indique si l'envoi d'email est opérationnel sur cet environnement (TD-008).
    *
    * Consommé par les écrans de facturation pour ne pas proposer un envoi qui
-   * échouerait faute de configuration. Ne renvoie aucun secret : uniquement le
+   * échouerait faute de configuration : clé du fournisseur ET file d'envoi
+   * `alvm-email` (REDIS_URL). Ne renvoie aucun secret : uniquement le
    * booléen et l'adresse d'expédition affichable.
    */
   isEmailConfigured: staffProcedure
@@ -81,7 +83,7 @@ export const settingsRouter = router({
     .query(async ({ ctx }) => {
       const { isEmailConfigured, getEmailSender } = await import('@back/services/email.service');
 
-      const configured = await isEmailConfigured();
+      const configured = (await isEmailConfigured()) && isEmailQueueConfigured();
       if (!configured) {
         return { configured: false, fromEmail: null };
       }

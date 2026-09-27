@@ -59,7 +59,7 @@ export default function ResetPasswordPage() {
         <p role="status">
           {reset.isSuccess
             ? 'Mot de passe modifié. Vous pouvez vous connecter.'
-            : 'Si ce compte est actif, un lien valable 30 minutes a été envoyé.'}
+            : 'Si ce compte est actif, un lien valable 30 minutes vous est envoyé dans quelques instants.'}
         </p>
       ) : (
         <form className="space-y-4" onSubmit={submit}>

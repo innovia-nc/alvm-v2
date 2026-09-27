@@ -10,12 +10,9 @@ import { lockAdministrators } from '@back/services/account-access.service';
 import { consumeLoginAttempt } from '@back/services/login-limit.service';
 import { organizationSlugSchema } from '@back/services/auth.service';
 import { withDbContext } from '@back/db-context';
-import {
-  sendEmail,
-  getEmailSender,
-  isEmailConfigured,
-  escapeHtml,
-} from '@back/services/email.service';
+import { isEmailConfigured } from '@back/services/email.service';
+import { passwordResetSubject } from '@back/services/email-templates';
+import { assertEmailQueueConfigured, enqueueEmail } from '@back/queues/email.queue';
 
 const password = z.string().min(8).max(128).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/);
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -79,6 +76,11 @@ export const accountRouter = router({
    * Demande de réinitialisation. Réponse identique que le compte existe ou
    * non (pas d'énumération). Scope `auth` : le compte est retrouvé par
    * (espace, email) avant qu'une session n'existe.
+   *
+   * L'email part par la file `alvm-email` (CLAUDE.md InnovIA §5.11) : la
+   * procédure programme l'envoi, le worker l'exécute. Les préconditions de
+   * configuration sont vérifiées AVANT toute recherche de compte, pour que la
+   * réponse ne dépende jamais de son existence.
    */
   requestReset: publicProcedure
     .input(
@@ -97,11 +99,15 @@ export const accountRouter = router({
           code: 'PRECONDITION_FAILED',
           message: 'La récupération par email est indisponible. Contactez le secrétariat.',
         });
+      assertEmailQueueConfigured(
+        "La récupération par email est indisponible : la file d'envoi n'est pas configurée. Contactez le secrétariat.",
+      );
       const space = input.portal === 'super-admin' ? 'platform' : input.organization;
       if (!(await consumeLoginAttempt(`reset:${space}:${input.email}`, ctx.clientIp)))
         return { success: true };
       const token = randomBytes(32).toString('hex');
-      const recipient = await withDbContext({ scope: 'auth' }, async (db) => {
+      const expiresAt = new Date(Date.now() + 30 * 60_000);
+      const recipient = await ctx.withDb({ scope: 'auth' }, async (db) => {
         const organization = await db.organization.findFirst({
           where:
             input.portal === 'super-admin'
@@ -118,31 +124,35 @@ export const accountRouter = router({
         await lockAdministrators(db);
         await db.verificationToken.deleteMany({ where: { identifier: `password:${user.id}` } });
         await db.verificationToken.create({
-          data: {
-            identifier: `password:${user.id}`,
-            token: digest(token),
-            expires: new Date(Date.now() + 30 * 60_000),
-          },
+          data: { identifier: `password:${user.id}`, token: digest(token), expires: expiresAt },
         });
         return user;
       });
       if (!recipient) return { success: true };
       const url = new URL('/auth/reset-password', process.env.AUTH_URL);
       url.searchParams.set('token', token);
-      const branding = await getBranding();
-      const sender = await withDbContext(
-        { scope: 'tenant', organizationId: recipient.organizationId },
-        (db) => getEmailSender(db),
-      );
-      await sendEmail(
-        {
-          to: recipient.email,
-          subject: `Réinitialiser votre mot de passe ${branding.name}`,
-          text: `Lien valable 30 minutes : ${url}`,
-          html: `<p><a href="${escapeHtml(url.toString())}">Réinitialiser mon mot de passe</a> (30 minutes)</p>`,
-        },
-        sender,
-      );
+      try {
+        const branding = await getBranding();
+        await ctx.withDb({ scope: 'tenant', organizationId: recipient.organizationId }, (db) =>
+          enqueueEmail(db, {
+            organizationId: recipient.organizationId,
+            kind: 'password-reset',
+            recipient: recipient.email,
+            subject: passwordResetSubject(branding.name),
+            relatedId: recipient.id,
+            resetUrl: url.toString(),
+            expiresAt,
+          }),
+        );
+      } catch (error) {
+        // Redis tombé entre-temps : tracé côté serveur, mais la réponse reste
+        // celle d'un compte inexistant (pas d'énumération). Le jeton expire seul.
+        console.error(
+          `[account.requestReset] envoi non programmé : ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+      }
       return { success: true };
     }),
   reset: publicProcedure

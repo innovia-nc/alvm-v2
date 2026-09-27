@@ -130,12 +130,13 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
   const { data: emailStatus } = trpc.settings.isEmailConfigured.useQuery();
   const emailConfigured = emailStatus?.configured ?? true;
 
+  // L'envoi part par la file `alvm-email` : la mutation le programme, le
+  // worker l'exécute (historique : invoices.emailHistory).
   const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
     onSuccess: (data) => {
-      toast.success(`Facture envoyée par email à ${data.sentTo}`);
-      utils.invoices.getById.invalidate({ id: invoice.id });
+      toast.success(`Envoi programmé à ${data.recipient}`);
+      utils.invoices.emailHistory.invalidate({ id: invoice.id });
       setIsSendingEmail(false);
-      router.refresh();
     },
     onError: (error) => {
       toast.error(error.message || 'Erreur lors de l\'envoi de l\'email');
