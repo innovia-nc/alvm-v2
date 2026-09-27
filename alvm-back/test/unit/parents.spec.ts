@@ -382,6 +382,8 @@ describe('parents router', () => {
       expect(parent.mockPrisma.parent.update).toHaveBeenCalledWith({
         where: { userId: PARENT_USER.id },
         data: expect.objectContaining({ firstName: 'Updated' }),
+        // §5.9 : colonnes relues en whitelist.
+        select: expect.objectContaining({ userId: true, firstName: true }),
       });
     });
 
@@ -626,6 +628,7 @@ describe('parents router', () => {
           employeur: null,
           fonction: null,
         }),
+        select: expect.objectContaining({ userId: true, firstName: true }),
       });
     });
 

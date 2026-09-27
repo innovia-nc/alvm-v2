@@ -120,6 +120,23 @@ describe('StatusBadge / getStatusInfo', () => {
     });
   });
 
+  describe('email', () => {
+    it('labels the three states of a queued email with calibrated utilities', () => {
+      expect(getStatusInfo('email', 'QUEUED')).toMatchObject({
+        label: 'Programmé',
+        className: 'status-badge-pending',
+      });
+      expect(getStatusInfo('email', 'SENT')).toMatchObject({
+        label: 'Envoyé',
+        className: 'status-badge-confirmed',
+      });
+      expect(getStatusInfo('email', 'FAILED')).toMatchObject({
+        label: 'Échec',
+        className: 'status-badge-cancelled',
+      });
+    });
+  });
+
   describe('fallback', () => {
     it('returns the raw status as label when unknown', () => {
       const info = getStatusInfo('invoice', 'NEW_STATUS_XYZ');

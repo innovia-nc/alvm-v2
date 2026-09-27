@@ -129,8 +129,14 @@ describe('settings router', () => {
 
   // TD-008 — l'UI doit savoir si l'envoi d'email est opérationnel
   describe('isEmailConfigured (TD-008)', () => {
+    beforeEach(() => {
+      // File d'envoi alvm-email configurée par défaut (cas nominal).
+      vi.stubEnv('REDIS_URL', 'redis://localhost:6380');
+    });
+
     afterEach(() => {
       delete process.env.RESEND_API_KEY;
+      vi.unstubAllEnvs();
     });
 
     it('should report not configured when the provider key is missing', async () => {
@@ -153,6 +159,16 @@ describe('settings router', () => {
       await expect(staff.caller.settings.isEmailConfigured()).resolves.toEqual({
         configured: true,
         fromEmail: 'facturation@alvm.nc',
+      });
+    });
+
+    it('should report not configured when the email queue is missing (no REDIS_URL)', async () => {
+      process.env.RESEND_API_KEY = 'resend_test_key';
+      vi.stubEnv('REDIS_URL', '');
+
+      await expect(staff.caller.settings.isEmailConfigured()).resolves.toEqual({
+        configured: false,
+        fromEmail: null,
       });
     });
 

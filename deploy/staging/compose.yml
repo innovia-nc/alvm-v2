@@ -1,17 +1,19 @@
 # Staging asso-saas (ALVM) — srv-innovia (convention /srv/staging/README.md du serveur).
+# Même topologie que la production (compose.ovh.yml) : front, back, worker,
+# PostgreSQL 16, Redis 7.
 #
 # Bloc de ports : `staging-ports alloc asso-saas` ; BASE_PORT = port de base du
-# bloc (application en 127.0.0.1 ET port HTTPS du tailnet).
+# bloc (front en 127.0.0.1 ET port HTTPS du tailnet).
 #
-#   - l'application se lie à 127.0.0.1 uniquement ; l'accès passe par
+#   - seul le front se lie à l'hôte, sur 127.0.0.1 ; l'accès passe par
 #     `tailscale serve` (staging-ports expose asso-saas) ;
-#   - la base n'est JAMAIS liée à l'hôte : réseau Docker seul ;
-#   - l'image est construite sur le serveur et taguée au SHA court du commit
-#     (IMAGE_TAG) — jamais `latest`. Cible : image publiée par la CI sur
+#   - back, worker, base et Redis ne sont JAMAIS liés à l'hôte : réseaux Docker seuls ;
+#   - les images sont construites sur le serveur et taguées au SHA court du
+#     commit (IMAGE_TAG) — jamais `latest`. Cible : images publiées par la CI sur
 #     ghcr.io/innovia-noumea/asso-saas, comme ppm-saas.
 #
-# Base neuve : `dc run --rm app db-init`, puis seed-payment-methods et
-# create-super-admin. Procédure complète : docs/deploiement-ovh.md § 3.
+# Base neuve : `dc --profile ops run --rm migrate`, puis create-super-admin.
+# Procédure complète : docs/deploiement-ovh.md § 5.
 name: asso-saas-staging
 
 x-logging: &logging
@@ -20,49 +22,151 @@ x-logging: &logging
     max-size: '10m'
     max-file: '5'
 
+x-back-env: &back-env
+  NODE_ENV: production
+  PORT: '4001'
+  DATABASE_URL: postgresql://alvm_app:${ALVM_APP_DB_PASSWORD:?ALVM_APP_DB_PASSWORD absent du .env}@alvm-postgres:5432/alvm_staging
+  AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent du .env}
+  INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET absent du .env}
+  # Doit valoir exactement `staging-ports url asso-saas` (liens des emails).
+  AUTH_URL: ${APP_URL:?APP_URL absent du .env}
+  PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY absent du .env}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD absent du .env}@alvm-redis:6379
+  EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
+  BLOB_PRIVATE_READ_WRITE_TOKEN: ${BLOB_PRIVATE_READ_WRITE_TOKEN:-}
+  SOURCE_COMMIT: ${IMAGE_TAG:?IMAGE_TAG absent du .env}
+
+x-back-build: &back-build
+  context: ../..
+  dockerfile: alvm-back/Dockerfile
+
 services:
-  db:
-    image: postgres:17-alpine
+  front:
+    image: asso-saas-front:${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    build:
+      context: ../..
+      dockerfile: alvm-front/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent du .env}
+      # Doit valoir exactement `staging-ports url asso-saas`, sinon les cookies
+      # de session et les redirections d'auth cassent.
+      AUTH_URL: ${APP_URL:?APP_URL absent du .env}
+      API_INTERNAL_URL: http://alvm-back:4001
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET absent du .env}
+      # Un seul relais devant le front : `tailscale serve`.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      SOURCE_COMMIT: ${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    depends_on:
+      back:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${BASE_PORT:?BASE_PORT absent du .env}:3000'
+    networks: [app]
+
+  back:
+    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    build: *back-build
+    restart: unless-stopped
+    logging: *logging
+    environment: *back-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Aucun `ports:` — volontaire.
+    networks:
+      app:
+        aliases: [alvm-back]
+      data: {}
+
+  worker:
+    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    build: *back-build
+    command: ['worker']
+    restart: unless-stopped
+    logging: *logging
+    environment: *back-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [app, data]
+
+  # One-shot, seul détenteur des identifiants propriétaire :
+  #   dc --profile ops run --rm migrate
+  migrate:
+    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    command: ['migrate']
+    profiles: [ops]
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql://alvm_app:${ALVM_APP_DB_PASSWORD:?ALVM_APP_DB_PASSWORD absent du .env}@alvm-postgres:5432/alvm_staging
+      DATABASE_MIGRATION_URL: postgresql://alvm:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD absent du .env}@alvm-postgres:5432/alvm_staging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [data]
+
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
     logging: *logging
     environment:
       POSTGRES_USER: alvm
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD absent du .env}
       POSTGRES_DB: alvm_staging
+      ALVM_APP_DB_PASSWORD: ${ALVM_APP_DB_PASSWORD:?ALVM_APP_DB_PASSWORD absent du .env}
     volumes:
-      - db-data:/var/lib/postgresql/data
-    # Aucun `ports:` — volontaire. Inspection : dc exec db psql -U alvm alvm_staging
+      # Volume distinct de l'ancien `db-data` (PostgreSQL 17, schéma db-init).
+      - postgres-data:/var/lib/postgresql/data
+      - ../postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-init-app-role.sh:ro
+    # Aucun `ports:` — volontaire. Inspection : dc exec postgres psql -U alvm alvm_staging
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U alvm -d alvm_staging']
       interval: 5s
-      retries: 10
+      timeout: 3s
+      retries: 20
+    networks:
+      data:
+        aliases: [alvm-postgres]
 
-  app:
-    image: asso-saas:${IMAGE_TAG:?IMAGE_TAG absent du .env}
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+  redis:
+    image: redis:7-alpine
     restart: unless-stopped
     logging: *logging
-    depends_on:
-      db:
-        condition: service_healthy
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD absent du .env}
+      - --appendonly
+      - 'yes'
+      - --maxmemory-policy
+      - noeviction
     environment:
-      POSTGRES_PRISMA_URL: postgresql://alvm:${POSTGRES_PASSWORD}@db:5432/alvm_staging
-      POSTGRES_URL_NON_POOLING: postgresql://alvm:${POSTGRES_PASSWORD}@db:5432/alvm_staging
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent du .env}
-      # Doit valoir exactement `staging-ports url asso-saas`, sinon les cookies
-      # de session et les redirections d'auth cassent.
-      AUTH_URL: ${APP_URL:?APP_URL absent du .env}
-      PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY absent du .env}
-      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
-      BLOB_PRIVATE_READ_WRITE_TOKEN: ${BLOB_PRIVATE_READ_WRITE_TOKEN:-}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      SOURCE_COMMIT: ${IMAGE_TAG}
-      # Un seul relais devant l'application : `tailscale serve`.
-      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
-    ports:
-      - '127.0.0.1:${BASE_PORT:?BASE_PORT absent du .env}:3000'
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD absent du .env}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      data:
+        aliases: [alvm-redis]
+
+networks:
+  app: {}
+  data:
+    internal: true
 
 volumes:
-  db-data:
+  postgres-data:
+  redis-data:

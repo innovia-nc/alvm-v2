@@ -335,7 +335,7 @@ describe('children router', () => {
       expect(findFirstCall.where.deletedAt).toBeNull();
     });
 
-    it('should include parentInclude in the query', async () => {
+    it('should select the linked parents in the query (§5.9 : select, pas include)', async () => {
       admin.mockPrisma.child.findFirst.mockResolvedValue(
         makeChild({ parentLinks: [makeParentLink()] }),
       );
@@ -343,8 +343,9 @@ describe('children router', () => {
       await admin.caller.children.getById({ id: CHILD_ID });
 
       const findFirstCall = admin.mockPrisma.child.findFirst.mock.calls[0][0];
-      expect(findFirstCall.include.parentLinks).toBeDefined();
-      expect(findFirstCall.include.parentLinks.include.parent).toBeDefined();
+      expect(findFirstCall.include).toBeUndefined();
+      expect(findFirstCall.select.parentLinks).toBeDefined();
+      expect(findFirstCall.select.parentLinks.select.parent).toBeDefined();
     });
 
     // -------------------------------------------------------------------------
@@ -1169,6 +1170,7 @@ describe('children router', () => {
 
       expect(admin.mockPrisma.childParent.findUnique).toHaveBeenCalledWith({
         where: { childId_parentId: { childId: CHILD_ID, parentId: PARENT_ID_B } },
+        select: { id: true },
       });
       expect(admin.mockPrisma.childParent.delete).toHaveBeenCalledWith({
         where: { childId_parentId: { childId: CHILD_ID, parentId: PARENT_ID_B } },

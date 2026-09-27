@@ -40,7 +40,21 @@ export async function generateAndStoreInvoicePdf(
 ): Promise<InvoicePdfResult> {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, deletedAt: null },
-    include: {
+    // §5.9 : whitelist explicite — seuls les champs rendus sur le PDF ou lus
+    // par l'email d'accompagnement (numéro, statut, échéance, montant, parent).
+    select: {
+      id: true,
+      organizationId: true,
+      invoiceNumber: true,
+      issueDate: true,
+      dueDate: true,
+      status: true,
+      subtotalHt: true,
+      taxAmount: true,
+      taxRate: true,
+      totalAmount: true,
+      paidAmount: true,
+      creditedAmount: true,
       parent: {
         select: {
           firstName: true,

@@ -29,6 +29,20 @@ const staffMemberWithUserSchema = staffMemberSchema.extend({
   }),
 });
 
+/** Whitelist des colonnes `staff_members` exposées (§5.9) : jamais `organizationId`. */
+const staffSelect = {
+  userId: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.StaffMemberSelect;
+
+/** Compte de connexion : identité affichable uniquement (jamais `accounts`, `sessionVersion`). */
+const staffUserSelect = { email: true, name: true, emailVerified: true } as const;
+
 export const staffRouter = router({
   list: staffProcedure
     .input(
@@ -64,9 +78,7 @@ export const staffRouter = router({
       const [staff, total] = await Promise.all([
         ctx.prisma.staffMember.findMany({
           where,
-          include: {
-            user: { select: { email: true, name: true, emailVerified: true } },
-          },
+          select: { ...staffSelect, user: { select: staffUserSelect } },
           orderBy: [{ [sortBy]: sortOrder }, { userId: 'asc' }],
           take: limit,
           skip: offset,
@@ -96,9 +108,7 @@ export const staffRouter = router({
     .query(async ({ ctx, input }) => {
       const s = await ctx.prisma.staffMember.findFirst({
         where: { userId: input.id, deletedAt: null },
-        include: {
-          user: { select: { email: true, name: true, emailVerified: true } },
-        },
+        select: { ...staffSelect, user: { select: staffUserSelect } },
       });
       if (!s) return null;
 
@@ -144,6 +154,7 @@ export const staffRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existingUser = await ctx.prisma.user.findFirst({
         where: { email: input.email },
+        select: { id: true },
       });
       if (existingUser) {
         throw new TRPCError({
@@ -154,6 +165,7 @@ export const staffRouter = router({
 
       const existingStaff = await ctx.prisma.staffMember.findFirst({
         where: { email: input.email, deletedAt: null },
+        select: { userId: true },
       });
       if (existingStaff) {
         throw new TRPCError({
@@ -196,6 +208,7 @@ export const staffRouter = router({
             email: input.email,
             phone: input.phone && input.phone.trim() !== '' ? input.phone : null,
           },
+          select: staffSelect,
         });
 
         return staff;
@@ -232,6 +245,7 @@ export const staffRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.staffMember.findFirst({
         where: { userId: input.id, deletedAt: null },
+        select: { userId: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Membre du personnel non trouvé' });
@@ -253,7 +267,7 @@ export const staffRouter = router({
       const result = await ctx.prisma.$transaction(async (tx) => {
         if (updates.email) {
           await lockTenant(tx, 'accounts');
-          const target = await tx.user.findUnique({ where: { id } });
+          const target = await tx.user.findUnique({ where: { id }, select: { role: true } });
           if (
             target?.role === 'SUPER_ADMIN' ||
             (target?.role !== 'PARENT' && !['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role))
@@ -272,6 +286,7 @@ export const staffRouter = router({
         return tx.staffMember.update({
           where: { userId: id },
           data,
+          select: staffSelect,
         });
       });
 

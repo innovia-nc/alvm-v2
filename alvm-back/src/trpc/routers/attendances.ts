@@ -17,7 +17,6 @@ const attendanceSchema = z.object({
   arrivalTime: z.string().nullable(),
   departureTime: z.string().nullable(),
   notes: z.string().nullable(),
-  recordedBy: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -32,12 +31,59 @@ const attendanceWithDetailsSchema = attendanceSchema.extend({
     id: z.string().uuid(),
     name: z.string(),
   }),
-  recorder: z.object({
-    firstName: z.string(),
-    lastName: z.string(),
-    role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
-  }),
+  // Traçabilité interne : `null` pour un PARENT, comme `notes` (§5.13).
+  recorder: z
+    .object({
+      firstName: z.string(),
+      lastName: z.string(),
+      role: z.enum(['PARENT', 'STAFF', 'ADMIN']),
+    })
+    .nullable(),
 });
+
+/**
+ * Colonnes d'un pointage exposées (§5.9) : ni `organizationId`, ni
+ * `recordedBy` (identifiant interne, lu par aucun écran).
+ */
+const attendanceSelect = {
+  id: true,
+  registrationId: true,
+  attendanceDate: true,
+  status: true,
+  arrivalTime: true,
+  departureTime: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.AttendanceSelect;
+
+const attendanceContextSelect = {
+  registration: {
+    select: {
+      child: { select: { id: true, firstName: true, lastName: true } },
+      camp: { select: { id: true, name: true } },
+    },
+  },
+} as const;
+
+/** Vue personnel : + notes internes et auteur du pointage. */
+const attendanceStaffListSelect = {
+  ...attendanceSelect,
+  ...attendanceContextSelect,
+  recorder: {
+    select: {
+      role: true,
+      staffMember: { select: { firstName: true, lastName: true } },
+      name: true,
+    },
+  },
+} as const satisfies Prisma.AttendanceSelect;
+
+/** Vue parent : ni notes internes ni auteur du pointage (§5.13). */
+const { notes: _notes, ...attendanceParentSelect } = {
+  ...attendanceSelect,
+  ...attendanceContextSelect,
+};
 
 const attendanceGridSchema = z.object({
   campId: z.string().uuid(),
@@ -59,6 +105,20 @@ const attendanceGridSchema = z.object({
     }),
   ),
 });
+
+type AttendanceRecorder = {
+  role: string;
+  name: string | null;
+  staffMember: { firstName: string; lastName: string } | null;
+};
+
+function mapRecorder(recorder: AttendanceRecorder) {
+  return {
+    firstName: recorder.staffMember?.firstName || recorder.name || 'Unknown',
+    lastName: recorder.staffMember?.lastName || '',
+    role: recorder.role as Role,
+  };
+}
 
 /** Convert Prisma Time (Date) to HH:mm string or null */
 function timeToStr(d: Date | null): string | null {
@@ -91,7 +151,8 @@ export const attendancesRouter = router({
       // Get confirmed registrations
       const registrations = await ctx.prisma.registration.findMany({
         where: { campId: input.campId, status: 'CONFIRMED', deletedAt: null },
-        include: {
+        select: {
+          id: true,
           child: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { child: { lastName: 'asc' } },
@@ -103,6 +164,13 @@ export const attendancesRouter = router({
         regIds.length > 0
           ? await ctx.prisma.attendance.findMany({
               where: { registrationId: { in: regIds } },
+              select: {
+                registrationId: true,
+                attendanceDate: true,
+                status: true,
+                arrivalTime: true,
+                departureTime: true,
+              },
             })
           : [];
 
@@ -167,51 +235,40 @@ export const attendancesRouter = router({
       if (date) where.attendanceDate = new Date(date);
       if (status) where.status = status;
 
+      const isParent = ctx.user.role === 'PARENT';
+      const query = {
+        where,
+        orderBy: [{ attendanceDate: 'desc' as const }],
+        take: limit,
+        skip: offset,
+      };
       const [attendances, total] = await Promise.all([
-        ctx.prisma.attendance.findMany({
-          where,
-          include: {
-            registration: {
-              include: {
-                child: { select: { id: true, firstName: true, lastName: true } },
-                camp: { select: { id: true, name: true } },
-              },
-            },
-            recorder: {
-              select: {
-                role: true,
-                staffMember: { select: { firstName: true, lastName: true } },
-                name: true,
-              },
-            },
-          },
-          orderBy: [{ attendanceDate: 'desc' }],
-          take: limit,
-          skip: offset,
-        }),
+        isParent
+          ? ctx.prisma.attendance.findMany({ ...query, select: attendanceParentSelect })
+          : ctx.prisma.attendance.findMany({ ...query, select: attendanceStaffListSelect }),
         ctx.prisma.attendance.count({ where }),
       ]);
 
       return {
-        attendances: attendances.map((a) => ({
-          id: a.id,
-          registrationId: a.registrationId,
-          attendanceDate: a.attendanceDate,
-          status: a.status as Status,
-          arrivalTime: timeToStr(a.arrivalTime),
-          departureTime: timeToStr(a.departureTime),
-          notes: a.notes,
-          recordedBy: a.recordedBy,
-          createdAt: a.createdAt,
-          updatedAt: a.updatedAt,
-          child: a.registration.child,
-          camp: a.registration.camp,
-          recorder: {
-            firstName: a.recorder.staffMember?.firstName || a.recorder.name || 'Unknown',
-            lastName: a.recorder.staffMember?.lastName || '',
-            role: a.recorder.role as Role,
-          },
-        })),
+        attendances: attendances.map((a) => {
+          // Champs internes, lus seulement par `attendanceStaffListSelect`.
+          const internal = a as { notes?: string | null; recorder?: AttendanceRecorder };
+          return {
+            id: a.id,
+            registrationId: a.registrationId,
+            attendanceDate: a.attendanceDate,
+            status: a.status as Status,
+            arrivalTime: timeToStr(a.arrivalTime),
+            departureTime: timeToStr(a.departureTime),
+            // Projection par rôle (§5.13) : décidée par le rôle, pas par la forme.
+            notes: isParent ? null : (internal.notes ?? null),
+            createdAt: a.createdAt,
+            updatedAt: a.updatedAt,
+            child: a.registration.child,
+            camp: a.registration.camp,
+            recorder: isParent || !internal.recorder ? null : mapRecorder(internal.recorder),
+          };
+        }),
         total,
       };
     }),
@@ -235,7 +292,7 @@ export const attendancesRouter = router({
         // Verify registration exists and is confirmed
         const reg = await tx.registration.findFirst({
           where: { id: input.registrationId, status: 'CONFIRMED', deletedAt: null },
-          include: { camp: { select: { startDate: true, endDate: true } } },
+          select: { camp: { select: { startDate: true, endDate: true } } },
         });
         if (!reg) {
           throw new TRPCError({
@@ -261,6 +318,7 @@ export const attendancesRouter = router({
               attendanceDate: attDate,
             },
           },
+          select: { id: true },
         });
 
         const data = {
@@ -277,6 +335,7 @@ export const attendancesRouter = router({
           ? await tx.attendance.update({
               where: { id: existing.id },
               data,
+              select: attendanceSelect,
             })
           : await tx.attendance.create({
               data: {
@@ -284,6 +343,7 @@ export const attendancesRouter = router({
                 attendanceDate: attDate,
                 ...data,
               },
+              select: attendanceSelect,
             });
 
         return {
@@ -294,7 +354,6 @@ export const attendancesRouter = router({
           arrivalTime: timeToStr(attendance.arrivalTime),
           departureTime: timeToStr(attendance.departureTime),
           notes: attendance.notes,
-          recordedBy: attendance.recordedBy,
           createdAt: attendance.createdAt,
           updatedAt: attendance.updatedAt,
         };
@@ -359,6 +418,7 @@ export const attendancesRouter = router({
                 attendanceDate: attDate,
               },
             },
+            select: { id: true },
           });
 
           if (existing) {
@@ -389,6 +449,7 @@ export const attendancesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.attendance.findUnique({
         where: { id: input.id },
+        select: { id: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Présence non trouvée' });
@@ -437,6 +498,7 @@ export const attendancesRouter = router({
         regIds.length > 0
           ? await ctx.prisma.attendance.findMany({
               where: { registrationId: { in: regIds } },
+              select: { status: true, attendanceDate: true },
             })
           : [];
 

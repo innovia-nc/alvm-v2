@@ -172,8 +172,8 @@ describe('camps.list', () => {
       expect(camp.id).toBe(CAMP_ID);
       expect(camp.name).toBe('Camp Ete 2026');
       expect(camp.campType.name).toBe('Centre aere');
-      expect(camp.creator.firstName).toBe('Animateur');
-      expect(camp.creator.lastName).toBe('Test');
+      expect(camp.creator?.firstName).toBe('Animateur');
+      expect(camp.creator?.lastName).toBe('Test');
       expect(camp.daysCount).toBe(10);
       expect(camp.registrationsCount).toBe(5);
       expect(camp.availableSpots).toBe(25); // 30 - 5
@@ -196,8 +196,8 @@ describe('camps.list', () => {
       mockPrisma.camp.count.mockResolvedValue(1);
 
       const result = await caller.camps.list(defaultInput);
-      expect(result.camps[0].creator.firstName).toBe('Fallback Name');
-      expect(result.camps[0].creator.lastName).toBe('');
+      expect(result.camps[0].creator?.firstName).toBe('Fallback Name');
+      expect(result.camps[0].creator?.lastName).toBe('');
     });
 
     it('should fallback to "Unknown" when both staffMember and name are null', async () => {
@@ -207,7 +207,7 @@ describe('camps.list', () => {
       mockPrisma.camp.count.mockResolvedValue(1);
 
       const result = await caller.camps.list(defaultInput);
-      expect(result.camps[0].creator.firstName).toBe('Unknown');
+      expect(result.camps[0].creator?.firstName).toBe('Unknown');
     });
 
     it('should compute availableSpots as maxCapacity minus registrationsCount', async () => {
@@ -355,16 +355,30 @@ describe('camps.getById', () => {
     expect(where.status).toBeUndefined();
   });
 
-  it('should include campType, creator, and _count in query', async () => {
+  it('should select campType, creator, and _count in query (§5.9 : select, pas include)', async () => {
     const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
     mockPrisma.camp.findFirst.mockResolvedValue(makeCampWithIncludes());
 
     await caller.camps.getById({ id: CAMP_ID });
 
     const call = mockPrisma.camp.findFirst.mock.calls[0][0];
-    expect(call.include.campType).toBeDefined();
-    expect(call.include.creator).toBeDefined();
-    expect(call.include._count).toBeDefined();
+    expect(call.include).toBeUndefined();
+    expect(call.select.campType).toBeDefined();
+    expect(call.select.creator).toBeDefined();
+    expect(call.select._count).toBeDefined();
+  });
+
+  it('should not select nor return the creator for a PARENT (§5.13, exposition par rôle)', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.camp.findFirst.mockResolvedValue(makeCampWithIncludes());
+
+    const result = await caller.camps.getById({ id: CAMP_ID });
+
+    const call = mockPrisma.camp.findFirst.mock.calls[0][0];
+    expect(call.select.creator).toBeUndefined();
+    expect(call.select.createdBy).toBeUndefined();
+    expect(result?.creator).toBeNull();
+    expect(result).not.toHaveProperty('createdBy');
   });
 
   it('should compute daysCount and availableSpots correctly', async () => {
@@ -635,6 +649,21 @@ describe('camps.update', () => {
       mockPrisma.camp.findFirst.mockResolvedValue(null);
 
       await expect(caller.camps.update(updateInput)).rejects.toThrow('Camp non trouvé');
+    });
+
+    it('should refuse a camp type that is invisible (other tenant) or inactive', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow());
+      mockPrisma.campType.findFirst.mockResolvedValue(null);
+      const otherType = 'e0000000-0000-4000-a000-000000000077';
+
+      await expect(
+        caller.camps.update({ id: CAMP_ID, campTypeId: otherType }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      expect(mockPrisma.campType.findFirst).toHaveBeenCalledWith({
+        where: { id: otherType, active: true },
+        select: { id: true },
+      });
+      expect(mockPrisma.camp.update).not.toHaveBeenCalled();
     });
 
     it('should throw BAD_REQUEST when no modifications provided', async () => {

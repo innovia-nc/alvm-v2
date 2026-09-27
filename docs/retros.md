@@ -94,3 +94,43 @@ trop large). Corrigé par ciblage du parent via email unique + assertion stricte
 liaison re-prouvée en aval. Leçon : dans un dialog de recherche listant plusieurs
 résultats, cibler par identifiant unique, jamais par un `.first()` sur un
 conteneur large — sinon la recette valide le mauvais enregistrement (§6.5).
+
+## 2026-09-27 — Refonte SaaS multi-tenant et mise en conformité InnovIA (v3.0.0)
+
+**Contexte** : transformer l'installation mono-entreprise (monolithe Next.js
+conçu pour Vercel, abandonné le jour même) en SaaS multi-associations, conforme
+aux directives InnovIA : monorepo pnpm, NestJS, RLS, BullMQ, migrations
+versionnées, tests réels. Orchestration : socle (schéma, RLS, contexte
+transactionnel, monorepo) fait en séquentiel, puis cinq chantiers parallèles
+en worktrees dédiés (`/tmp/innovia/alvm-*`) : tests d'intégration, file
+d'emails, audit `select`, déploiement, recette E2E.
+
+**Écarts constatés / causes racines**
+1. *La RLS invisible aux tests mockés* : un `create` Prisma sur le journal
+   d'audit (policy SELECT réservée à la plateforme) échouait à cause du
+   `RETURNING` ; 1 110 tests unitaires verts ne l'ont pas vu, le premier
+   lancement réel si (BP-01). → la suite `test:integration` sur PostgreSQL
+   réel, rôle non-superuser, est devenue un gate.
+2. *Clés étrangères hors RLS* : PostgreSQL vérifie les FK sans appliquer la
+   RLS ; `invoices.create` / `creditNotes.create` acceptaient un client
+   d'une autre association (écritures sur un compte auxiliaire étranger).
+   Trouvé par les tests d'intégration (injection de clés étrangères), corrigé
+   par des gardes applicatives ; durcissement en base suivi en TD-028.
+3. *Conflits sémantiques entre branches parallèles* : deux fusions sans
+   conflit textuel cassaient le `tsc` (une garde lisait un champ retiré du
+   `select` par l'audit ; un test lisait un identifiant désormais masqué).
+   → après chaque fusion : `typecheck:all` + `test:unit` + `test:integration`,
+   jamais « merge vert = branche verte ».
+4. *Bruit de formatage* : un Prettier appliqué aux fichiers déplacés cassait la
+   détection des renommages (47 « ajouts ») ; contenu d'origine restauré par
+   script, 415 renommages reconnus. → ne formater que les fichiers modifiés
+   intentionnellement.
+
+**Actions correctives livrées**
+- Gate de finalisation par tâche tenu à chaque fusion (lint, tsc, unitaires,
+  intégration, builds) ; preuves visuelles dans
+  `docs/test-evidence/recette-saas-3.0.0/`.
+- `docs/bug-patterns.md` (BP-01 à BP-08) ; règles d'or dans le `CLAUDE.md` index.
+- Dette ouverte et priorisée : TD-028 (FK inter-tenant en base), TD-029
+  (stockage mutualisé), TD-030 (domaine d'expédition), TD-031 (double
+  revalidation de session).

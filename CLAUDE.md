@@ -29,13 +29,15 @@ association cliente.
 | `docs/architecture.md` | services, flux, emplacement du code, rôles, migrations |
 | `docs/adr/0001-monorepo-nestjs.md` | monorepo front/back/shared, NestJS, confiance front ↔ back, écarts assumés |
 | `docs/adr/0002-multi-tenant-rls.md` | modèle multi-tenant, contexte transactionnel, policies RLS, rôles PostgreSQL |
-| `docs/adr/0003-file-emails-bullmq.md` | file d'emails `alvm-email` et worker |
+| `docs/adr/0003-file-emails-bullmq.md` | décision : emails par file BullMQ `alvm-email` et worker |
+| `docs/file-emails.md` | file d'emails : producteur, worker, statuts, rétention, commandes de vérification |
 | `docs/conventions-metier.md` | comptabilité (TGC, avoirs, FEC), PDF, fichiers, emails, statuts, soft-delete, invariants |
 | `docs/developpement-local.md` | poste de dev : compose, seed, comptes de démo, commandes de test |
 | `docs/deploiement-ovh.md` | déploiement de référence (images, variables, premier déploiement, mises à jour) |
 | `docs/super-admin.md` | super administration : associations, modules, intégrations, audit |
 | `docs/dette-technique.md` | registre de dette priorisé (P0–P3, OPEN / PARTIEL / DONE) |
 | `docs/bug-patterns.md` | pièges récurrents (RLS + RETURNING, middlewares tRPC, verrous…) |
+| `docs/audit-select-2026-09-27.md` | audit §5.9 : champs exposés par procédure, avant / après, projections par rôle |
 | `docs/retros.md` | rétrospectives et post-mortems (historisé, on ajoute) |
 | `docs/test-evidence/` | preuves de recette visuelle (Playwright, captures par critère) |
 | `docs/stories/BACKLOG.md` | backlog produit |

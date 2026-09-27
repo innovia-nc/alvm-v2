@@ -22,7 +22,6 @@ const campSchema = z.object({
   pricePerDay: z.number(),
   totalPrice: z.number(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'CLOSED', 'CANCELLED']),
-  createdBy: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -33,14 +32,78 @@ const campWithDetailsSchema = campSchema.extend({
     name: z.string(),
     description: z.string().nullable(),
   }),
-  creator: z.object({
-    firstName: z.string(),
-    lastName: z.string(),
-  }),
+  // Traçabilité interne : `null` pour un PARENT (§5.13, exposition par rôle).
+  creator: z
+    .object({
+      firstName: z.string(),
+      lastName: z.string(),
+    })
+    .nullable(),
   daysCount: z.number(),
   registrationsCount: z.number(),
   availableSpots: z.number(),
 });
+
+/**
+ * Colonnes d'un camp exposées (§5.9) : ni `organizationId`, ni `deletedAt`,
+ * ni `createdBy` (identifiant interne, lu par aucun écran).
+ */
+const campSelect = {
+  id: true,
+  name: true,
+  description: true,
+  campTypeId: true,
+  location: true,
+  maxCapacity: true,
+  startDate: true,
+  endDate: true,
+  registrationDeadline: true,
+  pricePerDay: true,
+  totalPrice: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.CampSelect;
+
+/** Détail vu par tous les rôles : type d'ACM et places confirmées. */
+const campPublicSelect = {
+  ...campSelect,
+  campType: { select: { id: true, name: true, description: true } },
+  _count: {
+    select: {
+      registrations: { where: { status: 'CONFIRMED' as const, deletedAt: null } },
+    },
+  },
+} as const satisfies Prisma.CampSelect;
+
+/** Détail vu par le personnel : + créateur (nom affiché uniquement). */
+const campStaffSelect = {
+  ...campPublicSelect,
+  creator: {
+    select: {
+      name: true,
+      staffMember: { select: { firstName: true, lastName: true } },
+    },
+  },
+} as const satisfies Prisma.CampSelect;
+
+type CampCreator = {
+  name: string | null;
+  staffMember: { firstName: string; lastName: string } | null;
+};
+
+/**
+ * Nom du créateur, pour le personnel seulement : un PARENT reçoit `null`, que
+ * la ligne porte ou non la relation (la décision suit le rôle, pas la forme).
+ */
+function mapCreator(row: object, role: string) {
+  if (role === 'PARENT' || !('creator' in row)) return null;
+  const creator = row.creator as CampCreator;
+  return {
+    firstName: creator.staffMember?.firstName || creator.name || 'Unknown',
+    lastName: creator.staffMember?.lastName || '',
+  };
+}
 
 function mapCamp(c: any) {
   return {
@@ -59,7 +122,6 @@ function mapCamp(c: any) {
         ? computeDaysCount(c.startDate, c.endDate) * toNum(c.pricePerDay)
         : toNum(c.totalPrice),
     status: c.status as Status,
-    createdBy: c.createdBy,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -104,29 +166,16 @@ export const campsRouter = router({
         ];
       }
 
+      const query = {
+        where,
+        orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' as const }],
+        take: limit,
+        skip: offset,
+      };
       const [camps, total] = await Promise.all([
-        ctx.prisma.camp.findMany({
-          where,
-          include: {
-            campType: { select: { id: true, name: true, description: true } },
-            creator: {
-              select: {
-                name: true,
-                staffMember: { select: { firstName: true, lastName: true } },
-              },
-            },
-            _count: {
-              select: {
-                registrations: {
-                  where: { status: 'CONFIRMED', deletedAt: null },
-                },
-              },
-            },
-          },
-          orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
-          take: limit,
-          skip: offset,
-        }),
+        ctx.user.role === 'PARENT'
+          ? ctx.prisma.camp.findMany({ ...query, select: campPublicSelect })
+          : ctx.prisma.camp.findMany({ ...query, select: campStaffSelect }),
         ctx.prisma.camp.count({ where }),
       ]);
 
@@ -137,10 +186,7 @@ export const campsRouter = router({
           return {
             ...mapCamp(c),
             campType: c.campType,
-            creator: {
-              firstName: c.creator.staffMember?.firstName || c.creator.name || 'Unknown',
-              lastName: c.creator.staffMember?.lastName || '',
-            },
+            creator: mapCreator(c, ctx.user.role),
             daysCount,
             registrationsCount: regCount,
             availableSpots: Math.max(0, c.maxCapacity - regCount),
@@ -157,23 +203,10 @@ export const campsRouter = router({
       const where: Prisma.CampWhereInput = { id: input.id, deletedAt: null };
       if (ctx.user.role === 'PARENT') where.status = 'PUBLISHED';
 
-      const camp = await ctx.prisma.camp.findFirst({
-        where,
-        include: {
-          campType: { select: { id: true, name: true, description: true } },
-          creator: {
-            select: {
-              name: true,
-              staffMember: { select: { firstName: true, lastName: true } },
-            },
-          },
-          _count: {
-            select: {
-              registrations: { where: { status: 'CONFIRMED', deletedAt: null } },
-            },
-          },
-        },
-      });
+      const camp =
+        ctx.user.role === 'PARENT'
+          ? await ctx.prisma.camp.findFirst({ where, select: campPublicSelect })
+          : await ctx.prisma.camp.findFirst({ where, select: campStaffSelect });
 
       if (!camp) return null;
 
@@ -183,10 +216,7 @@ export const campsRouter = router({
       return {
         ...mapCamp(camp),
         campType: camp.campType,
-        creator: {
-          firstName: camp.creator.staffMember?.firstName || camp.creator.name || 'Unknown',
-          lastName: camp.creator.staffMember?.lastName || '',
-        },
+        creator: mapCreator(camp, ctx.user.role),
         daysCount,
         registrationsCount: regCount,
         availableSpots: Math.max(0, camp.maxCapacity - regCount),
@@ -220,6 +250,7 @@ export const campsRouter = router({
 
         const campType = await tx.campType.findFirst({
           where: { id: input.campTypeId, active: true },
+          select: { id: true },
         });
         if (!campType) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé ou inactif' });
@@ -243,6 +274,7 @@ export const campsRouter = router({
             status: input.status,
             createdBy: ctx.user.id,
           },
+          select: campSelect,
         });
 
         await syncCampDays(tx, camp);
@@ -284,6 +316,13 @@ export const campsRouter = router({
 
         const existing = await tx.camp.findFirst({
           where: { id: input.id, deletedAt: null },
+          select: {
+            startDate: true,
+            endDate: true,
+            pricePerDay: true,
+            totalPrice: true,
+            campTypeId: true,
+          },
         });
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
@@ -291,6 +330,21 @@ export const campsRouter = router({
 
         const { id, totalPrice, startDate, endDate, ...rest } = input;
         const data: Prisma.CampUpdateInput = {};
+
+        // Même garde qu'à la création : un type d'une autre association (clé
+        // étrangère vérifiée hors RLS, `connect` en erreur 500) ou inactif est
+        // refusé proprement.
+        if (rest.campTypeId !== undefined && rest.campTypeId !== existing.campTypeId) {
+          const campType = await tx.campType.findFirst({
+            where: { id: rest.campTypeId, active: true },
+            select: { id: true },
+          });
+          if (!campType)
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'Type de camp non trouvé ou inactif',
+            });
+        }
 
         if (rest.name !== undefined) data.name = rest.name;
         if (rest.description !== undefined) data.description = rest.description;
@@ -349,7 +403,7 @@ export const campsRouter = router({
             code: 'PRECONDITION_FAILED',
             message: 'Des présences existent hors de cette période',
           });
-        const camp = await tx.camp.update({ where: { id }, data });
+        const camp = await tx.camp.update({ where: { id }, data, select: campSelect });
         await syncCampDays(tx, camp);
         return mapCamp(camp);
       });
@@ -419,6 +473,17 @@ export const campsRouter = router({
 
         const source = await tx.camp.findFirst({
           where: { id: input.id, deletedAt: null },
+          select: {
+            description: true,
+            campTypeId: true,
+            location: true,
+            maxCapacity: true,
+            startDate: true,
+            endDate: true,
+            registrationDeadline: true,
+            pricePerDay: true,
+            totalPrice: true,
+          },
         });
         if (!source) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp source non trouvé' });
@@ -454,6 +519,7 @@ export const campsRouter = router({
             status: 'DRAFT',
             createdBy: ctx.user.id,
           },
+          select: campSelect,
         });
 
         await syncCampDays(tx, camp);

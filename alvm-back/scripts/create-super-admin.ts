@@ -3,7 +3,7 @@
  * et un compte SUPER_ADMIN. Ne promeut ni ne réinitialise jamais un compte
  * existant. Les associations se créent ensuite depuis la super administration.
  *
- * Image Docker : `./docker-entrypoint.sh create-super-admin`.
+ * Image Docker : `docker run <image-back> create-super-admin`.
  */
 import { hash } from 'bcryptjs';
 import { z } from 'zod';

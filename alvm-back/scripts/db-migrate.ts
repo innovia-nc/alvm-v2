@@ -9,7 +9,7 @@
  * Refuse de continuer si le rôle applicatif est superuser ou BYPASSRLS : la
  * RLS ne s'appliquerait pas et l'isolation des tenants serait un leurre.
  *
- * Image Docker : `./docker-entrypoint.sh migrate`. Poste de dev : `pnpm db:migrate` (racine).
+ * Image Docker : `docker run <image-back> migrate`. Poste de dev : `pnpm db:migrate` (racine).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';

@@ -400,9 +400,9 @@ describe('attendances.list', () => {
       expect(att.departureTime).toBe('16:00');
       expect(att.child.firstName).toBe('Jean');
       expect(att.camp.name).toBe('Camp Ete 2026');
-      expect(att.recorder.firstName).toBe('Staff');
-      expect(att.recorder.lastName).toBe('Member');
-      expect(att.recorder.role).toBe('STAFF');
+      expect(att.recorder?.firstName).toBe('Staff');
+      expect(att.recorder?.lastName).toBe('Member');
+      expect(att.recorder?.role).toBe('STAFF');
     });
 
     it('should fallback recorder name when staffMember is null', async () => {
@@ -414,8 +414,8 @@ describe('attendances.list', () => {
 
       const result = await caller.attendances.list(defaultInput);
 
-      expect(result.attendances[0].recorder.firstName).toBe('Admin User');
-      expect(result.attendances[0].recorder.lastName).toBe('');
+      expect(result.attendances[0].recorder?.firstName).toBe('Admin User');
+      expect(result.attendances[0].recorder?.lastName).toBe('');
     });
 
     it('should convert null times to null strings', async () => {

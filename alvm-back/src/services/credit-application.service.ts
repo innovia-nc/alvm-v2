@@ -185,7 +185,10 @@ export async function applyAvailableCreditsToInvoice(
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    include: {
+    select: {
+      id: true,
+      creditNoteId: true,
+      amountRemaining: true,
       // Whitelist stricte : `status` filtre les avoirs annules, `invoiceNumber`
       // libelle le paiement et la trace. Rien d'autre n'est lu ici — surtout
       // pas `isFutureCredit` : l'ecriture posee est toujours D 4191 / C 411000,

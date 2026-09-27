@@ -121,13 +121,24 @@ routes `/api/upload/*` (`alvm-back/src/http/uploads.handler.ts`), qui portent AU
 La regle d'acces a un enfant est partagee entre le routeur et la route dans
 `alvm-back/src/helpers/child-access.helper.ts` — ne pas la redupliquer.
 
-## Envoi d'email (TD-008)
-`alvm-back/src/services/email.service.ts` est le seul point d'envoi (API REST Resend).
-La cle vit dans l'environnement (`RESEND_API_KEY`), l'identite d'expedition dans
-les settings `email`. Un environnement sans cle n'est pas un bug : les
-procedures levent `PRECONDITION_FAILED` et les ecrans desactivent le bouton via
-`settings.isEmailConfigured`. Ne jamais inventer de code d'erreur tRPC — c'est
-exactement ce que faisait le `'NOT_IMPLEMENTED' as any` supprime par TD-008.
+## Envoi d'email (TD-008) — file `alvm-email`
+Tout envoi passe par la file BullMQ `alvm-email` (CLAUDE.md InnovIA §5.11) :
+les procedures (`invoices.sendEmail`, `account.requestReset`) verifient les
+preconditions puis appellent `enqueueEmail()` (`alvm-back/src/queues/email.queue.ts`)
+en DERNIER dans la transaction du tenant ; le worker (`alvm-back/src/worker.ts`,
+processus separe, meme image) compose et envoie via `email.service.ts` (API REST Resend).
+Regles :
+- la ligne `email_messages` est l'autorite (historique : `invoices.emailHistory`) ;
+  le worker n'envoie jamais sans elle. Ni corps ni jeton en base ; le job ne
+  porte que des identifiants (+ le lien de reinitialisation, ephemere) ;
+- sans `RESEND_API_KEY` ou sans `REDIS_URL` : `PRECONDITION_FAILED` explicite,
+  et `settings.isEmailConfigured` desactive les boutons. Redis injoignable :
+  `SERVICE_UNAVAILABLE` (la transaction annule la ligne) ;
+- `account.requestReset` repond pareil que le compte existe ou non, meme si
+  la file tombe apres la recherche du compte (erreur journalisee cote serveur).
+Ne jamais inventer de code d'erreur tRPC — c'est exactement ce que faisait le
+`'NOT_IMPLEMENTED' as any` supprime par TD-008. Detail et verification :
+`docs/file-emails.md` (ADR 0003).
 
 ## Un enfant a toujours au moins un parent
 Invariant porte par un **trigger legacy** de la BDD (absent du depot, donc

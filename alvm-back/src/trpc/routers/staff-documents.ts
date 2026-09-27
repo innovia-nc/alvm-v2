@@ -12,10 +12,43 @@ const staffDocumentSchema = z.object({
     mimeType: z.literal('application/pdf'),
     fileSize: z.number().int().positive(),
     description: z.string().nullable(),
-    uploadedBy: z.string().uuid(),
     createdAt: z.date(),
     updatedAt: z.date(),
 });
+
+/**
+ * Whitelist (§5.9). Jamais l'URL de stockage (`fileUrl` en base : le client
+ * passe par `/api/documents/staff/:id`), ni `uploadedBy`, ni `organizationId`.
+ */
+const staffDocumentSelect = {
+    id: true,
+    staffId: true,
+    filename: true,
+    originalFilename: true,
+    mimeType: true,
+    fileSize: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+} as const;
+
+function mapStaffDocument(d: {
+    id: string;
+    staffId: string;
+    filename: string;
+    originalFilename: string;
+    mimeType: string;
+    fileSize: number;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+}) {
+    return {
+        ...d,
+        fileUrl: `/api/documents/staff/${d.id}`,
+        mimeType: d.mimeType as 'application/pdf',
+    };
+}
 
 /**
  * STAFF/ADMIN: always has access.
@@ -54,13 +87,10 @@ export const staffDocumentsRouter = router({
             const docs = await ctx.prisma.staffDocument.findMany({
                 where: { staffId: input.staffId, deletedAt: null },
                 orderBy: { createdAt: 'desc' },
+                select: staffDocumentSelect,
             });
 
-            return docs.map((d: any) => ({
-                ...d,
-                fileUrl: `/api/documents/staff/${d.id}`,
-                mimeType: d.mimeType as 'application/pdf',
-            }));
+            return docs.map(mapStaffDocument);
         }),
 
     getById: protectedProcedure
@@ -69,17 +99,14 @@ export const staffDocumentsRouter = router({
         .query(async ({ ctx, input }) => {
             const doc = await ctx.prisma.staffDocument.findFirst({
                 where: { id: input.id, deletedAt: null },
+                select: staffDocumentSelect,
             });
 
             if (!doc) return null;
 
             await assertStaffAccess(ctx.prisma, ctx.user.role, doc.staffId);
 
-            return {
-                ...doc,
-                fileUrl: `/api/documents/staff/${doc.id}`,
-                mimeType: doc.mimeType as 'application/pdf',
-            };
+            return mapStaffDocument(doc);
         }),
 
     delete: protectedProcedure
@@ -88,6 +115,7 @@ export const staffDocumentsRouter = router({
         .mutation(async ({ ctx, input }) => {
             const doc = await ctx.prisma.staffDocument.findFirst({
                 where: { id: input.documentId, deletedAt: null },
+                select: { staffId: true, fileUrl: true },
             });
 
             if (!doc) {

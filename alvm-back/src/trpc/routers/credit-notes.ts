@@ -12,6 +12,10 @@ import { toNum } from '@back/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@back/services/accounting.service';
 import { generateDocumentNumber } from '@back/helpers/invoice-number';
 import { lockTenant } from '@back/db-context';
+import {
+  assertCreditNoteRegistrations,
+  assertInvoiceParent,
+} from '@back/services/invoice-lifecycle.service';
 
 type CreditNoteStatus = 'DRAFT' | 'SENT' | 'CANCELLED';
 
@@ -84,7 +88,31 @@ const creditNoteWithDetailsSchema = creditNoteSchema.extend({
   ),
 });
 
-const creditNoteInclude = {
+/**
+ * Colonnes d'un avoir exposées (§5.9) : ni `organizationId`, ni l'URL de
+ * stockage du PDF, ni les identifiants internes de création/validation.
+ * `notes` est le motif imprimé sur l'avoir : il reste visible du parent.
+ */
+const creditNoteSelect = {
+  id: true,
+  invoiceNumber: true,
+  creditedInvoiceId: true,
+  parentId: true,
+  issueDate: true,
+  subtotalHt: true,
+  taxRate: true,
+  taxAmount: true,
+  totalAmount: true,
+  refundMethod: true,
+  status: true,
+  isFutureCredit: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.InvoiceSelect;
+
+const creditNoteDetailsSelect = {
+  ...creditNoteSelect,
   creditedInvoice: {
     select: { invoiceNumber: true, totalAmount: true, status: true },
   },
@@ -121,7 +149,7 @@ const creditNoteInclude = {
     },
     take: 1,
   },
-} as const;
+} as const satisfies Prisma.InvoiceSelect;
 
 function mapCreditNoteWithDetails(cn: any) {
   return {
@@ -265,7 +293,7 @@ export const creditNotesRouter = router({
       const [creditNotes, total] = await Promise.all([
         ctx.prisma.invoice.findMany({
           where,
-          include: creditNoteInclude,
+          select: creditNoteDetailsSelect,
           orderBy: [{ [sortMap[sortBy]]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
@@ -295,7 +323,7 @@ export const creditNotesRouter = router({
 
       const cn = await ctx.prisma.invoice.findFirst({
         where,
-        include: creditNoteInclude,
+        select: creditNoteDetailsSelect,
       });
 
       return cn ? mapCreditNoteWithDetails(cn) : null;
@@ -328,6 +356,7 @@ export const creditNotesRouter = router({
         if (input.creditedInvoiceId) {
           const origInvoice = await tx.invoice.findFirst({
             where: { id: input.creditedInvoiceId, invoiceType: 'INVOICE', deletedAt: null },
+            select: { parentId: true },
           });
           if (!origInvoice) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture originale non trouvée' });
@@ -339,6 +368,12 @@ export const creditNotesRouter = router({
             });
           }
         }
+        await assertInvoiceParent(tx, input.parentId);
+        await assertCreditNoteRegistrations(
+          tx,
+          input.parentId,
+          input.lines.map((line) => line.registrationId),
+        );
 
         // Calculate amounts
         let subtotalHt = 0;
@@ -369,6 +404,7 @@ export const creditNotesRouter = router({
             isFutureCredit: input.refundMethod === 'FUTURE_CREDIT',
             notes: input.reason,
           },
+          select: creditNoteSelect,
         });
 
         // Create lines
@@ -404,6 +440,18 @@ export const creditNotesRouter = router({
         await lockTenant(tx, 'billing');
         const cn = await tx.invoice.findFirst({
           where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            parentId: true,
+            status: true,
+            issueDate: true,
+            subtotalHt: true,
+            taxAmount: true,
+            totalAmount: true,
+            taxRate: true,
+            isFutureCredit: true,
+          },
         });
         if (!cn) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouvé' });
@@ -501,6 +549,7 @@ export const creditNotesRouter = router({
         if (input.status === 'SENT' && cn.isFutureCredit) {
           const existing = await tx.parentCredit.findFirst({
             where: { creditNoteId: input.id },
+            select: { id: true },
           });
 
           if (!existing) {
@@ -529,6 +578,7 @@ export const creditNotesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const cn = await ctx.prisma.invoice.findFirst({
         where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
+        select: { status: true },
       });
       if (!cn) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Avoir non trouvé' });
@@ -563,7 +613,12 @@ export const creditNotesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const creditNote = await ctx.prisma.invoice.findFirst({
         where: { id: input.id, invoiceType: 'CREDIT_NOTE', deletedAt: null },
-        include: {
+        select: {
+          id: true,
+          invoiceNumber: true,
+          issueDate: true,
+          totalAmount: true,
+          notes: true,
           creditedInvoice: {
             select: { invoiceNumber: true },
           },

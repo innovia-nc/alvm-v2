@@ -1,0 +1,188 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Asso SaaS (ALVM) — topologie de PRODUCTION de référence (srv-ovh).
+#
+# En production, chaque service est une ressource Coolify distincte (bases
+# gérées, sauvegardes, Watch Paths par application) : ce fichier en est la
+# description exécutable — mêmes images, mêmes variables, mêmes alias réseau
+# que les réglages Coolify de docs/deploiement-ovh.md. Il sert aussi de
+# répétition « comme en prod » sur un hôte Docker quelconque :
+#
+#   export IMAGE_TAG=$(git rev-parse --short HEAD)
+#   dc() { docker compose -f compose.ovh.yml --env-file deploy/ovh/.env "$@"; }
+#   dc build
+#   dc up -d postgres redis
+#   dc --profile ops run --rm migrate                      # schéma + droits de alvm_app
+#   dc run --rm -e SUPER_ADMIN_EMAIL -e SUPER_ADMIN_PASSWORD back create-super-admin
+#   dc up -d front back worker
+#
+# Exposition : AUCUN port publié. Le front (3000) est atteint par le relais
+# HTTPS (Traefik de Coolify, derrière Cloudflare) ; back, worker, PostgreSQL et
+# Redis ne sont joignables que sur les réseaux internes. Les variables sont
+# décrites dans deploy/ovh/.env.example.
+# ─────────────────────────────────────────────────────────────────────────────
+name: asso-saas
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+# Environnement commun au back et au worker (même image, même code).
+x-back-env: &back-env
+  NODE_ENV: production
+  PORT: '4001'
+  # Rôle applicatif NOSUPERUSER NOBYPASSRLS (vérifié au démarrage du back).
+  DATABASE_URL: postgresql://alvm_app:${ALVM_APP_DB_PASSWORD:?ALVM_APP_DB_PASSWORD absent}@alvm-postgres:5432/${POSTGRES_DB:-alvm}
+  # Secret NextAuth PARTAGÉ avec le front : le back déchiffre le cookie de session.
+  AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent}
+  # Secret PARTAGÉ avec le front : le back refuse toute requête qui ne le porte pas.
+  INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET absent}
+  # URL publique du front (liens des emails), sans slash final.
+  AUTH_URL: ${AUTH_URL:?AUTH_URL absent}
+  PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY:?PLATFORM_ENCRYPTION_KEY absent}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD absent}@alvm-redis:6379
+  EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
+  BLOB_PRIVATE_READ_WRITE_TOKEN: ${BLOB_PRIVATE_READ_WRITE_TOKEN:-}
+  SOURCE_COMMIT: ${IMAGE_TAG:?IMAGE_TAG absent}
+
+x-back-build: &back-build
+  context: .
+  dockerfile: alvm-back/Dockerfile
+
+services:
+  front:
+    image: asso-saas-front:${IMAGE_TAG:?IMAGE_TAG absent}
+    build:
+      context: .
+      dockerfile: alvm-front/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET absent}
+      AUTH_URL: ${AUTH_URL:?AUTH_URL absent}
+      API_INTERNAL_URL: http://alvm-back:4001
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET absent}
+      # Contrôle de sécurité : relais de confiance devant le front
+      # (Cloudflare proxy + Traefik : 2). Mal réglé, un appelant choisit son IP.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:?TRUSTED_PROXY_HOPS absent}
+      SOURCE_COMMIT: ${IMAGE_TAG:?IMAGE_TAG absent}
+    depends_on:
+      back:
+        condition: service_healthy
+    # Atteint par le relais HTTPS uniquement : aucun `ports:`.
+    expose: ['3000']
+    networks: [app]
+
+  back:
+    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
+    build: *back-build
+    restart: unless-stopped
+    logging: *logging
+    environment: *back-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose: ['4001']
+    networks:
+      app:
+        # Même alias que « Custom Docker Network Aliases » dans Coolify.
+        aliases: [alvm-back]
+      data: {}
+
+  worker:
+    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
+    # Même build que le back (entièrement en cache) : l'image existe toujours
+    # localement, quel que soit l'ordre dans lequel Compose traite les services.
+    build: *back-build
+    command: ['worker']
+    restart: unless-stopped
+    logging: *logging
+    environment: *back-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # `app` pour l'accès sortant (API Resend) ; aucun port.
+    networks: [app, data]
+
+  # One-shot, seul détenteur des identifiants propriétaire :
+  #   docker compose -f compose.ovh.yml --profile ops run --rm migrate
+  migrate:
+    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent}
+    command: ['migrate']
+    profiles: [ops]
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql://alvm_app:${ALVM_APP_DB_PASSWORD:?ALVM_APP_DB_PASSWORD absent}@alvm-postgres:5432/${POSTGRES_DB:-alvm}
+      DATABASE_MIGRATION_URL: postgresql://${POSTGRES_USER:-alvm_owner}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD absent}@alvm-postgres:5432/${POSTGRES_DB:-alvm}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [data]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # Propriétaire du schéma (migrations uniquement).
+      POSTGRES_USER: ${POSTGRES_USER:-alvm_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD absent}
+      POSTGRES_DB: ${POSTGRES_DB:-alvm}
+      # Lu par init-app-role.sh à la création du volume.
+      ALVM_APP_DB_PASSWORD: ${ALVM_APP_DB_PASSWORD:?ALVM_APP_DB_PASSWORD absent}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-init-app-role.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      data:
+        aliases: [alvm-postgres]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
+    # File BullMQ : persistance AOF, jamais d'éviction de clés (exigence BullMQ).
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD absent}
+      - --appendonly
+      - 'yes'
+      - --maxmemory-policy
+      - noeviction
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD absent}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      data:
+        aliases: [alvm-redis]
+
+networks:
+  # Front ↔ back, et accès sortant du back/worker (Resend, Vercel Blob).
+  app: {}
+  # Données : sans route vers l'extérieur ; le front n'y est pas.
+  data:
+    internal: true
+
+volumes:
+  postgres-data:
+  redis-data:

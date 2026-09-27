@@ -10,6 +10,25 @@ type Tx = Omit<
 >;
 const money = (value: number) => Math.round(value * 100) / 100;
 
+/**
+ * Facture relue pendant l'annulation : montants, statut et lignes actives.
+ * Whitelist (§5.9) partagée par la lecture initiale et la relecture finale.
+ */
+const cancellationInvoiceSelect = {
+  id: true,
+  invoiceNumber: true,
+  parentId: true,
+  status: true,
+  taxRate: true,
+  totalAmount: true,
+  paidAmount: true,
+  creditedAmount: true,
+  lines: {
+    where: { deletedAt: null },
+    select: { id: true, registrationId: true, totalPrice: true },
+  },
+} as const;
+
 export async function createCompensationCredit(
   tx: Tx,
   input: {
@@ -94,7 +113,12 @@ export async function cancelRegistrationWithAccounting(
 ) {
   const reg = await tx.registration.findFirst({
     where: { id: input.registrationId, deletedAt: null },
-    include: { camp: { include: { campType: true } } },
+    select: {
+      id: true,
+      campId: true,
+      status: true,
+      camp: { select: { campType: { select: { accountingCode: true } } } },
+    },
   });
   if (!reg) throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
   if (reg.status === 'CANCELLED')
@@ -109,7 +133,7 @@ export async function cancelRegistrationWithAccounting(
       status: { notIn: ['CANCELLED', 'CREDITED'] },
       lines: { some: { registrationId: reg.id, deletedAt: null } },
     },
-    include: { lines: { where: { deletedAt: null } } },
+    select: cancellationInvoiceSelect,
   });
   let caseType:
     | 'NO_INVOICE'
@@ -193,6 +217,7 @@ export async function cancelRegistrationWithAccounting(
         const method = !future
           ? await tx.paymentMethod.findFirst({
               where: { code: input.paymentMethodCode ?? 'BANK_TRANSFER', active: true },
+              select: { code: true, accountingCode: true },
             })
           : null;
         if (!future && !method)
@@ -203,7 +228,12 @@ export async function cancelRegistrationWithAccounting(
         const payments = await tx.payment.findMany({
           where: { invoiceId: invoice.id },
           orderBy: [{ paymentDate: 'desc' }, { id: 'asc' }],
-          include: { refunds: { where: { deletedAt: null } } },
+          select: {
+            id: true,
+            amount: true,
+            creditNoteId: true,
+            refunds: { where: { deletedAt: null }, select: { amount: true } },
+          },
         });
         let remaining = paidShare;
         for (const payment of payments) {
@@ -271,7 +301,7 @@ export async function cancelRegistrationWithAccounting(
     }
     resultingInvoice = await tx.invoice.findFirst({
       where: { id: invoice.id },
-      include: { lines: { where: { deletedAt: null } } },
+      select: cancellationInvoiceSelect,
     });
   }
   await tx.registration.update({
@@ -288,6 +318,7 @@ export async function cancelRegistrationWithAccounting(
   const waitlisted = await tx.registration.findFirst({
     where: { campId: reg.campId, status: 'WAITLIST', deletedAt: null },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: { id: true },
   });
   if (waitlisted)
     await tx.registration.update({ where: { id: waitlisted.id }, data: { status: 'PENDING' } });

@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { router, staffProcedure, adminProcedure } from '@back/trpc/trpc.init';
-import type { AppSetting } from '@prisma/client';
 import { deleteFromStorageBestEffort } from '@back/storage/blob-storage';
 import { parseLogoValue, upsertAppSetting } from '@back/helpers/settings';
 import { isTenantBlobUrl } from '@back/storage/tenant-path';
 import { TRPCError } from '@trpc/server';
+import { isEmailQueueConfigured } from '@back/queues/email.queue';
 
 const settingCategories = z.enum([
   'organization',
@@ -17,7 +17,29 @@ const settingCategories = z.enum([
 
 type SettingCategory = z.infer<typeof settingCategories>;
 
-function mapSetting(s: AppSetting) {
+/**
+ * Colonnes d'un réglage exposées (§5.9) : ni `organizationId`, ni `updatedBy`
+ * (identifiant interne, lu par aucun écran).
+ */
+const settingSelect = {
+  id: true,
+  category: true,
+  key: true,
+  value: true,
+  description: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function mapSetting(s: {
+  id: string;
+  category: string;
+  key: string;
+  value: string | null;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
   return { ...s, category: s.category as SettingCategory };
 }
 
@@ -27,7 +49,6 @@ const settingSchema = z.object({
   key: z.string(),
   value: z.unknown(),
   description: z.string().nullable(),
-  updatedBy: z.string().uuid().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -40,6 +61,7 @@ export const settingsRouter = router({
       const rows = await ctx.prisma.appSetting.findMany({
         where: { category: input.category },
         orderBy: { key: 'asc' },
+        select: settingSelect,
       });
       return rows.map(mapSetting);
     }),
@@ -73,7 +95,8 @@ export const settingsRouter = router({
    * Indique si l'envoi d'email est opérationnel sur cet environnement (TD-008).
    *
    * Consommé par les écrans de facturation pour ne pas proposer un envoi qui
-   * échouerait faute de configuration. Ne renvoie aucun secret : uniquement le
+   * échouerait faute de configuration : clé du fournisseur ET file d'envoi
+   * `alvm-email` (REDIS_URL). Ne renvoie aucun secret : uniquement le
    * booléen et l'adresse d'expédition affichable.
    */
   isEmailConfigured: staffProcedure
@@ -81,7 +104,7 @@ export const settingsRouter = router({
     .query(async ({ ctx }) => {
       const { isEmailConfigured, getEmailSender } = await import('@back/services/email.service');
 
-      const configured = await isEmailConfigured();
+      const configured = (await isEmailConfigured()) && isEmailQueueConfigured();
       if (!configured) {
         return { configured: false, fromEmail: null };
       }
@@ -105,6 +128,7 @@ export const settingsRouter = router({
       // resterait facturé et public. On le lit AVANT l'upsert.
       const previous = await ctx.prisma.appSetting.findFirst({
         where: { category: 'organization', key: 'logo_url' },
+        select: { value: true },
       });
       const previousUrl = parseLogoValue(previous?.value);
 
@@ -124,6 +148,7 @@ export const settingsRouter = router({
   getLogoUrl: staffProcedure.output(z.string().url().nullable()).query(async ({ ctx }) => {
     const setting = await ctx.prisma.appSetting.findFirst({
       where: { category: 'organization', key: 'logo_url' },
+      select: { value: true },
     });
     return parseLogoValue(setting?.value) ?? null;
   }),
@@ -135,6 +160,7 @@ export const settingsRouter = router({
       // introuvable côté application tout en restant public et facturé.
       const setting = await ctx.prisma.appSetting.findFirst({
         where: { category: 'organization', key: 'logo_url' },
+        select: { value: true },
       });
       const url = parseLogoValue(setting?.value);
 

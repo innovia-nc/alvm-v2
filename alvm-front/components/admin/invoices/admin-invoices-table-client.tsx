@@ -121,10 +121,10 @@ export function AdminInvoicesTableClient() {
   // Mutation d'envoi email
   const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
     onSuccess: (data) => {
-      toast.success(`Email envoyé à ${data.sentTo}`);
+      // File `alvm-email` : l'envoi est programmé, son suivi est sur la fiche facture.
+      toast.success(`Envoi programmé à ${data.recipient}`);
       setSendingEmailItem(null);
-      utils.invoices.list.invalidate();
-      router.refresh();
+      void utils.invoices.emailHistory.invalidate();
     },
     onError: (err) => {
       setError(err.message || "Erreur lors de l'envoi de l'email");

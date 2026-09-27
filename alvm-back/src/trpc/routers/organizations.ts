@@ -22,11 +22,14 @@ import { recordPlatformAudit } from '@back/services/platform-audit.service';
  * le reste est réservé à la super administration (scope RLS `platform`).
  */
 export const organizationsRouter = router({
-  /** Association de la session (nom affiché dans l'en-tête). */
+  /**
+   * Association de la session (nom affiché dans l'en-tête). Pas d'`id` : le
+   * tenant est implicite côté métier (§5.9).
+   */
   current: protectedProcedure.query(({ ctx }) =>
     ctx.prisma.organization.findUnique({
       where: { id: ctx.organizationId },
-      select: { id: true, slug: true, name: true, kind: true },
+      select: { slug: true, name: true, kind: true },
     }),
   ),
 

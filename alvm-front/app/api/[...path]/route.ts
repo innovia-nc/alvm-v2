@@ -30,6 +30,43 @@ const HOP_BY_HOP = new Set([
 ]);
 const PREFIXES = new Set<string>(BACK_API_PREFIXES);
 
+/**
+ * Taille maximale d'un corps relayé : le plus gros envoi légitime est un
+ * document PDF de 5 Mo en multipart. Le back lit les corps en entier
+ * (`formData()`, JSON tRPC) : sans borne, un envoi massif occuperait sa mémoire.
+ */
+const MAX_RELAYED_BODY = 6 * 1024 * 1024;
+
+/**
+ * Lit le corps en refusant tout dépassement, que la taille soit annoncée
+ * (`content-length`) ou non (envoi fragmenté).
+ */
+async function readBoundedBody(request: Request): Promise<ArrayBuffer | 'too-large'> {
+  const announced = Number(request.headers.get('content-length') ?? '0');
+  if (announced > MAX_RELAYED_BODY) return 'too-large';
+  if (!request.body) return new ArrayBuffer(0);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_RELAYED_BODY) {
+      await reader.cancel();
+      return 'too-large';
+    }
+    chunks.push(value);
+  }
+  const body = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body.buffer;
+}
+
 async function relay(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   if (!PREFIXES.has(path[0] ?? '')) return Response.json({ error: 'Introuvable' }, { status: 404 });
@@ -43,14 +80,16 @@ async function relay(request: Request, context: { params: Promise<{ path: string
     headers.set(name, value);
 
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+  const body = hasBody ? await readBoundedBody(request) : undefined;
+  if (body === 'too-large')
+    return Response.json({ error: 'Requête trop volumineuse' }, { status: 413 });
+  headers.delete('content-length');
   let response: Response;
   try {
     response = await fetch(backUrl(source.pathname + source.search), {
       method: request.method,
       headers,
-      body: hasBody ? request.body : undefined,
-      // @ts-expect-error — `duplex` requis par undici pour un corps en flux.
-      duplex: hasBody ? 'half' : undefined,
+      body,
       redirect: 'manual',
       cache: 'no-store',
       signal: request.signal,

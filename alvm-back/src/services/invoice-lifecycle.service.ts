@@ -8,6 +8,70 @@ type Tx = Omit<
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
+/**
+ * Colonnes d'une facture renvoyées au client (§5.9) : jamais `organizationId`,
+ * `notes`, l'URL de stockage du PDF (`pdfUrl` en base), ni les identifiants
+ * internes du créateur et du validateur.
+ */
+export const invoiceSummarySelect = {
+  id: true,
+  invoiceNumber: true,
+  parentId: true,
+  issueDate: true,
+  dueDate: true,
+  subtotalHt: true,
+  taxAmount: true,
+  taxRate: true,
+  totalAmount: true,
+  paidAmount: true,
+  creditedAmount: true,
+  status: true,
+  version: true,
+  accountingExportedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+/**
+ * Le client d'une pièce (facture, avoir) doit appartenir à l'association de
+ * la transaction. La clé étrangère `parent_id` ne le garantit PAS :
+ * PostgreSQL vérifie les clés étrangères hors RLS, si bien qu'un identifiant
+ * de parent d'une autre association était accepté et rattachait la pièce à
+ * un client étranger. `findUnique` (hors filtre soft-delete) : un client
+ * archivé reste facturable, seule la frontière du tenant est vérifiée ici.
+ */
+export async function assertInvoiceParent(tx: Tx, parentId: string) {
+  const parent = await tx.parent.findUnique({
+    where: { userId: parentId },
+    select: { userId: true },
+  });
+  if (!parent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Client non trouvé' });
+}
+
+/**
+ * Lignes d'avoir rattachées à une inscription : l'inscription doit exister
+ * dans l'association et appartenir au client de l'avoir (même garde que les
+ * factures, sans exiger une inscription active — un avoir porte souvent sur
+ * une inscription annulée).
+ */
+export async function assertCreditNoteRegistrations(
+  tx: Tx,
+  parentId: string,
+  ids: Array<string | null>,
+) {
+  for (const id of new Set(ids.filter((value): value is string => Boolean(value)))) {
+    const registration = await tx.registration.findUnique({
+      where: { id },
+      select: { parentId: true },
+    });
+    if (registration?.parentId !== parentId)
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Inscription inconnue ou appartenant à un autre client',
+      });
+  }
+}
+
 export async function validateInvoiceRegistrations(
   tx: Tx,
   parentId: string,
@@ -85,6 +149,7 @@ export async function issueInvoice(tx: Tx, id: string, userId: string) {
       pdfUrl: null,
       version: { increment: 1 },
     },
+    select: invoiceSummarySelect,
   });
 }
 
@@ -107,5 +172,6 @@ export async function cancelUnpaidInvoice(tx: Tx, id: string, userId: string, ve
   return tx.invoice.update({
     where: { id },
     data: { status: 'CANCELLED', pdfUrl: null, version: { increment: 1 } },
+    select: invoiceSummarySelect,
   });
 }
