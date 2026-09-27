@@ -51,9 +51,18 @@ jobs:
         run: pnpm build:all
 
   integration:
-    name: Tests d'intégration (PostgreSQL 16 réel, RLS)
+    name: Tests d'intégration (PostgreSQL 16 réel, RLS ; Redis 7 réel)
     runs-on: ubuntu-latest
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
       postgres:
         image: postgres:16-alpine
         env:
@@ -105,6 +114,13 @@ jobs:
       # la campagne échoue au lieu d'être ignorée.
       - name: Tests d'intégration (vitest)
         run: pnpm --filter @alvm/back test:integration
+
+      # File alvm-email contre un vrai Redis (producteur + worker) ; Redis
+      # absent = échec, jamais un saut (docs/file-emails.md).
+      - name: Tests d'intégration de la file d'emails (vitest)
+        env:
+          REDIS_URL: redis://localhost:6379
+        run: pnpm --filter @alvm/back test:integration:email-queue
 
   images:
     name: Image ${{ matrix.service }}
