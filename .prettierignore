@@ -1,0 +1,7 @@
+node_modules
+.next
+dist
+coverage
+pnpm-lock.yaml
+docs/audit-2026-09-22
+packages/shared/prisma/migrations

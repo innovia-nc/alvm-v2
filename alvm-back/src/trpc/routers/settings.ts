@@ -1,0 +1,149 @@
+import { z } from 'zod';
+import { router, staffProcedure, adminProcedure } from '@back/trpc/trpc.init';
+import type { AppSetting } from '@prisma/client';
+import { deleteFromStorageBestEffort } from '@back/storage/blob-storage';
+import { parseLogoValue, upsertAppSetting } from '@back/helpers/settings';
+import { isTenantBlobUrl } from '@back/storage/tenant-path';
+import { TRPCError } from '@trpc/server';
+
+const settingCategories = z.enum([
+  'organization',
+  'pricing',
+  'email',
+  'accounting',
+  'maintenance',
+  'documents',
+]);
+
+type SettingCategory = z.infer<typeof settingCategories>;
+
+function mapSetting(s: AppSetting) {
+  return { ...s, category: s.category as SettingCategory };
+}
+
+const settingSchema = z.object({
+  id: z.string().uuid(),
+  category: settingCategories,
+  key: z.string(),
+  value: z.unknown(),
+  description: z.string().nullable(),
+  updatedBy: z.string().uuid().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const settingsRouter = router({
+  getByCategory: staffProcedure
+    .input(z.object({ category: settingCategories }))
+    .output(z.array(settingSchema))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.prisma.appSetting.findMany({
+        where: { category: input.category },
+        orderBy: { key: 'asc' },
+      });
+      return rows.map(mapSetting);
+    }),
+
+  updateBulk: adminProcedure
+    .input(
+      z.object({
+        settings: z.array(
+          z.object({
+            category: settingCategories,
+            key: z.string().min(1),
+            value: z.unknown(),
+          }),
+        ),
+      }),
+    )
+    .output(z.object({ success: z.boolean(), count: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      for (const s of input.settings) {
+        await upsertAppSetting(ctx.prisma, ctx.organizationId, {
+          category: s.category,
+          key: s.key,
+          value: JSON.stringify(s.value),
+          updatedBy: ctx.user.id,
+        });
+      }
+      return { success: true, count: input.settings.length };
+    }),
+
+  /**
+   * Indique si l'envoi d'email est opérationnel sur cet environnement (TD-008).
+   *
+   * Consommé par les écrans de facturation pour ne pas proposer un envoi qui
+   * échouerait faute de configuration. Ne renvoie aucun secret : uniquement le
+   * booléen et l'adresse d'expédition affichable.
+   */
+  isEmailConfigured: staffProcedure
+    .output(z.object({ configured: z.boolean(), fromEmail: z.string().nullable() }))
+    .query(async ({ ctx }) => {
+      const { isEmailConfigured, getEmailSender } = await import('@back/services/email.service');
+
+      const configured = await isEmailConfigured();
+      if (!configured) {
+        return { configured: false, fromEmail: null };
+      }
+
+      const sender = await getEmailSender(ctx.prisma);
+      return { configured: true, fromEmail: sender.fromEmail };
+    }),
+
+  setLogoUrl: adminProcedure
+    .input(z.object({ url: z.string().url() }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      // Seul un objet téléversé par `/api/upload/logo` pour CETTE association
+      // est accepté : ni `javascript:`/`data:`, ni l'objet d'un autre tenant.
+      if (!isTenantBlobUrl(input.url, ctx.organizationId))
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Le logo doit être téléversé depuis cet écran.',
+        });
+      // TD-006 : le logo remplacé n'est plus référencé nulle part — son blob
+      // resterait facturé et public. On le lit AVANT l'upsert.
+      const previous = await ctx.prisma.appSetting.findFirst({
+        where: { category: 'organization', key: 'logo_url' },
+      });
+      const previousUrl = parseLogoValue(previous?.value);
+
+      await upsertAppSetting(ctx.prisma, ctx.organizationId, {
+        category: 'organization',
+        key: 'logo_url',
+        value: JSON.stringify(input.url),
+      });
+
+      if (previousUrl && previousUrl !== input.url) {
+        await deleteFromStorageBestEffort(previousUrl, 'logo remplacé');
+      }
+
+      return { success: true };
+    }),
+
+  getLogoUrl: staffProcedure.output(z.string().url().nullable()).query(async ({ ctx }) => {
+    const setting = await ctx.prisma.appSetting.findFirst({
+      where: { category: 'organization', key: 'logo_url' },
+    });
+    return parseLogoValue(setting?.value) ?? null;
+  }),
+
+  deleteLogoUrl: adminProcedure
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ ctx }) => {
+      // TD-006 : lire l'URL avant de supprimer la ligne, sinon le blob devient
+      // introuvable côté application tout en restant public et facturé.
+      const setting = await ctx.prisma.appSetting.findFirst({
+        where: { category: 'organization', key: 'logo_url' },
+      });
+      const url = parseLogoValue(setting?.value);
+
+      await ctx.prisma.appSetting.deleteMany({
+        where: { category: 'organization', key: 'logo_url' },
+      });
+
+      await deleteFromStorageBestEffort(url, 'logo supprimé');
+
+      return { success: true };
+    }),
+});
