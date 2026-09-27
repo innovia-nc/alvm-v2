@@ -50,7 +50,6 @@ interface ChildDocument {
   fileUrl: string;
   fileSize: number;
   description: string | null;
-  uploadedBy: string;
   createdAt: Date;
 }
 

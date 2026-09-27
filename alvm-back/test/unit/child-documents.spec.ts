@@ -205,7 +205,8 @@ describe('childDocuments router', () => {
       expect(doc.mimeType).toBe('application/pdf');
       expect(doc.fileSize).toBe(12345);
       expect(doc.description).toBe('Certificat medical 2025');
-      expect(doc.uploadedBy).toBe(UPLOADER_ID);
+      // §5.9 : identifiant interne du déposant, jamais exposé (un parent le verrait).
+      expect(doc).not.toHaveProperty('uploadedBy');
       expect(doc.createdAt).toEqual(now);
       expect(doc.updatedAt).toEqual(now);
     });

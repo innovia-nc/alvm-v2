@@ -45,6 +45,24 @@ function expectNoKeys(value: unknown, forbidden: string[]) {
 }
 
 /**
+ * Champs demandés par un `select` Prisma, en profondeur. Les filtres et tris
+ * d'une relation (`where`, `orderBy`…) ne sont pas des champs lus.
+ */
+function selectedFields(select: unknown, fields = new Set<string>()): Set<string> {
+  if (!select || typeof select !== 'object') return fields;
+  for (const [key, value] of Object.entries(select)) {
+    if (value === false) continue;
+    fields.add(key);
+    if (value && typeof value === 'object') {
+      const nested = value as Record<string, unknown>;
+      expect(nested.include, `include imbriqué sous « ${key} »`).toBeUndefined();
+      selectedFields(nested.select, fields);
+    }
+  }
+  return fields;
+}
+
+/**
  * La requête a été faite avec une whitelist `select` (pas d'`include`) qui ne
  * demande aucun des champs interdits.
  */
@@ -53,7 +71,8 @@ function expectWhitelistedQuery(mockFn: { mock: { calls: unknown[][] } }, forbid
   for (const [args] of mockFn.mock.calls as Array<[Record<string, unknown>]>) {
     expect(args.include, 'include utilisé au lieu de select').toBeUndefined();
     expect(args.select, 'select absent').toBeDefined();
-    expectNoKeys(args.select, forbidden);
+    const fields = selectedFields(args.select);
+    for (const key of forbidden) expect(fields, `champ « ${key} » demandé`).not.toContain(key);
   }
 }
 
@@ -453,5 +472,102 @@ describe('§5.9 — comptes vus par leur titulaire et par la plateforme', () => 
       { select: Record<string, unknown> },
     ];
     expect(args.select).toEqual({ slug: true, name: true, kind: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// children.* et childDocuments.* (vus par un parent)
+// ---------------------------------------------------------------------------
+
+const CHILD_ID = 'c0000000-0000-4000-a000-000000000020';
+
+function poisonedChild(overrides: Record<string, unknown> = {}) {
+  return {
+    id: CHILD_ID,
+    organizationId: TEST_ORGANIZATION_ID,
+    firstName: 'Léa',
+    lastName: 'Dupont',
+    birthDate: new Date('2016-04-01'),
+    gender: 'FEMALE',
+    ecole: null,
+    medicalInfo: { allergies: [], medications: [], conditions: [], diet_restrictions: [], notes: '' },
+    emergencyContactName: null,
+    emergencyContactPhone: null,
+    emergencyContactRelation: null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    parentLinks: [
+      {
+        id: 'c0000000-0000-4000-a000-000000000021',
+        organizationId: TEST_ORGANIZATION_ID,
+        childId: CHILD_ID,
+        parentId: USER_ID,
+        isPrimary: true,
+        relationship: 'mother',
+        createdAt: now,
+        updatedAt: now,
+        parent: { ...poisonedUser().parent, user: poisonedUser() },
+      },
+    ],
+    ...overrides,
+  };
+}
+
+describe('§5.9 — children.* et childDocuments.* vus par un parent', () => {
+  const forbidden = [...ACCOUNT_SECRETS, ...TENANT_INTERNALS, 'deletedAt', 'user'];
+
+  it('children.list : whitelist select, ni tenant ni compte des parents rattachés', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.child.findMany.mockResolvedValue([poisonedChild()]);
+    mockPrisma.child.count.mockResolvedValue(1);
+
+    const result = await caller.children.list({});
+
+    expectWhitelistedQuery(mockPrisma.child.findMany, forbidden);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('children.getById : whitelist select, ni tenant ni compte des parents rattachés', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.child.findFirst.mockResolvedValue(poisonedChild());
+
+    const result = await caller.children.getById({ id: CHILD_ID });
+
+    expectWhitelistedQuery(mockPrisma.child.findFirst, forbidden);
+    expectNoKeys(result, forbidden);
+    expect(result?.parents[0].email).toBe('parent@test.nc');
+  });
+
+  it('childDocuments.list : ni URL de stockage, ni déposant, ni tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.childParent.findFirst.mockResolvedValue({ id: 'link' });
+    mockPrisma.childDocument.findMany.mockResolvedValue([
+      {
+        id: 'd0000000-0000-4000-a000-000000000002',
+        organizationId: TEST_ORGANIZATION_ID,
+        childId: CHILD_ID,
+        filename: 'x.pdf',
+        originalFilename: 'certificat.pdf',
+        fileUrl: 'https://blob.example/tenants/secret/x.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 10,
+        description: null,
+        uploadedBy: STAFF_USER.id,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      },
+    ]);
+
+    const result = await caller.childDocuments.list({ childId: CHILD_ID });
+
+    expectWhitelistedQuery(mockPrisma.childDocument.findMany, [
+      'fileUrl',
+      'uploadedBy',
+      'organizationId',
+    ]);
+    expectNoKeys(result, ['uploadedBy', 'organizationId', 'deletedAt']);
+    expect(result[0].fileUrl).toBe('/api/documents/child/d0000000-0000-4000-a000-000000000002');
   });
 });

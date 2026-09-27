@@ -73,27 +73,51 @@ const childSchema = z.object({
   parents: z.array(associatedParentSchema),
 });
 
-const parentInclude = {
+/** Coordonnées d'un parent rattaché (§5.9) : jamais son compte ni son tenant. */
+const linkedParentSelect = {
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  homePhone: true,
+  workPhone: true,
+} as const;
+
+/** Lien enfant ↔ parent exposé : identifiants du lien et du parent, rôle familial. */
+const parentLinkSelect = {
+  id: true,
+  parentId: true,
+  isPrimary: true,
+  relationship: true,
+  parent: { select: linkedParentSelect },
+} as const;
+
+/**
+ * Whitelist de la fiche enfant (§5.9) : ni `organizationId`, ni `deletedAt`.
+ * Les parents rattachés (archivés exclus) sont joints en select.
+ */
+const childSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  birthDate: true,
+  gender: true,
+  ecole: true,
+  medicalInfo: true,
+  emergencyContactName: true,
+  emergencyContactPhone: true,
+  emergencyContactRelation: true,
+  createdAt: true,
+  updatedAt: true,
   parentLinks: {
     where: { parent: { deletedAt: null } },
-    include: {
-      parent: {
-        select: {
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          homePhone: true,
-          workPhone: true,
-        },
-      },
-    },
+    select: parentLinkSelect,
     orderBy: [
       { isPrimary: 'desc' as const },
       { createdAt: 'asc' as const },
     ] as Prisma.ChildParentOrderByWithRelationInput[],
   },
-};
+} as const satisfies Prisma.ChildSelect;
 
 function mapChild(c: any) {
   return {
@@ -230,7 +254,7 @@ export const childrenRouter = router({
       const [children, total] = await Promise.all([
         ctx.prisma.child.findMany({
           where,
-          include: parentInclude,
+          select: childSelect,
           orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
@@ -261,7 +285,7 @@ export const childrenRouter = router({
     .query(async ({ ctx, input }) => {
       const child = await ctx.prisma.child.findFirst({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id: input.id }),
-        include: parentInclude,
+        select: childSelect,
       });
       return child ? mapChild(child) : null;
     }),
@@ -288,21 +312,24 @@ export const childrenRouter = router({
       return ctx.prisma.$transaction(async (tx) => {
         const ownAccount =
           ctx.user.role === 'PARENT'
-            ? await tx.user.findUnique({ where: { id: ctx.user.id } })
+            ? await tx.user.findUnique({ where: { id: ctx.user.id }, select: { email: true } })
             : null;
         if (ownAccount && ownAccount.email !== input.email)
           throw new TRPCError({
             code: 'FORBIDDEN',
             message: 'Utilisez votre adresse de compte pour votre inscription personnelle',
           });
-        let client = await tx.parent.findFirst({ where: { email: input.email, deletedAt: null } });
+        let client = await tx.parent.findFirst({
+          where: { email: input.email, deletedAt: null },
+          select: { userId: true },
+        });
         if (!client) {
           if (ctx.user.role === 'PARENT')
             throw new TRPCError({
               code: 'PRECONDITION_FAILED',
               message: 'Profil client indisponible',
             });
-          if (await tx.user.findFirst({ where: { email: input.email } }))
+          if (await tx.user.findFirst({ where: { email: input.email }, select: { id: true } }))
             throw new TRPCError({
               code: 'CONFLICT',
               message: 'Un compte existe déjà avec cette adresse : vérifiez son profil client',
@@ -384,6 +411,7 @@ export const childrenRouter = router({
       for (const p of input.parents) {
         const exists = await ctx.prisma.parent.findFirst({
           where: { userId: p.parentId, deletedAt: null },
+          select: { userId: true },
         });
         if (!exists) {
           throw new TRPCError({ code: 'NOT_FOUND', message: `Parent ${p.parentId} non trouvé` });
@@ -418,7 +446,7 @@ export const childrenRouter = router({
 
         return tx.child.findUniqueOrThrow({
           where: { id: created.id },
-          include: parentInclude,
+          select: childSelect,
         });
       });
 
@@ -453,6 +481,7 @@ export const childrenRouter = router({
       // Verify the parent profile exists
       const parentExists = await ctx.prisma.parent.findFirst({
         where: { userId: parentId, deletedAt: null },
+        select: { userId: true },
       });
       if (!parentExists) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Profil parent non trouvé' });
@@ -484,7 +513,7 @@ export const childrenRouter = router({
 
         return tx.child.findUniqueOrThrow({
           where: { id: created.id },
-          include: parentInclude,
+          select: childSelect,
         });
       });
 
@@ -512,6 +541,7 @@ export const childrenRouter = router({
 
       const existing = await ctx.prisma.child.findFirst({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id }),
+        select: { id: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
@@ -538,7 +568,7 @@ export const childrenRouter = router({
       const child = await ctx.prisma.child.update({
         where: { id },
         data,
-        include: parentInclude,
+        select: childSelect,
       });
 
       return mapChild(child);
@@ -550,6 +580,7 @@ export const childrenRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.child.findFirst({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id: input.id }),
+        select: { id: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
@@ -579,6 +610,7 @@ export const childrenRouter = router({
     .query(async ({ ctx, input }) => {
       const child = await ctx.prisma.child.findFirst({
         where: childAccessWhere(ctx.user.role, ctx.user.id, { id: input.childId }),
+        select: { id: true },
       });
       if (!child) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé ou accès refusé' });
@@ -586,18 +618,7 @@ export const childrenRouter = router({
 
       const links = await ctx.prisma.childParent.findMany({
         where: { childId: input.childId },
-        include: {
-          parent: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
-              homePhone: true,
-              workPhone: true,
-            },
-          },
-        },
+        select: parentLinkSelect,
         orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
       });
 
@@ -628,6 +649,7 @@ export const childrenRouter = router({
     .mutation(async ({ ctx, input }) => {
       const child = await ctx.prisma.child.findFirst({
         where: { id: input.childId, deletedAt: null },
+        select: { id: true },
       });
       if (!child) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Enfant non trouvé' });
@@ -635,15 +657,7 @@ export const childrenRouter = router({
 
       const parent = await ctx.prisma.parent.findFirst({
         where: { userId: input.parentId, deletedAt: null },
-        select: {
-          userId: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          homePhone: true,
-          workPhone: true,
-        },
+        select: { userId: true, ...linkedParentSelect },
       });
       if (!parent) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
@@ -661,6 +675,7 @@ export const childrenRouter = router({
 
       const existing = await ctx.prisma.childParent.findUnique({
         where: { childId_parentId: { childId: input.childId, parentId: input.parentId } },
+        select: { id: true },
       });
       if (existing) {
         throw new TRPCError({
@@ -676,6 +691,7 @@ export const childrenRouter = router({
           isPrimary: input.isPrimary,
           relationship: input.relationship || null,
         },
+        select: { id: true, parentId: true, isPrimary: true, relationship: true },
       });
 
       return {
@@ -703,6 +719,7 @@ export const childrenRouter = router({
     .mutation(async ({ ctx, input }) => {
       const link = await ctx.prisma.childParent.findUnique({
         where: { childId_parentId: { childId: input.childId, parentId: input.parentId } },
+        select: { id: true },
       });
       if (!link) {
         throw new TRPCError({
@@ -739,6 +756,7 @@ export const childrenRouter = router({
     .mutation(async ({ ctx, input }) => {
       const link = await ctx.prisma.childParent.findUnique({
         where: { childId_parentId: { childId: input.childId, parentId: input.parentId } },
+        select: { id: true },
       });
       if (!link) {
         throw new TRPCError({
