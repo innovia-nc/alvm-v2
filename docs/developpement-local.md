@@ -8,8 +8,8 @@ avant push.
 ```bash
 docker compose up -d                 # PostgreSQL 16 (127.0.0.1:5436) + Redis 7 (127.0.0.1:6380)
 pnpm install                         # génère aussi le client Prisma (@alvm/shared)
-cp .env.example alvm-back/.env.local      # puis renseigner les secrets (voir ci-dessous)
-cp .env.example alvm-front/.env.local     # AUTH_SECRET / INTERNAL_API_SECRET identiques au back
+cp alvm-back/.env.example alvm-back/.env.local    # puis renseigner les secrets (voir ci-dessous)
+cp alvm-front/.env.example alvm-front/.env.local  # AUTH_SECRET / INTERNAL_API_SECRET identiques au back
 pnpm db:migrate                      # migrations + droits du rôle applicatif alvm_app
 pnpm db:seed                         # démo : espaces « alvm » et « asso-demo », super admin
 pnpm dev                             # back :4001 + front (next dev)
