@@ -14,6 +14,7 @@ import {
   createTestCaller,
   ADMIN_USER,
   STAFF_USER,
+  PARENT_USER,
   TEST_ORGANIZATION_ID,
 } from '../helpers/test-caller';
 
@@ -166,5 +167,85 @@ describe('§5.9 — users.* ne transporte ni secret ni champ interne', () => {
 
     expect(Object.keys(result).sort()).toEqual(['success', 'tempPassword']);
     expectWhitelistedQuery(mockPrisma.account.findFirst, ['providerAccountId']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parents.*
+// ---------------------------------------------------------------------------
+
+/** Ligne `parents` complète, compte de connexion inclus (ce qu'un include brut renverrait). */
+function poisonedParent(overrides: Record<string, unknown> = {}) {
+  const user = poisonedUser();
+  return {
+    ...user.parent,
+    user: { ...user, parent: undefined },
+    childrenLinks: [{ id: 'link-1' }],
+    ...overrides,
+  };
+}
+
+describe('§5.9 — parents.* ne transporte ni secret ni champ interne', () => {
+  const forbidden = [...ACCOUNT_SECRETS, ...TENANT_INTERNALS];
+
+  it('parents.list : whitelist select et réponse sans secret', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.parent.findMany.mockResolvedValue([poisonedParent()]);
+    mockPrisma.parent.count.mockResolvedValue(1);
+
+    const result = await caller.parents.list({});
+
+    expectWhitelistedQuery(mockPrisma.parent.findMany, forbidden);
+    expectNoKeys(result, forbidden);
+    expect(result.parents[0].user.email).toBe('parent@test.nc');
+  });
+
+  it('parents.getById : whitelist select et réponse sans secret', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.parent.findFirst.mockResolvedValue(poisonedParent());
+
+    const result = await caller.parents.getById({ id: USER_ID });
+
+    expectWhitelistedQuery(mockPrisma.parent.findFirst, forbidden);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('parents.update (parent connecté) : réponse whitelistée', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.parent.update.mockResolvedValue(poisonedParent());
+
+    const result = await caller.parents.update({ firstName: 'Jeanne' });
+
+    expectWhitelistedQuery(mockPrisma.parent.update, forbidden);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('parents.create : réponse whitelistée', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.user.create.mockResolvedValue({ id: USER_ID });
+    mockPrisma.parent.create.mockResolvedValue(poisonedParent());
+
+    const result = await caller.parents.create({
+      firstName: 'Jean',
+      lastName: 'Dupont',
+      email: 'parent@test.nc',
+      phone: '+687123456',
+    });
+
+    expectWhitelistedQuery(mockPrisma.parent.create, forbidden);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('parents.updateByStaff : réponse whitelistée', async () => {
+    const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
+    mockPrisma.parent.findFirst.mockResolvedValue(poisonedParent());
+    mockPrisma.user.findUnique.mockResolvedValue(poisonedUser());
+    mockPrisma.parent.update.mockResolvedValue(poisonedParent());
+
+    const result = await caller.parents.updateByStaff({ id: USER_ID, email: 'autre@test.nc' });
+
+    expectWhitelistedQuery(mockPrisma.parent.update, forbidden);
+    expectWhitelistedQuery(mockPrisma.user.findUnique, ACCOUNT_SECRETS);
+    expectNoKeys(result, forbidden);
   });
 });
