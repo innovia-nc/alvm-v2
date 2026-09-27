@@ -20,9 +20,16 @@ import {
 const password = z.string().min(8).max(128).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/);
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 export const accountRouter = router({
-  me: protectedProcedure.query(({ ctx }) =>
-    ctx.prisma.user.findUnique({ where: { id: ctx.user.id }, select: { name: true, email: true } }),
-  ),
+  // Identité affichée sur « Mon compte ». La sortie est bornée (§5.9) : aucun
+  // ajout au select ne peut faire fuiter le compte de connexion.
+  me: protectedProcedure
+    .output(z.object({ name: z.string().nullable(), email: z.string() }).nullable())
+    .query(({ ctx }) =>
+      ctx.prisma.user.findUnique({
+        where: { id: ctx.user.id },
+        select: { name: true, email: true },
+      }),
+    ),
   update: protectedProcedure
     .input(
       z.object({
@@ -33,8 +40,10 @@ export const accountRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Le hash n'est lu que pour la vérification : jamais renvoyé.
       const credential = await ctx.prisma.account.findFirst({
         where: { userId: ctx.user.id, provider: 'credentials' },
+        select: { id: true, providerAccountId: true },
       });
       if (!credential || !(await compare(input.currentPassword, credential.providerAccountId)))
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Mot de passe actuel incorrect' });
@@ -43,6 +52,7 @@ export const accountRouter = router({
         await lockAdministrators(tx);
         const current = await tx.account.findFirst({
           where: { id: credential.id, providerAccountId: credential.providerAccountId },
+          select: { id: true },
         });
         if (!current)
           throw new TRPCError({
@@ -51,6 +61,7 @@ export const accountRouter = router({
           });
         const duplicate = await tx.user.findFirst({
           where: { email: input.email, id: { not: ctx.user.id } },
+          select: { id: true },
         });
         if (duplicate) throw new TRPCError({ code: 'CONFLICT', message: 'Adresse indisponible' });
         await tx.user.update({
@@ -152,16 +163,23 @@ export const accountRouter = router({
       await withDbContext({ scope: 'auth' }, async (tx) => {
         const token = await tx.verificationToken.findUnique({
           where: { token: digest(input.token) },
+          select: { token: true, identifier: true, expires: true },
         });
         if (!token || !token.identifier.startsWith('password:') || token.expires <= new Date())
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Lien expiré ou déjà utilisé' });
         const userId = token.identifier.slice(9);
-        const user = await tx.user.findUnique({ where: { id: userId } });
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { disabledAt: true, organizationId: true },
+        });
         if (!user || user.disabledAt)
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Lien invalide' });
         await lockAdministrators(tx);
         await tx.verificationToken.delete({ where: { token: token.token } });
-        const account = await tx.account.findFirst({ where: { userId, provider: 'credentials' } });
+        const account = await tx.account.findFirst({
+          where: { userId, provider: 'credentials' },
+          select: { id: true },
+        });
         if (account)
           await tx.account.update({
             where: { id: account.id },

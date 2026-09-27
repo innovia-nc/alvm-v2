@@ -15,6 +15,7 @@ import {
   ADMIN_USER,
   STAFF_USER,
   PARENT_USER,
+  SUPER_ADMIN_USER,
   TEST_ORGANIZATION_ID,
 } from '../helpers/test-caller';
 
@@ -355,5 +356,102 @@ describe('§5.9 — staff.* ne transporte ni secret ni champ interne', () => {
     ]);
     expectNoKeys(result, ['uploadedBy', 'organizationId', 'deletedAt']);
     expect(result[0].fileUrl).toBe('/api/documents/staff/d0000000-0000-4000-a000-000000000001');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// account.me, platform.*, organizations.current
+// ---------------------------------------------------------------------------
+
+describe('§5.9 — comptes vus par leur titulaire et par la plateforme', () => {
+  it('account.me : nom et email seulement, même si la base renvoie la ligne complète', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.user.findUnique.mockResolvedValue(poisonedUser());
+
+    const result = await caller.account.me();
+
+    expectWhitelistedQuery(mockPrisma.user.findUnique, [...ACCOUNT_SECRETS, ...TENANT_INTERNALS]);
+    expect(result).toEqual({ name: 'Parent Test', email: 'parent@test.nc' });
+  });
+
+  it('account.update : le hash est lu pour vérification mais jamais renvoyé', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    const { hash } = await import('bcryptjs');
+    mockPrisma.account.findFirst.mockResolvedValue({
+      id: 'acc',
+      providerAccountId: await hash('Motdepasse1', 4),
+    });
+
+    const result = await caller.account.update({
+      name: 'Parent Test',
+      email: 'parent@test.nc',
+      currentPassword: 'Motdepasse1',
+    });
+
+    expect(result).toEqual({ success: true });
+  });
+
+  it('platform.accounts : ni hash, ni version de session, même sur une ligne complète', async () => {
+    const { caller, mockPrisma } = createTestCaller(SUPER_ADMIN_USER);
+    mockPrisma.user.findMany.mockResolvedValue([
+      poisonedUser({
+        organization: { id: TEST_ORGANIZATION_ID, name: 'Asso', slug: 'asso', status: 'ACTIVE' },
+      }),
+    ]);
+    mockPrisma.user.count.mockResolvedValue(1);
+
+    const result = await caller.platform.accounts({});
+
+    expectWhitelistedQuery(mockPrisma.user.findMany, ACCOUNT_SECRETS);
+    // (`accounts` est aussi le nom de la liste renvoyée : on inspecte ses éléments.)
+    expectNoKeys(result.accounts, [
+      ...ACCOUNT_SECRETS,
+      'parent',
+      'staffMember',
+      'organizationId',
+      'status',
+    ]);
+    // L'écran de super administration a besoin de l'état et du rattachement.
+    expect(result.accounts[0]).toMatchObject({
+      disabledAt: null,
+      organization: { id: TEST_ORGANIZATION_ID, name: 'Asso', slug: 'asso' },
+    });
+  });
+
+  it('platform.audit : libellés seulement, ni tenant ni identifiants bruts', async () => {
+    const { caller, mockPrisma } = createTestCaller(SUPER_ADMIN_USER);
+    mockPrisma.platformAuditLog.findMany.mockResolvedValue([
+      {
+        id: 'e0000000-0000-4000-a000-000000000001',
+        organizationId: TEST_ORGANIZATION_ID,
+        actorId: USER_ID,
+        action: 'auth.login',
+        target: 'PARENT',
+        outcome: 'SUCCESS',
+        createdAt: now,
+      },
+    ]);
+    mockPrisma.platformAuditLog.count.mockResolvedValue(1);
+    mockPrisma.user.findMany.mockResolvedValue([{ id: USER_ID, name: 'Parent Test', email: 'x' }]);
+
+    const result = await caller.platform.audit({});
+
+    expectWhitelistedQuery(mockPrisma.platformAuditLog.findMany, ['organizationId']);
+    expectNoKeys(result, ['organizationId', 'actorId', 'target']);
+    expect(result.events[0]).toMatchObject({ actorName: 'Parent Test', targetLabel: 'Parent' });
+  });
+
+  it('organizations.current : pas d’identifiant de tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.organization.findUnique
+      .mockResolvedValueOnce({ status: 'ACTIVE' })
+      .mockResolvedValueOnce({ slug: 'asso', name: 'Asso', kind: 'TENANT' });
+
+    await caller.organizations.current();
+
+    const [args] = mockPrisma.organization.findUnique.mock.calls[1] as [
+      { select: Record<string, unknown> },
+    ];
+    expect(args.select).toEqual({ slug: true, name: true, kind: true });
   });
 });

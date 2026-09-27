@@ -240,6 +240,20 @@ describe('Gestion technique des comptes', () => {
       email: 'parent@example.org',
       disabledAt: null,
     });
+    // Ligne relue par le select `accountSelect` (sortie bornée par `accountOutput`).
+    mockPrisma.user.update.mockResolvedValue({
+      id,
+      name: 'Parent test',
+      email: 'parent@example.org',
+      role: 'PARENT',
+      disabledAt: new Date(),
+      createdAt: new Date(),
+      organization: {
+        id: 'b0000000-0000-4000-b000-000000000001',
+        name: 'Association test',
+        slug: 'asso-test',
+      },
+    });
     await caller.platform.updateAccount({
       id,
       name: 'Parent test',
