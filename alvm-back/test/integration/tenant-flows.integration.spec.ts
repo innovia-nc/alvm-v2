@@ -11,17 +11,19 @@
  * Les étapes d'un même `describe` s'enchaînent (scénario) : un échec rend les
  * suivantes non significatives — lire le premier échec.
  */
+import { createHash, randomBytes } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isSessionValid, verifyCredentials } from '@back/services/auth.service';
 import { SYSTEM_PAYMENT_METHODS } from '@back/services/tenant-defaults';
-import { createOwnerClient, trpcCodeOf } from './helpers/db';
+import { createOwnerClient, inAuth, trpcCodeOf } from './helpers/db';
 import { crossTenantReferences } from './helpers/integrity';
 import {
   callerFor,
   createChild,
   createParent,
   createPublishedCamp,
+  createStaff,
   createSuperAdmin,
   isoDay,
   provisionTenant,
@@ -1191,6 +1193,534 @@ describe('super administration', () => {
           organizationId: superAdmin.organizationId,
           key: 'fec',
           enabled: false,
+        }),
+      ),
+    ).toBe('FORBIDDEN');
+  });
+});
+
+describe('annulations et corrections comptables sous RLS', () => {
+  let G: TestTenant;
+  let parent: TestParent;
+  // Seconde famille, sans crédit : les crédits de `parent` seraient imputés
+  // automatiquement sur ses factures suivantes et fausseraient les montants.
+  let family2: TestParent;
+  let campId: string;
+  let methods: Record<string, string>;
+
+  /** Inscription d'un nouvel enfant, facturée selon `invoice`, réglée selon `paid`. */
+  async function registration(
+    invoice: 'none' | 'DRAFT' | 'SENT',
+    paid?: { amount: number; method: string },
+    who: TestParent = parent,
+  ) {
+    const child = await createChild(G, who.id, `Enfant ${uniqueSuffix()}`);
+    const created = await G.adminCaller.registrations.createByStaff({
+      campId,
+      childId: child.id,
+      parentId: who.id,
+      status: 'CONFIRMED',
+    });
+    if (invoice === 'none') return { registrationId: created.id, invoiceId: null };
+    const bill = await G.adminCaller.invoices.createFromRegistration({
+      registrationId: created.id,
+      status: invoice,
+    });
+    if (paid)
+      await G.adminCaller.payments.create({
+        invoiceId: bill.id,
+        amount: paid.amount,
+        paymentDate: isoDay(0),
+        paymentMethodId: methods[paid.method],
+      });
+    return { registrationId: created.id, invoiceId: bill.id };
+  }
+
+  const cancel = (registrationId: string, extra: Record<string, string> = {}) =>
+    G.adminCaller.registrations.cancelWithAccounting({
+      registrationId,
+      reason: 'Annulation demandée par la famille',
+      ...extra,
+    });
+
+  async function invoiceRow(id: string) {
+    const row = await owner.invoice.findUniqueOrThrow({ where: { id } });
+    return {
+      status: row.status,
+      paid: Number(row.paidAmount),
+      credited: Number(row.creditedAmount),
+      version: row.version,
+    };
+  }
+
+  beforeAll(async () => {
+    G = await provisionTenant(superAdmin, 'annulations');
+    parent = await createParent(G);
+    family2 = await createParent(G);
+    campId = (await createPublishedCamp(G, { maxCapacity: 20 })).camp.id;
+    methods = Object.fromEntries(
+      (await G.adminCaller.paymentMethods.list()).map((m) => [m.code, m.id]),
+    );
+  });
+
+  it('sans facture : inscription simplement annulée', async () => {
+    const { registrationId } = await registration('none');
+    const result = await cancel(registrationId);
+    expect(result).toMatchObject({ case: 'NO_INVOICE', invoice: null, creditNote: null });
+    const row = await owner.registration.findUniqueOrThrow({ where: { id: registrationId } });
+    expect([row.status, row.paymentStatus]).toEqual(['CANCELLED', 'REFUNDED']);
+  });
+
+  it('facture en brouillon : ligne retirée, brouillon annulé, aucune écriture', async () => {
+    const { registrationId, invoiceId } = await registration('DRAFT');
+    expect((await cancel(registrationId)).case).toBe('DRAFT_INVOICE');
+    expect((await invoiceRow(invoiceId!)).status).toBe('CANCELLED');
+    expect(await entriesOf({ invoiceId: invoiceId! })).toEqual([]);
+  });
+
+  it('facture émise non payée : avoir de compensation (C 411000), facture CREDITED', async () => {
+    const { registrationId, invoiceId } = await registration('SENT');
+    const result = await cancel(registrationId);
+    expect(result.case).toBe('SENT_UNPAID');
+    expect(result.creditNote?.amount).toBe(25000);
+    expect(await invoiceRow(invoiceId!)).toMatchObject({ status: 'CREDITED', credited: 25000 });
+    expect(await entriesOf({ creditNoteId: result.creditNote!.id })).toEqual([
+      { journal: 'VE', account: '706100', debit: 25000, credit: 0, aux: null },
+      { journal: 'VE', account: '411000', debit: 0, credit: 25000, aux: auxOf(parent.id) },
+    ]);
+    expect(await registrationPaymentStatus(registrationId)).toBe('REFUNDED');
+  });
+
+  it('facture payée → crédit futur : avoir en 4191, crédit parent, remboursement FUTURE_CREDIT', async () => {
+    const { registrationId, invoiceId } = await registration('SENT', {
+      amount: 25000,
+      method: 'CASH',
+    });
+    const result = await cancel(registrationId, { refundChoice: 'FUTURE_CREDIT' });
+    expect(result.case).toBe('FULLY_PAID_CREDIT');
+    expect(result.refund).toMatchObject({ amount: 25000, method: 'FUTURE_CREDIT' });
+    expect(await invoiceRow(invoiceId!)).toMatchObject({
+      status: 'CREDITED',
+      paid: 0,
+      credited: 25000,
+    });
+    const credit = await owner.parentCredit.findUniqueOrThrow({
+      where: { creditNoteId: result.creditNote!.id },
+    });
+    expect(Number(credit.amountRemaining)).toBe(25000);
+    expect(await entriesOf({ creditNoteId: result.creditNote!.id })).toEqual([
+      { journal: 'VE', account: '706100', debit: 25000, credit: 0, aux: null },
+      { journal: 'VE', account: '4191', debit: 0, credit: 25000, aux: auxOf(parent.id) },
+    ]);
+  });
+
+  it('le crédit issu d’une annulation est imputé sur la facture suivante', async () => {
+    const next = await G.adminCaller.invoices.create({
+      parentId: parent.id,
+      dueDate: isoDay(30),
+      lines: [
+        { registrationId: null, description: 'Séjour suivant', quantity: 1, unitPrice: 10000 },
+      ],
+    });
+    expect(await G.adminCaller.invoices.validate({ id: next.id })).toMatchObject({
+      status: 'PAID',
+      paidAmount: 10000,
+    });
+    expect(await balance4191(G.organization.id)).toBe(15000);
+  });
+
+  it('facture payée → remboursement immédiat en espèces : D 411000 / C 530000', async () => {
+    const { registrationId, invoiceId } = await registration(
+      'SENT',
+      { amount: 25000, method: 'CHECK' },
+      family2,
+    );
+    const result = await cancel(registrationId, {
+      refundChoice: 'IMMEDIATE_REFUND',
+      paymentMethodCode: 'CASH',
+    });
+    expect(result.case).toBe('FULLY_PAID_REFUND');
+    expect(await invoiceRow(invoiceId!)).toMatchObject({ status: 'CREDITED', paid: 0 });
+    const refundEntries = await owner.accountingEntry.findMany({
+      where: { refundId: result.refund!.id },
+      orderBy: { debit: 'desc' },
+      select: { accountNumber: true, debit: true, credit: true },
+    });
+    expect(refundEntries.map((e) => [e.accountNumber, Number(e.debit), Number(e.credit)])).toEqual([
+      ['411000', 25000, 0],
+      ['530000', 0, 25000],
+    ]);
+  });
+
+  it('annulation d’une facture émise impayée : contrepassation, statut de l’inscription UNPAID', async () => {
+    const { registrationId, invoiceId } = await registration('SENT', undefined, family2);
+    const { version } = await invoiceRow(invoiceId!);
+    const cancelled = await G.adminCaller.invoices.updateStatus({
+      id: invoiceId!,
+      status: 'CANCELLED',
+      version,
+    });
+    expect(cancelled.status).toBe('CANCELLED');
+    const [{ d, c }] = await owner.$queryRaw<Array<{ d: unknown; c: unknown }>>`
+      SELECT sum(debit) AS d, sum(credit) AS c FROM accounting_entries
+      WHERE invoice_id = ${invoiceId}::uuid AND account_number = '411000'`;
+    expect(Number(d)).toBe(Number(c));
+    expect(await registrationPaymentStatus(registrationId)).toBe('UNPAID');
+  });
+
+  it('annulation d’un avoir émis non utilisé : contrepassation, crédit ramené à zéro', async () => {
+    const cn = await G.adminCaller.creditNotes.create({
+      parentId: family2.id,
+      refundMethod: 'FUTURE_CREDIT',
+      reason: 'Avoir émis par erreur',
+      lines: [{ registrationId: null, description: 'Erreur', quantity: 1, unitPrice: 700 }],
+    });
+    await G.adminCaller.creditNotes.updateStatus({ id: cn.id, status: 'SENT' });
+    await G.adminCaller.creditNotes.updateStatus({ id: cn.id, status: 'CANCELLED' });
+    const credit = await owner.parentCredit.findUniqueOrThrow({ where: { creditNoteId: cn.id } });
+    expect(Number(credit.amountRemaining)).toBe(0);
+    const [{ d, c }] = await owner.$queryRaw<Array<{ d: unknown; c: unknown }>>`
+      SELECT sum(debit) AS d, sum(credit) AS c FROM accounting_entries
+      WHERE credit_note_id = ${cn.id}::uuid AND account_number = '4191'`;
+    expect(Number(d)).toBe(Number(c));
+  });
+
+  it('suppression d’un remboursement en crédit futur : avoir annulé, facture restaurée', async () => {
+    const { invoiceId } = await registration('SENT', { amount: 25000, method: 'CHECK' }, family2);
+    const payment = await owner.payment.findFirstOrThrow({ where: { invoiceId: invoiceId! } });
+    const refund = await G.adminCaller.refunds.create({
+      paymentId: payment.id,
+      amount: 4000,
+      refundDate: isoDay(0),
+      refundMethod: 'FUTURE_CREDIT',
+      reason: 'Journée non effectuée',
+    });
+    expect(await invoiceRow(invoiceId!)).toMatchObject({ paid: 21000, credited: 4000 });
+    const { creditNoteId } = await owner.refund.findUniqueOrThrow({ where: { id: refund.id } });
+
+    await G.adminCaller.refunds.delete({ id: refund.id });
+    expect(await invoiceRow(invoiceId!)).toMatchObject({
+      status: 'PAID',
+      paid: 25000,
+      credited: 0,
+    });
+    expect((await owner.invoice.findUniqueOrThrow({ where: { id: creditNoteId! } })).status).toBe(
+      'CANCELLED',
+    );
+    expect(
+      Number(
+        (await owner.parentCredit.findUniqueOrThrow({ where: { creditNoteId: creditNoteId! } }))
+          .amountRemaining,
+      ),
+    ).toBe(0);
+  });
+
+  it('suppression d’un paiement : écritures contrepassées, payé recalculé', async () => {
+    const { invoiceId } = await registration('SENT', { amount: 5000, method: 'CASH' }, family2);
+    const payment = await owner.payment.findFirstOrThrow({ where: { invoiceId: invoiceId! } });
+    await G.adminCaller.payments.delete({ id: payment.id });
+    expect(await invoiceRow(invoiceId!)).toMatchObject({ status: 'SENT', paid: 0 });
+    const [{ d, c }] = await owner.$queryRaw<Array<{ d: unknown; c: unknown }>>`
+      SELECT sum(debit) AS d, sum(credit) AS c FROM accounting_entries
+      WHERE invoice_id = ${invoiceId}::uuid AND journal_code = 'BQ'`;
+    expect(Number(d)).toBe(10000);
+    expect(Number(c)).toBe(10000);
+  });
+
+  it('invariants comptables de l’association après annulations et corrections', async () => {
+    const orgId = G.organization.id;
+    expect(await unbalancedEntries(orgId)).toEqual([]);
+    expect(await unbalancedPieces(orgId)).toEqual([]);
+    const totals = await ledgerTotals(orgId);
+    expect(totals.debit).toBe(totals.credit);
+    expect(totals.zeros).toBe(0);
+    const remaining = await owner.parentCredit.aggregate({
+      where: { organizationId: orgId },
+      _sum: { amountRemaining: true },
+    });
+    expect(await balance4191(orgId)).toBe(Number(remaining._sum.amountRemaining));
+    const fec = await G.adminCaller.fec.generateFEC({
+      startDate: `${YEAR}-01-01`,
+      endDate: `${YEAR}-12-31`,
+    });
+    expect(fec.balance).toBe(0);
+  });
+});
+
+describe('comptes, personnel et paramétrage sous RLS', () => {
+  let H: TestTenant;
+  let other: TestTenant;
+
+  const login = (tenant: TestTenant, email: string, password: string, ip = '192.0.2.40') =>
+    verifyCredentials(
+      { portal: 'standard', organization: tenant.organization.slug, email, password },
+      ip,
+    );
+
+  beforeAll(async () => {
+    H = await provisionTenant(superAdmin, 'comptes');
+    other = await provisionTenant(superAdmin, 'comptes-autre');
+  });
+
+  it('comptes : création, modification, réinitialisation et désactivation par l’association', async () => {
+    const email = `staff-${uniqueSuffix()}@equipe.test`;
+    const staff = await H.adminCaller.users.create({
+      email,
+      name: 'Claude Animateur',
+      role: 'STAFF',
+      password: TEST_PASSWORD,
+      staffProfile: { firstName: 'Claude', lastName: 'Animateur' },
+    });
+    expect((await login(H, email, TEST_PASSWORD))?.id).toBe(staff.id);
+    expect(await login(other, email, TEST_PASSWORD)).toBeNull();
+
+    const renamed = await H.adminCaller.users.update({ id: staff.id, name: 'Claude Directeur' });
+    expect(renamed.name).toBe('Claude Directeur');
+
+    const parent = await createParent(H);
+    const staffCaller = callerFor({
+      id: staff.id,
+      role: 'STAFF',
+      organizationId: H.organization.id,
+    });
+    const reset = await staffCaller.users.resetPassword({ userId: parent.id });
+    expect(await login(H, parent.email, reset.tempPassword)).not.toBeNull();
+    expect(await login(H, parent.email, TEST_PASSWORD)).toBeNull();
+
+    await H.adminCaller.users.delete({ id: parent.id });
+    expect(await login(H, parent.email, reset.tempPassword)).toBeNull();
+    const row = await owner.user.findUniqueOrThrow({
+      where: { id: parent.id },
+      select: { disabledAt: true, parent: { select: { deletedAt: true } } },
+    });
+    expect(row.disabledAt).not.toBeNull();
+    expect(row.parent?.deletedAt).not.toBeNull();
+  });
+
+  it('le dernier administrateur ne peut être ni supprimé ni rétrogradé', async () => {
+    expect(await trpcCodeOf(H.adminCaller.users.delete({ id: H.admin.id }))).toBe(
+      'PRECONDITION_FAILED',
+    );
+    expect(await trpcCodeOf(H.adminCaller.users.update({ id: H.admin.id, role: 'STAFF' }))).toBe(
+      'PRECONDITION_FAILED',
+    );
+  });
+
+  it('« mon compte » : changement de nom et de mot de passe, audité dans l’association', async () => {
+    const parent = await createParent(H);
+    const newPassword = 'NouveauSecret2026x';
+    await parent.caller.account.update({
+      name: 'Camille Renommée',
+      email: parent.email,
+      currentPassword: TEST_PASSWORD,
+      newPassword,
+    });
+    expect((await parent.caller.account.me())?.name).toBe('Camille Renommée');
+    expect(await login(H, parent.email, newPassword)).not.toBeNull();
+    expect(await login(H, parent.email, TEST_PASSWORD)).toBeNull();
+    expect(
+      await trpcCodeOf(
+        parent.caller.account.update({
+          name: 'Camille',
+          email: parent.email,
+          currentPassword: 'MauvaisMotDePasse1',
+        }),
+      ),
+    ).toBe('FORBIDDEN');
+    const audit = await owner.platformAuditLog.findFirst({
+      where: { action: 'account.updated', actorId: parent.id },
+    });
+    expect(audit?.organizationId).toBe(H.organization.id);
+  });
+
+  it('réinitialisation par lien (scope auth, sans session) : mot de passe changé, jeton consommé', async () => {
+    const parent = await createParent(H);
+    const raw = randomBytes(32).toString('hex');
+    await inAuth((db) =>
+      db.verificationToken.create({
+        data: {
+          identifier: `password:${parent.id}`,
+          token: createHash('sha256').update(raw).digest('hex'),
+          expires: new Date(Date.now() + 600_000),
+        },
+      }),
+    );
+    const newPassword = 'LienDeReset2026Ok';
+    await callerFor(null).account.reset({ token: raw, password: newPassword });
+    expect(await login(H, parent.email, newPassword)).not.toBeNull();
+    expect(
+      await owner.verificationToken.count({ where: { identifier: `password:${parent.id}` } }),
+    ).toBe(0);
+    expect(
+      await trpcCodeOf(callerFor(null).account.reset({ token: raw, password: newPassword })),
+    ).toBe('BAD_REQUEST');
+    const audit = await owner.platformAuditLog.findFirst({
+      where: { action: 'account.password_reset', target: parent.id },
+    });
+    expect(audit?.organizationId).toBe(H.organization.id);
+  });
+
+  it('participant majeur autonome : client et participant créés avec un lien « self »', async () => {
+    const email = `adulte-${uniqueSuffix()}@famille.test`;
+    const { id } = await H.adminCaller.children.createAdult({
+      firstName: 'Alex',
+      lastName: 'Autonome',
+      email,
+      phone: '687555555',
+      birthDate: '1990-03-03T00:00:00.000Z',
+      gender: 'OTHER',
+    });
+    const child = await H.adminCaller.children.getById({ id });
+    expect(child?.parents).toHaveLength(1);
+    expect(child?.parents[0]).toMatchObject({ email, relationship: 'self', isPrimary: true });
+    expect(await owner.user.count({ where: { email, organizationId: H.organization.id } })).toBe(1);
+  });
+
+  it('personnel : modification puis archivage', async () => {
+    const staff = await createStaff(H);
+    const updated = await H.adminCaller.staff.update({ id: staff.id, lastName: 'Coordinateur' });
+    expect(updated.lastName).toBe('Coordinateur');
+    await H.adminCaller.staff.delete({ id: staff.id });
+    expect(await login(H, staff.email, TEST_PASSWORD)).toBeNull();
+    expect((await H.adminCaller.staff.getById({ id: staff.id })) ?? null).toBeNull();
+  });
+
+  it('réglages et moyens de paiement propres à l’association', async () => {
+    await H.adminCaller.settings.updateBulk({
+      settings: [{ category: 'accounting', key: 'fec_siren', value: '123456789' }],
+    });
+    const own = await H.adminCaller.settings.getByCategory({ category: 'accounting' });
+    expect(own.map((s) => [s.key, s.value])).toEqual([['fec_siren', '"123456789"']]);
+    expect(await other.adminCaller.settings.getByCategory({ category: 'accounting' })).toEqual([]);
+
+    const method = await H.adminCaller.paymentMethods.create({
+      name: 'Terminal mobile',
+      accountingCode: '511600',
+    });
+    expect(method).toMatchObject({ code: 'TERMINAL_MOBILE', isSystem: false });
+    await H.adminCaller.paymentMethods.update({ id: method.id, description: 'TPE nomade' });
+    expect((await H.adminCaller.paymentMethods.toggleActive({ id: method.id })).active).toBe(false);
+    expect((await other.adminCaller.paymentMethods.listAll()).map((m) => m.code)).not.toContain(
+      'TERMINAL_MOBILE',
+    );
+    await H.adminCaller.paymentMethods.delete({ id: method.id });
+    const cash = (await H.adminCaller.paymentMethods.listAll()).find((m) => m.code === 'CASH')!;
+    expect(await trpcCodeOf(H.adminCaller.paymentMethods.delete({ id: cash.id }))).toBe(
+      'FORBIDDEN',
+    );
+  });
+
+  it('camps : période modifiée (journées resynchronisées), duplication, suppression', async () => {
+    const { camp } = await createPublishedCamp(H);
+    const updated = await H.adminCaller.camps.update({ id: camp.id, endDate: isoDay(32) });
+    expect(updated.pricePerDay).toBeCloseTo(25000 / 3, 2);
+    expect(await owner.campDay.count({ where: { campId: camp.id } })).toBe(3);
+
+    const copy = await H.adminCaller.camps.duplicate({ id: camp.id, name: 'Camp dupliqué' });
+    expect(copy.status).toBe('DRAFT');
+    expect(await owner.campDay.count({ where: { campId: copy.id } })).toBe(3);
+    await H.adminCaller.camps.delete({ id: copy.id });
+    expect(await H.adminCaller.camps.getById({ id: copy.id })).toBeNull();
+  });
+
+  it('présences : pointage groupé, grille, statistiques, suppression', async () => {
+    const parent = await createParent(H);
+    const children = await Promise.all(
+      ['Léa', 'Noé'].map((name) => createChild(H, parent.id, name)),
+    );
+    const { camp } = await createPublishedCamp(H);
+    const registrations = [];
+    for (const child of children)
+      registrations.push(
+        await H.adminCaller.registrations.createByStaff({
+          campId: camp.id,
+          childId: child.id,
+          parentId: parent.id,
+          status: 'CONFIRMED',
+        }),
+      );
+    const bulk = await H.adminCaller.attendances.markBulkAttendance({
+      campId: camp.id,
+      date: isoDay(31),
+      attendances: registrations.map((r, index) => ({
+        registrationId: r.id,
+        status: index === 0 ? 'PRESENT' : 'ABSENT',
+      })),
+    });
+    expect(bulk.count).toBe(2);
+    const grid = await H.adminCaller.attendances.getGridForCamp({ campId: camp.id });
+    expect(grid.children).toHaveLength(2);
+    expect(grid.dates).toHaveLength(5);
+    const stats = await H.adminCaller.attendances.getStatistics({ campId: camp.id });
+    expect(stats.byStatus).toMatchObject({ present: 1, absent: 1 });
+    const attendance = await owner.attendance.findFirstOrThrow({
+      where: { registrationId: registrations[0].id },
+    });
+    expect(await trpcCodeOf(other.adminCaller.attendances.delete({ id: attendance.id }))).toBe(
+      'NOT_FOUND',
+    );
+    await H.adminCaller.attendances.delete({ id: attendance.id });
+    expect(await owner.attendance.count({ where: { id: attendance.id } })).toBe(0);
+  });
+
+  it('tableau de bord d’un parent : seulement ses montants dus', async () => {
+    const parent = await createParent(H);
+    const child = await createChild(H, parent.id);
+    const { camp } = await createPublishedCamp(H);
+    const registration = await parent.caller.registrations.create({
+      campId: camp.id,
+      childId: child.id,
+    });
+    await H.adminCaller.invoices.createFromRegistration({
+      registrationId: registration.id,
+      status: 'SENT',
+    });
+    const summary = await parent.caller.dashboard.summary();
+    expect(summary.amountDue).toBe(25000);
+    expect(summary.upcoming.map((c) => c.id)).toEqual([camp.id]);
+  });
+
+  it('super administration des comptes : nouveau SUPER_ADMIN, fiche d’association, révocation', async () => {
+    const platform = callerFor(superAdmin);
+    const email = `sa-${uniqueSuffix()}@plateforme.test`;
+    const created = await platform.platform.createAccount({
+      name: 'Second super admin',
+      email,
+      role: 'SUPER_ADMIN',
+      password: TEST_PASSWORD,
+    });
+    expect(created.organization.id).toBe(superAdmin.organizationId);
+    expect(
+      await verifyCredentials(
+        { portal: 'super-admin', email, password: TEST_PASSWORD },
+        '192.0.2.50',
+      ),
+    ).toMatchObject({ id: created.id, role: 'SUPER_ADMIN' });
+    // Un SUPER_ADMIN ne se connecte pas par le portail d'une association.
+    expect(
+      await verifyCredentials(
+        { portal: 'standard', organization: H.organization.slug, email, password: TEST_PASSWORD },
+        '192.0.2.50',
+      ),
+    ).toBeNull();
+
+    const details = await platform.organizations.get({ id: H.organization.id });
+    expect(details.accountCount).toBe(
+      await owner.user.count({ where: { organizationId: H.organization.id } }),
+    );
+
+    const session = await login(H, H.admin.email, TEST_PASSWORD, '192.0.2.51');
+    await platform.platform.revokeSessions({ id: H.admin.id });
+    expect(await isSessionValid({ ...H.admin, sessionVersion: session!.sessionVersion })).toBe(
+      false,
+    );
+    expect(
+      await trpcCodeOf(
+        platform.platform.updateAccount({
+          id: H.admin.id,
+          name: 'Admin',
+          email: `autre-${uniqueSuffix()}@x.test`,
+          disabled: false,
         }),
       ),
     ).toBe('FORBIDDEN');
