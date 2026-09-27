@@ -970,7 +970,14 @@ describe('accès entre associations', () => {
 
     await platform.organizations.setStatus({ id: C.organization.id, status: 'ACTIVE' });
     expect((await C.adminCaller.children.list({ limit: 1, offset: 0 })).total).toBe(0);
-    expect(await isSessionValid(session)).toBe(true);
+    // Révocation définitive : un cookie émis avant la suspension ne rouvre pas
+    // l'espace après la réactivation (recette SAAS-05) ; il faut se reconnecter.
+    expect(await isSessionValid(session)).toBe(false);
+    const relogin = await verifyCredentials(credentials, '192.0.2.20');
+    expect(relogin?.sessionVersion).toBeGreaterThan(session.sessionVersion);
+    expect(await isSessionValid({ ...C.admin, sessionVersion: relogin!.sessionVersion })).toBe(
+      true,
+    );
     const audit = await owner.platformAuditLog.findMany({
       where: { target: C.organization.id, action: { startsWith: 'platform.organization.' } },
       select: { action: true },
