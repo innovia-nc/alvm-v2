@@ -361,24 +361,26 @@ Pile complète `compose.ovh.yml` (projet compose distinct, front publié sur
 `127.0.0.1:3190` par un fichier de surcharge local), images construites depuis
 les Dockerfile ci-dessus (legacy builder, sans BuildKit) :
 
-| Vérification                                                                     | Résultat                                                                                |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `init-app-role.sh` (hook initdb, rejeu `docker exec … sh -s`, mot de passe vide) | rôle créé `alvm_app` f/f (super/bypassrls) ; rejeu idempotent ; refus sans mot de passe |
-| `migrate` puis rejoué                                                            | 3 migrations appliquées + droits ; « No pending migrations »                            |
-| `create-super-admin` puis rejoué                                                 | compte créé ; refus « Cette adresse possède déjà un compte »                            |
-| `/api/health` front, back, `?db=1`                                               | 200, `database: ok`, `version` = tag ; conteneurs `healthy`                             |
-| Connexion super admin (NextAuth, curl)                                           | 302 + cookie de session ; mauvais mot de passe → `CredentialsSignin`                    |
-| Chemin HTTPS de prod (`AUTH_URL=https://…`, en-têtes `X-Forwarded-*`)            | cookie `__Secure-authjs.session-token` (Secure, HttpOnly) accepté par le back           |
-| `organizations.create` via le relais tRPC                                        | association créée (200) ; sans session → 401                                            |
-| Back appelé sans / avec un faux `x-internal-secret` (cookie valide)              | 403 « Accès réservé au front de la plateforme » ; témoin avec secret → 200              |
-| Rôle de `DATABASE_URL` vu du back                                                | `alvm_app`, ni superuser ni BYPASSRLS ; 0 association visible sans contexte             |
-| Back démarré avec le rôle propriétaire                                           | refus au démarrage (superuser / BYPASSRLS)                                              |
-| Worker (`worker` et `ALVM_PROCESS=worker`)¹                                      | `prêt — file alvm-email`, sonde OK, arrêt SIGTERM immédiat                              |
-| Isolement                                                                        | seul le front publié ; le front ne résout pas `alvm-postgres`                           |
-| PID 1 / droits                                                                   | `node` en PID 1, utilisateur `node`, `/app` non inscriptible                            |
+| Vérification                                                                     | Résultat                                                                                                    |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `init-app-role.sh` (hook initdb, rejeu `docker exec … sh -s`, mot de passe vide) | rôle créé `alvm_app` f/f (super/bypassrls) ; rejeu idempotent ; refus sans mot de passe                     |
+| `migrate` puis rejoué                                                            | 3 migrations appliquées + droits ; « No pending migrations »                                                |
+| `create-super-admin` puis rejoué                                                 | compte créé ; refus « Cette adresse possède déjà un compte »                                                |
+| `/api/health` front, back, `?db=1`                                               | 200, `database: ok`, `version` = tag ; conteneurs `healthy`                                                 |
+| Connexion super admin (NextAuth, curl)                                           | 302 + cookie de session ; mauvais mot de passe → `CredentialsSignin`                                        |
+| Chemin HTTPS de prod (`AUTH_URL=https://…`, en-têtes `X-Forwarded-*`)            | cookie `__Secure-authjs.session-token` (Secure, HttpOnly) accepté par le back                               |
+| `organizations.create` via le relais tRPC                                        | association créée (200) ; sans session → 401                                                                |
+| Back appelé sans / avec un faux `x-internal-secret` (cookie valide)              | 403 « Accès réservé au front de la plateforme » ; témoin avec secret → 200                                  |
+| Rôle de `DATABASE_URL` vu du back                                                | `alvm_app`, ni superuser ni BYPASSRLS ; 0 association visible sans contexte                                 |
+| Back démarré avec le rôle propriétaire                                           | refus au démarrage (superuser / BYPASSRLS)                                                                  |
+| Worker (`worker` et `ALVM_PROCESS=worker`)¹                                      | `prêt — file alvm-email`, sonde OK, arrêt SIGTERM immédiat                                                  |
+| Chaîne d'email¹ (`account.requestReset` via le relais, clé Resend factice)       | job en file → worker (contexte du tenant) → Resend joint (HTTP 401) → réessais tracés dans `email_messages` |
+| Isolement                                                                        | seul le front publié ; le front ne résout pas `alvm-postgres`                                               |
+| PID 1 / droits                                                                   | `node` en PID 1, utilisateur `node`, `/app` non inscriptible                                                |
 
-¹ Avec une image du back construite depuis ce Dockerfile et le worker
-(`src/worker.ts`) alors en cours de développement sur une branche parallèle.
+¹ Rejoué sur la fusion d'essai de cette branche avec la file d'emails
+(`refonte/saas-multi-tenant` @ e5fb4a0) : images reconstruites, pile complète
+relancée (migrate, create-super-admin, front/back/worker `healthy`).
 
 ## 9. Pas encore vérifié
 
