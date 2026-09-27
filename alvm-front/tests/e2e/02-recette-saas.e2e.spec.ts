@@ -269,7 +269,6 @@ test.describe('Recette multi-tenant — plateforme SaaS', () => {
     await invoicesSwitch.click();
     await expect(invoicesSwitch).toHaveAttribute('aria-checked', 'false');
     try {
-      await invoicesSwitch.scrollIntoViewIfNeeded();
       await evidence(superAdmin, testInfo, 'SAAS-06-module-factures-desactive-01');
 
       // asso-demo : rubrique absente du menu, page indisponible.
@@ -288,7 +287,12 @@ test.describe('Recette multi-tenant — plateforme SaaS', () => {
       await alvm.goto('/dashboard/admin/invoices');
       await expect(navLink(alvm, 'Factures')).toBeVisible();
       await expect(alvm.getByText('Fonctionnalité indisponible')).toHaveCount(0);
-      await expect(alvm.getByRole('main').getByText(/FAC-\d{4}-\d{4}/).first()).toBeVisible();
+      await expect(
+        alvm
+          .getByRole('main')
+          .getByText(/FAC-\d{4}-\d{4}/)
+          .first(),
+      ).toBeVisible();
       await evidence(alvm, testInfo, 'SAAS-06-factures-alvm-inchangees-04');
       await alvm.context().close();
     } finally {
@@ -358,7 +362,13 @@ test.describe('Recette multi-tenant — plateforme SaaS', () => {
     await createCampType(page, 'Multi-activités');
     await createCamp(page, { name: campName, price: 12_000, startIn: 30, days: 3 });
     await createParent(page, { first: 'Famille', last, email: parentEmail });
-    await createChild(page, { first: 'Noa', last, birth: '2017-05-05', parentEmail });
+    await createChild(page, {
+      first: 'Noa',
+      last,
+      birth: '2017-05-05',
+      gender: 'Garçon',
+      parentEmail,
+    });
     await createRegistration(page, {
       parent: new RegExp(last, 'i'),
       child: { first: 'Noa', last },
@@ -387,9 +397,12 @@ test.describe('Recette multi-tenant — plateforme SaaS', () => {
     const trpc = await request.get(`${BACK_URL}/api/trpc/organizations.publicInfo?input=${input}`);
     await check('GET /api/trpc/… sans secret', trpc.status(), 403, await trpc.text());
 
-    const forged = await request.get(`${BACK_URL}/api/trpc/organizations.publicInfo?input=${input}`, {
-      headers: { 'x-internal-secret': 'f'.repeat(64) },
-    });
+    const forged = await request.get(
+      `${BACK_URL}/api/trpc/organizations.publicInfo?input=${input}`,
+      {
+        headers: { 'x-internal-secret': 'f'.repeat(64) },
+      },
+    );
     await check('GET /api/trpc/… secret forgé', forged.status(), 403, await forged.text());
 
     const credentials = await request.post(`${BACK_URL}/api/internal/auth/credentials`, {

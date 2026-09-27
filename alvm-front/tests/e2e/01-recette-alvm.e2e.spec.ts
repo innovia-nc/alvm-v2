@@ -127,7 +127,12 @@ test.describe('Recette ALVM — espace « alvm »', () => {
 
   test('FAM-02 — l’admin crée un enfant rattaché au BON parent', async ({ page }, testInfo) => {
     await loginAs(page, ADMIN);
-    await createChild(page, { ...CHILD1, birth: '2016-04-12', parentEmail: PARENT.email });
+    await createChild(page, {
+      ...CHILD1,
+      birth: '2016-04-12',
+      gender: 'Fille',
+      parentEmail: PARENT.email,
+    });
     // Then : la fiche de l'enfant cite le parent RECETTE (email unique).
     await openChild(page, CHILD1.first, CHILD1.last);
     await expect(page.getByRole('main').getByText(PARENT.email).first()).toBeVisible();
@@ -158,9 +163,11 @@ test.describe('Recette ALVM — espace « alvm »', () => {
     const main = page.getByRole('main');
     await expect(main.getByText('Brouillon').first()).toBeVisible();
     // TGC exonérée (LP 492) : taxes à 0 %, total TTC = HT = prix du camp.
-    await expect(main.getByText(/Montant HT:/)).toContainText(xpf(CAMP_PRICE));
-    await expect(main.getByText(/Taxes \(0\s?%\):/)).toContainText(/\b0 XPF/);
-    await expect(main.getByText(/Montant total TTC:/)).toContainText(xpf(CAMP_PRICE));
+    // Libellé et valeur sont deux éléments voisins : on lit la ligne entière.
+    const line = (label: RegExp) => main.getByText(label).first().locator('..');
+    await expect(line(/^Montant HT:/)).toContainText(xpf(CAMP_PRICE));
+    await expect(line(/^Taxes \(0\s?%\):/)).toContainText(/:\s*0\s*XPF/);
+    await expect(line(/^Montant total TTC:/)).toContainText(xpf(CAMP_PRICE));
     await evidence(page, testInfo, 'FACT-01-creation-tgc0-01');
   });
 
@@ -242,7 +249,9 @@ test.describe('Recette ALVM — espace « alvm »', () => {
     const sales = lines
       .slice(1)
       .map((line) => line.split('|'))
-      .filter((cells) => cells[col('PieceRef')] === invoiceNumber && cells[col('JournalCode')] === 'VE');
+      .filter(
+        (cells) => cells[col('PieceRef')] === invoiceNumber && cells[col('JournalCode')] === 'VE',
+      );
     expect(sales.length, `écritures VE de ${invoiceNumber}`).toBeGreaterThanOrEqual(2);
     const debit = sales.reduce((sum, cells) => sum + amount(cells[col('Debit')]), 0);
     const credit = sales.reduce((sum, cells) => sum + amount(cells[col('Credit')]), 0);
@@ -294,7 +303,7 @@ test.describe('Recette ALVM — espace « alvm »', () => {
     await page.getByLabel(/^Prénom/).fill(CHILD2.first);
     await page.getByLabel(/^Nom \*/).fill(CHILD2.last);
     await page.getByLabel(/Date de naissance/).fill('2018-09-03');
-    await selectByLabel(page, /Genre/, 'first');
+    await selectByLabel(page, /Genre/, /^Garçon$/);
     await page.getByRole('button', { name: /Enregistrer l'enfant/ }).click();
     await expect(page.getByText(new RegExp(CHILD2.first)).first()).toBeVisible();
     await evidence(page, testInfo, 'PAR-03-second-enfant-01');
@@ -303,10 +312,16 @@ test.describe('Recette ALVM — espace « alvm »', () => {
   test('PAR-04 — le parent inscrit son enfant au camp publié', async ({ page }, testInfo) => {
     await loginAs(page, PARENT);
     await page.goto('/dashboard/parent/camps');
-    await page.getByRole('link', { name: new RegExp(CAMP_NAME) }).first().click();
+    await page
+      .getByRole('link', { name: new RegExp(CAMP_NAME) })
+      .first()
+      .click();
     await expect(page.getByText('Inscription au camp')).toBeVisible();
     await page.getByRole('combobox').first().click();
-    await page.getByRole('option', { name: new RegExp(CHILD2.first) }).first().click();
+    await page
+      .getByRole('option', { name: new RegExp(CHILD2.first) })
+      .first()
+      .click();
     await page.getByRole('button', { name: /Confirmer l'inscription/ }).click();
     await expect(
       page.getByText(/inscription.*(envoyée|créée|enregistrée|succès|attente)/i).first(),

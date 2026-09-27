@@ -12,8 +12,10 @@
 #
 # Ne touche ni à alvm_dev ni aux serveurs de développement (:4001 / :3000 / :3100) :
 # base, ports, secrets et journaux sont propres au banc. PostgreSQL et Redis sont
-# ceux du `compose.yml` (docker compose up -d) ; Redis n'est PAS branché (pas de
-# file d'emails sur le banc : l'envoi est désactivé et expliqué à l'écran).
+# ceux du `compose.yml` (docker compose up -d). Le back tourne en mode
+# production (comme l'image : pas de pile d'appels dans les erreurs tRPC) ; sa
+# file d'emails vit dans une base Redis DÉDIÉE (index 14) et aucun worker ne la
+# consomme : la recette ne teste pas l'envoi réel.
 #
 # Variables (toutes optionnelles) :
 #   E2E_DB_NAME       base de recette              (défaut alvm_e2e)
@@ -22,6 +24,7 @@
 #   E2E_FRONT_PORT    port du front                (défaut 3102)
 #   E2E_FRONT_MODE    build (next build + start) | dev (next dev)   (défaut build)
 #   E2E_STATE_DIR     secrets, pid, journaux       (défaut $TMPDIR/alvm-e2e)
+#   E2E_REDIS_URL     file d'emails du back        (défaut redis://127.0.0.1:6380/14)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -33,6 +36,7 @@ FRONT_PORT="${E2E_FRONT_PORT:-3102}"
 FRONT_MODE="${E2E_FRONT_MODE:-build}"
 STATE_DIR="${E2E_STATE_DIR:-${TMPDIR:-/tmp}/alvm-e2e}"
 STATE_DIR="${STATE_DIR%/}"
+REDIS_URL_E2E="${E2E_REDIS_URL:-redis://127.0.0.1:${ALVM_REDIS_PORT:-6380}/14}"
 
 # Identifiants du PostgreSQL de DÉVELOPPEMENT (deploy/postgres/init-dev.sql) —
 # jamais ceux d'un environnement partagé.
@@ -107,7 +111,8 @@ start_back() {
   log "back sur :$BACK_PORT"
   (
     cd "$ROOT/alvm-back"
-    DATABASE_URL="$APP_URL" PORT="$BACK_PORT" AUTH_URL="http://localhost:${FRONT_PORT}" \
+    NODE_ENV=production DATABASE_URL="$APP_URL" PORT="$BACK_PORT" \
+      AUTH_URL="http://localhost:${FRONT_PORT}" REDIS_URL="$REDIS_URL_E2E" \
       nohup node dist/main.js >"$STATE_DIR/back.log" 2>&1 &
     echo $! >"$STATE_DIR/back.pid"
   )

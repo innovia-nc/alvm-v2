@@ -93,7 +93,13 @@ export async function createParent(page: Page, parent: ParentInput): Promise<str
   return idFromUrl(page);
 }
 
-export type ChildInput = { first: string; last: string; birth: string; parentEmail: string };
+export type ChildInput = {
+  first: string;
+  last: string;
+  birth: string;
+  gender: 'Fille' | 'Garçon';
+  parentEmail: string;
+};
 
 /**
  * Crée un enfant rattaché au parent désigné par son EMAIL (unique) : cibler
@@ -119,7 +125,7 @@ export async function createChild(page: Page, child: ChildInput): Promise<void> 
   await main.getByLabel(/^Prénom/).fill(child.first);
   await main.getByLabel(/^Nom \*/).fill(child.last);
   await main.getByLabel(/Date de naissance/).fill(child.birth);
-  await selectByLabel(page, /Genre/, 'first');
+  await selectByLabel(page, /Genre/, new RegExp(`^${child.gender}$`));
   await main.getByRole('button', { name: /Créer l'enfant/ }).click();
   await page.waitForURL(new RegExp(`${ADMIN}/children$`));
 }
@@ -197,7 +203,10 @@ export async function openInvoiceNumber(page: Page): Promise<string> {
 export async function validateOpenInvoice(page: Page): Promise<string> {
   const main = page.getByRole('main');
   await main.getByRole('button', { name: 'Valider la facture' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: /^Valider$/ }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: /^Valider$/ })
+    .click();
   await expect(main.getByText('Émise').first()).toBeVisible();
   return openInvoiceNumber(page);
 }

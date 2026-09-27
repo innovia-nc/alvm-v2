@@ -81,10 +81,19 @@ function evidenceDir(testInfo: TestInfo): string {
  * Playwright. Le suffixe `-mobile` distingue les captures du projet mobile.
  */
 export async function evidence(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-  const suffix = testInfo.project.name === 'mobile' ? '-mobile' : '';
-  const file = path.join(evidenceDir(testInfo), `${name}${suffix}.png`);
-  // Laisser retomber les animations (toasts, dialogues) avant la capture.
+  const mobile = testInfo.project.name === 'mobile';
+  const file = path.join(evidenceDir(testInfo), `${name}${mobile ? '-mobile' : ''}.png`);
+  // Laisser retomber les chargements, puis capturer depuis le haut de page :
+  // une page défilée décale le menu et l'en-tête fixes dans la capture entière.
   await page.waitForLoadState('networkidle').catch(() => undefined);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  if (mobile) {
+    // Format téléphone : aucun débordement horizontal.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, `débordement horizontal de ${overflow}px (${name})`).toBeLessThanOrEqual(0);
+  }
   await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
   await testInfo.attach(name, { path: file, contentType: 'image/png' });
 }
