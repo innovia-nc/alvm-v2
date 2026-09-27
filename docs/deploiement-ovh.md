@@ -82,8 +82,10 @@ la **version exacte du client** (lue dans le lockfile), schéma + migrations de
 `next build` en sortie standalone (`NEXT_OUTPUT=standalone`,
 `SKIP_ENV_VALIDATION=1` **au build seulement**). `outputFileTracingRoot` est la
 racine du monorepo : le serveur est `alvm-front/server.js`. L'environnement est
-validé au démarrage (`instrumentation.ts`) : une variable manquante arrête le
-conteneur.
+validé au démarrage (`instrumentation.ts`) : une variable manquante empêche le
+serveur de se préparer — le processus reste en vie mais répond 500 partout, la
+sonde échoue et le conteneur devient `unhealthy` (vérifié ; Coolify ne bascule
+alors pas le trafic). Le back, lui, s'arrête (code 1).
 
 ### Communs
 
@@ -143,7 +145,10 @@ Détail et exemples de chaque service : `alvm-back/.env.example` (validées par
 | `ALVM_PROCESS`                                           |       |      |   ✅   |         | `worker` pour l'application Coolify du worker (§ 6.1)                                                                                                                           |
 
 Le worker reçoit **les mêmes variables que le back** : même image, même
-validation au démarrage.
+validation au démarrage (`loadEnv`, rôle base restreint vérifié) ; les jetons
+Blob lui servent pour le logo des PDF joints. Fonctionnement de la file
+`alvm-email` (tentatives, rétention, historique des envois) :
+`docs/file-emails.md`.
 
 ## 5. Staging — srv-innovia
 
