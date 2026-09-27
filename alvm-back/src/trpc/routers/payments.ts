@@ -57,8 +57,27 @@ const paymentWithDetailsSchema = paymentSchema.extend({
   }),
 });
 
-const paymentInclude = {
+/**
+ * Colonnes d'un règlement exposées (§5.9) : ni `organizationId`, ni
+ * `recordedBy`, ni `paymentNumber` (numérotation interne).
+ */
+const paymentSelect = {
+  id: true,
+  invoiceId: true,
+  amount: true,
+  paymentDate: true,
+  paymentMethodId: true,
+  creditNoteId: true,
+  reference: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
   paymentMethod: { select: { name: true, code: true } },
+} as const satisfies Prisma.PaymentSelect;
+
+/** Vue personnel : règlement + facture et payeur. */
+const paymentDetailsSelect = {
+  ...paymentSelect,
   invoice: {
     select: {
       id: true,
@@ -73,9 +92,12 @@ const paymentInclude = {
       },
     },
   },
-} as const;
+} as const satisfies Prisma.PaymentSelect;
 
-function mapPaymentWithDetails(p: any) {
+/** Vue parent : sans les notes internes du personnel (§5.13). */
+const { notes: _notes, ...paymentParentDetailsSelect } = paymentDetailsSelect;
+
+function mapPaymentWithDetails(p: any, role: string) {
   const totalAmount = toNum(p.invoice.totalAmount);
   const paidAmount = toNum(p.invoice.paidAmount);
   return {
@@ -88,7 +110,8 @@ function mapPaymentWithDetails(p: any) {
     paymentMethodCode: p.paymentMethod?.code || '',
     creditNoteId: p.creditNoteId,
     reference: p.reference,
-    notes: p.notes,
+    // Notes internes du personnel : jamais pour un PARENT (§5.13).
+    notes: role === 'PARENT' ? null : (p.notes ?? null),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     invoice: {
@@ -183,7 +206,8 @@ export const paymentsRouter = router({
       const [payments, total] = await Promise.all([
         ctx.prisma.payment.findMany({
           where,
-          include: paymentInclude,
+          select:
+            ctx.user.role === 'PARENT' ? paymentParentDetailsSelect : paymentDetailsSelect,
           orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
@@ -192,7 +216,7 @@ export const paymentsRouter = router({
       ]);
 
       return {
-        payments: payments.map(mapPaymentWithDetails),
+        payments: payments.map((p) => mapPaymentWithDetails(p, ctx.user.role)),
         total,
       };
     }),
@@ -209,10 +233,10 @@ export const paymentsRouter = router({
 
       const payment = await ctx.prisma.payment.findFirst({
         where,
-        include: paymentInclude,
+        select: ctx.user.role === 'PARENT' ? paymentParentDetailsSelect : paymentDetailsSelect,
       });
 
-      return payment ? mapPaymentWithDetails(payment) : null;
+      return payment ? mapPaymentWithDetails(payment, ctx.user.role) : null;
     }),
 
   create: staffProcedure
@@ -236,6 +260,14 @@ export const paymentsRouter = router({
         // 1. Verify invoice
         const invoice = await tx.invoice.findFirst({
           where: { id: input.invoiceId, invoiceType: 'INVOICE', deletedAt: null },
+          select: {
+            invoiceNumber: true,
+            parentId: true,
+            status: true,
+            totalAmount: true,
+            paidAmount: true,
+            creditedAmount: true,
+          },
         });
         if (!invoice) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
@@ -289,6 +321,7 @@ export const paymentsRouter = router({
         if (paymentMethod?.code === 'CREDIT_NOTE' && input.creditNoteId) {
           const creditNote = await tx.invoice.findFirst({
             where: { id: input.creditNoteId, invoiceType: 'CREDIT_NOTE', deletedAt: null },
+            select: { status: true, parentId: true, totalAmount: true, isFutureCredit: true },
           });
 
           if (!creditNote) {
@@ -309,6 +342,7 @@ export const paymentsRouter = router({
 
           const usableCredit = await tx.parentCredit.findFirst({
             where: { creditNoteId: input.creditNoteId },
+            select: { expiresAt: true, amountRemaining: true },
           });
           if (usableCredit?.expiresAt && usableCredit.expiresAt <= new Date())
             throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Avoir expiré' });
@@ -356,6 +390,7 @@ export const paymentsRouter = router({
           // Les deux vues sont désormais tenues à jour par les deux chemins.
           const parentCredit = await tx.parentCredit.findFirst({
             where: { creditNoteId: input.creditNoteId },
+            select: { id: true, amountRemaining: true },
           });
 
           if (parentCredit) {
@@ -399,7 +434,7 @@ export const paymentsRouter = router({
             notes: input.notes || null,
             recordedBy: userId,
           },
-          include: { paymentMethod: { select: { name: true, code: true } } },
+          select: paymentSelect,
         });
 
         // 5. Update invoice paid_amount and status
@@ -443,6 +478,7 @@ export const paymentsRouter = router({
         await lockTenant(tx, 'billing');
         const payment = await tx.payment.findUnique({
           where: { id: input.id },
+          select: { invoiceId: true, creditNoteId: true, amount: true },
         });
         if (!payment) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Paiement non trouvé' });
@@ -485,6 +521,7 @@ export const paymentsRouter = router({
 
         const invoice = await tx.invoice.findUniqueOrThrow({
           where: { id: payment.invoiceId },
+          select: { totalAmount: true, creditedAmount: true, status: true },
         });
 
         const refundSum = await tx.refund.aggregate({
@@ -566,7 +603,7 @@ export const paymentsRouter = router({
       // By payment method
       const payments = await ctx.prisma.payment.findMany({
         where: dateWhere,
-        include: { paymentMethod: { select: { name: true } } },
+        select: { amount: true, paymentMethod: { select: { name: true } } },
       });
 
       const byMethodMap = new Map<string, { total: number; count: number }>();

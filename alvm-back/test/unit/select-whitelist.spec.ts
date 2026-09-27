@@ -724,3 +724,174 @@ describe('§5.9 — registrations.* vues par un parent', () => {
     expect(result).toEqual({ cancelled: true });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Facturation : invoices, payments, creditNotes, refunds
+// ---------------------------------------------------------------------------
+
+const INVOICE_ID = 'c0000000-0000-4000-a000-000000000060';
+const BLOB_URL = 'https://blob.example/tenants/secret/facture.pdf';
+
+/** Ligne `invoices` complète, traçabilité interne comprise. */
+function poisonedInvoice(overrides: Record<string, unknown> = {}) {
+  return {
+    id: INVOICE_ID,
+    organizationId: TEST_ORGANIZATION_ID,
+    invoiceNumber: 'FAC-2026-0001',
+    parentId: PARENT_USER.id,
+    invoiceType: 'INVOICE',
+    creditedInvoiceId: null,
+    isFutureCredit: false,
+    refundMethod: null,
+    issueDate: now,
+    dueDate: new Date('2099-01-01'),
+    totalAmount: 10000,
+    subtotalHt: 10000,
+    taxAmount: 0,
+    taxRate: 0,
+    creditedAmount: 0,
+    paidAmount: 0,
+    status: 'SENT',
+    version: 2,
+    pdfUrl: BLOB_URL,
+    accountingExportedAt: now,
+    notes: 'Note interne',
+    createdById: STAFF_USER.id,
+    validatedById: ADMIN_USER.id,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    parent: { ...poisonedUser().parent, user: poisonedUser() },
+    lines: [],
+    payments: [],
+    creator: { id: STAFF_USER.id, name: 'Anne', email: 'anne@test.nc' },
+    validator: { id: ADMIN_USER.id, name: 'Admin', email: 'admin@test.nc' },
+    ...overrides,
+  };
+}
+
+describe('§5.9 / §5.13 — facturation vue par un parent', () => {
+  const internals = [
+    'organizationId',
+    'createdById',
+    'validatedById',
+    'creator',
+    'validator',
+    'deletedAt',
+    'user',
+  ];
+
+  it('invoices.getById (PARENT) : ni traçabilité, ni suivi comptable, ni URL de stockage', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.invoice.findFirst.mockResolvedValue(poisonedInvoice());
+
+    const result = await caller.invoices.getById({ id: INVOICE_ID });
+
+    expectWhitelistedQuery(mockPrisma.invoice.findFirst, [
+      ...internals,
+      'notes',
+      'pdfUrl',
+      ...ACCOUNT_SECRETS,
+    ]);
+    expectNoKeys(result, [...internals, ...ACCOUNT_SECRETS]);
+    expect(result).toMatchObject({
+      creatorName: null,
+      validatorName: null,
+      accountingExportedAt: null,
+      pdfUrl: `/api/documents/invoice/${INVOICE_ID}`,
+    });
+  });
+
+  it('invoices.getById (ADMIN) : la traçabilité reste visible, par son nom seulement', async () => {
+    const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
+    mockPrisma.invoice.findFirst.mockResolvedValue(poisonedInvoice());
+
+    const result = await caller.invoices.getById({ id: INVOICE_ID });
+
+    expectNoKeys(result, ['organizationId', 'createdById', 'validatedById', 'creator']);
+    expect(result).toMatchObject({ creatorName: 'Anne', validatorName: 'Admin' });
+    expect(JSON.stringify(result)).not.toContain('anne@test.nc');
+  });
+
+  it('invoices.list (PARENT) : whitelist select, pas de suivi comptable', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.invoice.findMany.mockResolvedValue([poisonedInvoice()]);
+    mockPrisma.invoice.count.mockResolvedValue(1);
+
+    const result = await caller.invoices.list({});
+
+    expectWhitelistedQuery(mockPrisma.invoice.findMany, [...internals, 'notes', 'pdfUrl']);
+    expectNoKeys(result, [...internals, ...ACCOUNT_SECRETS]);
+    expect(result.invoices[0].accountingExportedAt).toBeNull();
+    expect(JSON.stringify(result)).not.toContain(BLOB_URL);
+  });
+
+  it('payments.list (PARENT) : ni notes internes ni auteur du règlement', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.payment.findMany.mockResolvedValue([
+      {
+        id: 'c0000000-0000-4000-a000-000000000070',
+        organizationId: TEST_ORGANIZATION_ID,
+        paymentNumber: 'PAY-2026-0001',
+        invoiceId: INVOICE_ID,
+        amount: 5000,
+        paymentDate: now,
+        paymentMethodId: 'c0000000-0000-4000-a000-000000000071',
+        creditNoteId: null,
+        reference: 'CHQ-1',
+        notes: 'Chèque déposé en retard (note interne)',
+        recordedBy: STAFF_USER.id,
+        createdAt: now,
+        updatedAt: now,
+        paymentMethod: { name: 'Chèque', code: 'CHECK' },
+        invoice: poisonedInvoice(),
+      },
+    ]);
+    mockPrisma.payment.count.mockResolvedValue(1);
+
+    const result = await caller.payments.list({});
+
+    expectWhitelistedQuery(mockPrisma.payment.findMany, [
+      'notes',
+      'recordedBy',
+      'organizationId',
+      'paymentNumber',
+    ]);
+    expect(result.payments[0].notes).toBeNull();
+    expectNoKeys(result, ['recordedBy', 'organizationId', 'paymentNumber', ...ACCOUNT_SECRETS]);
+  });
+
+  it('creditNotes.getById (PARENT) : whitelist select, motif imprimé conservé', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.invoice.findFirst.mockResolvedValue(
+      poisonedInvoice({
+        invoiceType: 'CREDIT_NOTE',
+        totalAmount: -5000,
+        subtotalHt: -5000,
+        notes: 'Annulation du séjour',
+        creditedInvoice: null,
+        parentCredits: [],
+      }),
+    );
+
+    const result = await caller.creditNotes.getById({ id: INVOICE_ID });
+
+    expectWhitelistedQuery(mockPrisma.invoice.findFirst, [...internals, 'pdfUrl']);
+    expectNoKeys(result, [...internals, ...ACCOUNT_SECRETS]);
+    expect(result?.notes).toBe('Annulation du séjour');
+    expect(JSON.stringify(result)).not.toContain(BLOB_URL);
+  });
+
+  it('refunds.list (STAFF) : whitelist select, ni auteur ni tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.refund.findMany.mockResolvedValue([]);
+
+    await caller.refunds.list({});
+
+    expectWhitelistedQuery(mockPrisma.refund.findMany, [
+      'recordedBy',
+      'organizationId',
+      ...ACCOUNT_SECRETS,
+    ]);
+  });
+});

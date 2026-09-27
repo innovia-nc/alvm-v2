@@ -48,9 +48,31 @@ const refundWithRelationsSchema = refundSchema.extend({
   }),
 });
 
-const refundInclude = {
+/**
+ * Colonnes d'un remboursement exposées (§5.9) : ni `organizationId`, ni
+ * `recordedBy`, ni `refundNumber`/`creditNoteId` (liens internes).
+ */
+const refundSelect = {
+  id: true,
+  paymentId: true,
+  amount: true,
+  refundDate: true,
+  refundMethod: true,
+  reason: true,
+  reference: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.RefundSelect;
+
+const refundDetailsSelect = {
+  ...refundSelect,
   payment: {
-    include: {
+    select: {
+      id: true,
+      amount: true,
+      paymentDate: true,
+      paymentMethodId: true,
       paymentMethod: { select: { name: true, code: true } },
       invoice: {
         select: {
@@ -64,7 +86,7 @@ const refundInclude = {
       },
     },
   },
-} as const;
+} as const satisfies Prisma.RefundSelect;
 
 function mapRefundWithRelations(r: any) {
   return {
@@ -158,7 +180,7 @@ export const refundsRouter = router({
       const [refunds, total] = await Promise.all([
         ctx.prisma.refund.findMany({
           where,
-          include: refundInclude,
+          select: refundDetailsSelect,
           orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
           take: limit,
           skip: offset,
@@ -178,7 +200,7 @@ export const refundsRouter = router({
     .query(async ({ ctx, input }) => {
       const refund = await ctx.prisma.refund.findFirst({
         where: { id: input.id },
-        include: refundInclude,
+        select: refundDetailsSelect,
       });
 
       return refund ? mapRefundWithRelations(refund) : null;
@@ -203,7 +225,9 @@ export const refundsRouter = router({
         // Verify payment exists with its method and invoice
         const payment = await tx.payment.findUnique({
           where: { id: input.paymentId },
-          include: {
+          select: {
+            amount: true,
+            creditNoteId: true,
             paymentMethod: { select: { accountingCode: true } },
             invoice: {
               select: {
@@ -278,6 +302,7 @@ export const refundsRouter = router({
             notes: input.notes || null,
             recordedBy: ctx.user.id,
           },
+          select: refundSelect,
         });
 
         // Generate accounting entries (journal BQ) for immediate refunds
@@ -331,7 +356,10 @@ export const refundsRouter = router({
         await lockTenant(tx, 'billing');
         const refund = await tx.refund.findUnique({
           where: { id: input.id },
-          include: {
+          select: {
+            amount: true,
+            notes: true,
+            creditNoteId: true,
             payment: {
               select: {
                 invoice: {
@@ -360,6 +388,7 @@ export const refundsRouter = router({
         if (refund.creditNoteId) {
           const credit = await tx.parentCredit.findFirst({
             where: { creditNoteId: refund.creditNoteId },
+            select: { id: true, amountRemaining: true, amountOriginal: true },
           });
           const used = await tx.creditNoteAllocation.count({
             where: { creditNoteId: refund.creditNoteId },

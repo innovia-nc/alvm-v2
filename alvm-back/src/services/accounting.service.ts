@@ -121,7 +121,13 @@ export async function createInvoiceAccountingEntries(
   // Credit: revenue account
   const revenueLines = await tx.invoiceLine.findMany({
     where: { invoiceId: invoiceId, deletedAt: null },
-    include: { registration: { include: { camp: { include: { campType: true } } } } },
+    // Seuls le montant et le code comptable du type d'ACM sont lus (§5.9).
+    select: {
+      totalPrice: true,
+      registration: {
+        select: { camp: { select: { campType: { select: { accountingCode: true } } } } },
+      },
+    },
   });
   const groups = new Map<string, number>();
   for (const line of revenueLines) {
@@ -249,7 +255,13 @@ export async function createCreditNoteAccountingEntries(
   // Debit: reverse revenue
   const revenueLines = await tx.invoiceLine.findMany({
     where: { invoiceId: creditNoteId, deletedAt: null },
-    include: { registration: { include: { camp: { include: { campType: true } } } } },
+    // Seuls le montant et le code comptable du type d'ACM sont lus (§5.9).
+    select: {
+      totalPrice: true,
+      registration: {
+        select: { camp: { select: { campType: { select: { accountingCode: true } } } } },
+      },
+    },
   });
   const groups = new Map<string, number>();
   for (const line of revenueLines) {

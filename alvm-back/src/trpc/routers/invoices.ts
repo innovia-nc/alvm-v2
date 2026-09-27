@@ -2,6 +2,7 @@ import { effectiveInvoiceStatus, overdueWhere } from '@back/helpers/invoice-stat
 import {
   issueInvoice,
   cancelUnpaidInvoice,
+  invoiceSummarySelect,
   validateInvoiceRegistrations,
 } from '@back/services/invoice-lifecycle.service';
 import { z } from 'zod';
@@ -79,7 +80,12 @@ const invoiceWithDetailsSchema = invoiceSchema.extend({
   validatorName: z.string().nullable(),
 });
 
-const invoiceInclude = {
+/**
+ * Détail d'une facture (§5.9) : colonnes de `invoiceSummarySelect` + parent,
+ * lignes et règlements en select. Vue parent : sans traçabilité interne.
+ */
+const invoiceDetailsSelect = {
+  ...invoiceSummarySelect,
   parent: {
     select: {
       firstName: true,
@@ -115,6 +121,11 @@ const invoiceInclude = {
       },
     },
   },
+} as const;
+
+/** Vue personnel : + créateur et validateur (nom uniquement, §5.13). */
+const invoiceStaffDetailsSelect = {
+  ...invoiceDetailsSelect,
   // Traçabilité — whitelist stricte : id + name uniquement.
   // Champs JAMAIS exposés : email, hashedPassword, Account.providerAccountId, tokens.
   creator: {
@@ -156,7 +167,8 @@ function mapInvoiceWithDetails(inv: any, role?: string) {
     status: effectiveInvoiceStatus(inv),
     version: inv.version,
     pdfUrl: `/api/documents/invoice/${inv.id}`,
-    accountingExportedAt: inv.accountingExportedAt,
+    // Suivi de l'export comptable : information interne, jamais pour un PARENT.
+    accountingExportedAt: isStaffOrAdmin ? inv.accountingExportedAt : null,
     createdAt: inv.createdAt,
     updatedAt: inv.updatedAt,
     parent: inv.parent,
@@ -284,7 +296,10 @@ export const invoicesRouter = router({
       const [invoices, total] = await Promise.all([
         ctx.prisma.invoice.findMany({
           where,
-          include: { parent: { select: { firstName: true, lastName: true, email: true } } },
+          select: {
+            ...invoiceSummarySelect,
+            parent: { select: { firstName: true, lastName: true, email: true } },
+          },
           orderBy: [...(Array.isArray(orderBy) ? orderBy : [orderBy]), { id: 'asc' }],
           take: limit,
           skip: offset,
@@ -311,10 +326,10 @@ export const invoicesRouter = router({
         where.parentId = ctx.user.id;
       }
 
-      const invoice = await ctx.prisma.invoice.findFirst({
-        where,
-        include: invoiceInclude,
-      });
+      const invoice =
+        ctx.user.role === 'PARENT'
+          ? await ctx.prisma.invoice.findFirst({ where, select: invoiceDetailsSelect })
+          : await ctx.prisma.invoice.findFirst({ where, select: invoiceStaffDetailsSelect });
 
       return invoice ? mapInvoiceWithDetails(invoice, ctx.user.role) : null;
     }),
@@ -364,6 +379,7 @@ export const invoicesRouter = router({
             status: 'DRAFT',
             createdById: ctx.user.id,
           },
+          select: invoiceSummarySelect,
         });
 
         for (const line of input.lines) {
@@ -398,7 +414,10 @@ export const invoicesRouter = router({
       // 1. Get registration with camp and child details
       const reg = await ctx.prisma.registration.findFirst({
         where: { id: input.registrationId, deletedAt: null },
-        include: {
+        select: {
+          id: true,
+          parentId: true,
+          status: true,
           camp: {
             select: {
               name: true,
@@ -424,6 +443,7 @@ export const invoicesRouter = router({
           deletedAt: null,
           invoice: { deletedAt: null },
         },
+        select: { id: true },
       });
       if (existingLine) {
         throw new TRPCError({
@@ -473,6 +493,7 @@ export const invoicesRouter = router({
             status: 'DRAFT',
             createdById: ctx.user.id,
           },
+          select: invoiceSummarySelect,
         });
 
         await tx.invoiceLine.create({
@@ -578,7 +599,10 @@ export const invoicesRouter = router({
           });
         }
 
-        return tx.invoice.findUniqueOrThrow({ where: { id: input.id } });
+        return tx.invoice.findUniqueOrThrow({
+          where: { id: input.id },
+          select: invoiceSummarySelect,
+        });
       });
 
       return mapInvoice(invoice);
@@ -606,7 +630,10 @@ export const invoicesRouter = router({
     .mutation(async ({ ctx, input }) =>
       ctx.prisma.$transaction(async (tx) => {
         await lockTenant(tx, 'billing');
-        const invoice = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
+        const invoice = await tx.invoice.findFirst({
+          where: { id: input.id, deletedAt: null },
+          select: { version: true },
+        });
         if (!invoice) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
         if (invoice.version !== input.version)
           throw new TRPCError({ code: 'CONFLICT', message: 'Rechargez la facture modifiée' });
@@ -627,7 +654,10 @@ export const invoicesRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
         await lockTenant(tx, 'billing');
-        const document = await tx.invoice.findFirst({ where: { id: input.id, deletedAt: null } });
+        const document = await tx.invoice.findFirst({
+          where: { id: input.id, deletedAt: null },
+          select: { status: true },
+        });
         if (!document) throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
         if (document.status !== 'DRAFT')
           throw new TRPCError({
@@ -801,7 +831,11 @@ export const invoicesRouter = router({
           paymentStatus: 'UNPAID',
           deletedAt: null,
         },
-        include: {
+        select: {
+          id: true,
+          campId: true,
+          childId: true,
+          registrationDate: true,
           camp: {
             select: {
               id: true,
