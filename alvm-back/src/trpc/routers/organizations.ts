@@ -102,6 +102,11 @@ export const organizationsRouter = router({
   /**
    * Suspend ou réactive une association. Suspendue : plus aucune connexion,
    * sessions en cours invalidées à la requête suivante, données conservées.
+   *
+   * La suspension RÉVOQUE les sessions (incrément de `sessionVersion` de tous
+   * les comptes de l'association, dans la même transaction) : sans cela, un
+   * jeton émis avant la suspension redevenait valable dès la réactivation,
+   * sans nouvelle authentification (recette E2E SaaS 3.0.0, SAAS-05).
    */
   setStatus: superAdminProcedure
     .input(z.object({ id: z.string().uuid(), status: z.enum(['ACTIVE', 'SUSPENDED']) }))
@@ -120,6 +125,11 @@ export const organizationsRouter = router({
         },
         select: organizationSelect,
       });
+      if (input.status === 'SUSPENDED')
+        await ctx.prisma.user.updateMany({
+          where: { organizationId: input.id },
+          data: { sessionVersion: { increment: 1 } },
+        });
       await recordPlatformAudit(
         ctx.prisma,
         ctx.user.id,
