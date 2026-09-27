@@ -382,6 +382,10 @@ describe('dans son association', () => {
     expect(blob.del).not.toHaveBeenCalled();
     expect((await handleLogoDelete(deleteRequest(), adminA)).status).toBe(200);
     expect(blob.del).toHaveBeenCalledWith(url, { token: 'public-test-token' });
+    // L'écran retire ensuite l'URL des réglages (sinon les PDF de A tenteraient
+    // de télécharger ce logo fictif).
+    await A.tenant.adminCaller.settings.deleteLogoUrl();
+    expect(await A.tenant.adminCaller.settings.getLogoUrl()).toBeNull();
   });
 });
 
