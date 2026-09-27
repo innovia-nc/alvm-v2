@@ -71,6 +71,7 @@ alvm-v2/
 | §5.5 `modules/{domain}/*.service.ts` injectés | Services = fonctions TypeScript (`src/services`) | Hérités et testés (1 000+ tests) ; les routeurs tRPC les appellent avec le client de la transaction RLS, ce qui rend l'injection Nest superflue |
 | §4 Tailwind v4 (skill) | Tailwind 3.4 conservé | Migration visuelle hors périmètre de la refonte SaaS |
 | §4 PostgreSQL 16 | PostgreSQL 16 (le staging de la veille était en 17) | Aligné sur la directive |
+| §2.5 / §12 « jamais d'app sur srv-innovia » | Staging applicatif sur srv-innovia (Docker Compose, lié à 127.0.0.1, accès tailnet) | Convention de staging existante des SaaS InnovIA (`ppm-saas`, décision du 2026-09-27 pour `asso-saas`) ; aucune production, aucune exposition Internet — la production reste sur srv-ovh |
 
 ## Conséquences
 
