@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
+  // JSX « automatic » comme Next : un composant n'a pas à importer React pour
+  // être rendu dans un test (sinon « React is not defined »).
+  esbuild: { jsx: 'automatic' },
   test: {
     globals: true,
     environment: 'node',
