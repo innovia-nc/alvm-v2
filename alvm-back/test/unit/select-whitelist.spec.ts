@@ -571,3 +571,96 @@ describe('§5.9 — children.* et childDocuments.* vus par un parent', () => {
     expect(result[0].fileUrl).toBe('/api/documents/child/d0000000-0000-4000-a000-000000000002');
   });
 });
+
+// ---------------------------------------------------------------------------
+// camps.* et attendances.list : projection par rôle (§5.13)
+// ---------------------------------------------------------------------------
+
+const CAMP_ID = 'c0000000-0000-4000-a000-000000000030';
+
+function poisonedCamp() {
+  return {
+    id: CAMP_ID,
+    organizationId: TEST_ORGANIZATION_ID,
+    name: 'Camp été',
+    description: 'Un camp au bord du lagon',
+    campTypeId: 'c0000000-0000-4000-a000-000000000031',
+    location: 'Nouméa',
+    maxCapacity: 20,
+    startDate: new Date('2026-12-01'),
+    endDate: new Date('2026-12-05'),
+    registrationDeadline: new Date('2026-11-20'),
+    pricePerDay: 1000,
+    totalPrice: 5000,
+    status: 'PUBLISHED',
+    createdBy: STAFF_USER.id,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    campType: { id: 'c0000000-0000-4000-a000-000000000031', name: 'ACM', description: null },
+    creator: poisonedUser({ id: STAFF_USER.id, role: 'STAFF', staffMember: null }),
+    _count: { registrations: 3 },
+  };
+}
+
+describe('§5.13 — un parent ne reçoit pas la traçabilité interne', () => {
+  it('camps.list (PARENT) : ni créateur ni tenant, dans la requête comme dans la réponse', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.camp.findMany.mockResolvedValue([poisonedCamp()]);
+    mockPrisma.camp.count.mockResolvedValue(1);
+
+    const result = await caller.camps.list({});
+
+    expectWhitelistedQuery(mockPrisma.camp.findMany, ['creator', 'createdBy', 'organizationId']);
+    expectNoKeys(result, [...ACCOUNT_SECRETS, 'createdBy', 'organizationId', 'deletedAt']);
+    expect(result.camps[0].creator).toBeNull();
+  });
+
+  it('camps.getById (STAFF) : le créateur reste affiché, sans son compte', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.camp.findFirst.mockResolvedValue(poisonedCamp());
+
+    const result = await caller.camps.getById({ id: CAMP_ID });
+
+    expectWhitelistedQuery(mockPrisma.camp.findFirst, [...ACCOUNT_SECRETS, 'organizationId']);
+    expectNoKeys(result, [...ACCOUNT_SECRETS, 'createdBy', 'organizationId']);
+    expect(result?.creator).toEqual({ firstName: 'Parent Test', lastName: '' });
+  });
+
+  it('attendances.list (PARENT) : ni notes internes ni auteur du pointage', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.attendance.findMany.mockResolvedValue([
+      {
+        id: 'c0000000-0000-4000-a000-000000000040',
+        organizationId: TEST_ORGANIZATION_ID,
+        registrationId: 'c0000000-0000-4000-a000-000000000041',
+        attendanceDate: new Date('2026-12-01'),
+        status: 'PRESENT',
+        arrivalTime: null,
+        departureTime: null,
+        notes: 'Note interne du personnel',
+        recordedBy: STAFF_USER.id,
+        createdAt: now,
+        updatedAt: now,
+        registration: {
+          child: { id: CHILD_ID, firstName: 'Léa', lastName: 'Dupont' },
+          camp: { id: CAMP_ID, name: 'Camp été' },
+        },
+        recorder: { role: 'STAFF', name: 'Anne', staffMember: null },
+      },
+    ]);
+    mockPrisma.attendance.count.mockResolvedValue(1);
+
+    const result = await caller.attendances.list({});
+
+    expectWhitelistedQuery(mockPrisma.attendance.findMany, [
+      'notes',
+      'recorder',
+      'recordedBy',
+      'organizationId',
+    ]);
+    expect(result.attendances[0].notes).toBeNull();
+    expect(result.attendances[0].recorder).toBeNull();
+    expectNoKeys(result, ['recordedBy', 'organizationId']);
+  });
+});
