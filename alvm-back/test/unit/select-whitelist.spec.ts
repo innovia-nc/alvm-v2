@@ -895,3 +895,61 @@ describe('§5.9 / §5.13 — facturation vue par un parent', () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Référentiels et comptabilité : settings, paymentMethods, campTypes, fec
+// ---------------------------------------------------------------------------
+
+describe('§5.9 — référentiels et exports comptables', () => {
+  it('settings.getByCategory : ni tenant ni auteur de la modification', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.appSetting.findMany.mockResolvedValue([
+      {
+        id: 'c0000000-0000-4000-a000-000000000080',
+        organizationId: TEST_ORGANIZATION_ID,
+        category: 'organization',
+        key: 'name',
+        value: '"ALVM"',
+        description: null,
+        updatedBy: ADMIN_USER.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const result = await caller.settings.getByCategory({ category: 'organization' });
+
+    expectWhitelistedQuery(mockPrisma.appSetting.findMany, ['organizationId', 'updatedBy']);
+    expectNoKeys(result, ['organizationId', 'updatedBy']);
+  });
+
+  it('paymentMethods.list : whitelist select, pas de tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+
+    await caller.paymentMethods.list();
+
+    expectWhitelistedQuery(mockPrisma.paymentMethod.findMany, ['organizationId']);
+  });
+
+  it('campTypes.listAll : whitelist select, pas de tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+
+    await caller.campTypes.listAll();
+
+    expectWhitelistedQuery(mockPrisma.campType.findMany, ['organizationId']);
+  });
+
+  it('fec.history et fec.getEntries : ni auteur ni tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
+
+    await caller.fec.history({});
+    await caller.fec.getEntries({ startDate: '2026-01-01', endDate: '2026-12-31' });
+
+    expectWhitelistedQuery(mockPrisma.fecExport.findMany, ['createdBy', 'content', 'organizationId']);
+    expectWhitelistedQuery(mockPrisma.accountingEntry.findMany, [
+      'organizationId',
+      'createdBy',
+      'cancelledBy',
+    ]);
+  });
+});

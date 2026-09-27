@@ -16,18 +16,34 @@ const paymentMethodSchema = z.object({
   updatedAt: z.date(),
 });
 
+/** Whitelist (§5.9) : les colonnes de `paymentMethodSchema`, jamais `organizationId`. */
+const paymentMethodSelect = {
+  id: true,
+  code: true,
+  name: true,
+  description: true,
+  accountingCode: true,
+  active: true,
+  displayOrder: true,
+  isSystem: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export const paymentMethodsRouter = router({
   // Moyens de paiement de l'association de la session (données de tenant).
   list: protectedProcedure.output(z.array(paymentMethodSchema)).query(async ({ ctx }) => {
     return ctx.prisma.paymentMethod.findMany({
       where: { active: true },
       orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+      select: paymentMethodSelect,
     });
   }),
 
   listAll: adminProcedure.output(z.array(paymentMethodSchema)).query(async ({ ctx }) => {
     return ctx.prisma.paymentMethod.findMany({
       orderBy: [{ active: 'desc' }, { displayOrder: 'asc' }, { name: 'asc' }],
+      select: paymentMethodSelect,
     });
   }),
 
@@ -46,6 +62,7 @@ export const paymentMethodsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.paymentMethod.findFirst({
         where: { name: input.name },
+        select: { id: true },
       });
       if (existing) {
         throw new TRPCError({
@@ -69,6 +86,7 @@ export const paymentMethodsRouter = router({
           displayOrder: 99,
           isSystem: false,
         },
+        select: paymentMethodSelect,
       });
     }),
 
@@ -90,6 +108,7 @@ export const paymentMethodsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.paymentMethod.findUnique({
         where: { id: input.id },
+        select: { name: true },
       });
       if (!existing) {
         throw new TRPCError({
@@ -101,6 +120,7 @@ export const paymentMethodsRouter = router({
       if (input.name && input.name !== existing.name) {
         const nameExists = await ctx.prisma.paymentMethod.findFirst({
           where: { name: input.name, id: { not: input.id } },
+          select: { id: true },
         });
         if (nameExists) {
           throw new TRPCError({
@@ -114,6 +134,7 @@ export const paymentMethodsRouter = router({
       return ctx.prisma.paymentMethod.update({
         where: { id },
         data,
+        select: paymentMethodSelect,
       });
     }),
 
@@ -123,6 +144,7 @@ export const paymentMethodsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.paymentMethod.findUnique({
         where: { id: input.id },
+        select: { active: true },
       });
       if (!existing) {
         throw new TRPCError({
@@ -150,6 +172,7 @@ export const paymentMethodsRouter = router({
       return ctx.prisma.paymentMethod.update({
         where: { id: input.id },
         data: { active: !existing.active },
+        select: paymentMethodSelect,
       });
     }),
 
@@ -159,6 +182,7 @@ export const paymentMethodsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.paymentMethod.findUnique({
         where: { id: input.id },
+        select: { isSystem: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Méthode de paiement non trouvée' });

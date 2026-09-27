@@ -93,6 +93,8 @@ describe('paymentMethods router', () => {
       expect(result.name).toBe('Virement Bancaire');
       expect(admin.mockPrisma.paymentMethod.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ code: 'VIREMENT_BANCAIRE' }),
+        // §5.9 : la méthode créée est relue en whitelist.
+        select: expect.objectContaining({ id: true, code: true }),
       });
     });
 
