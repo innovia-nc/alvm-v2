@@ -1170,9 +1170,11 @@ describe('super administration', () => {
       action: 'platform.organization.created',
       limit: 100,
     });
-    expect(audit.events.map((e) => e.target)).toEqual(
-      expect.arrayContaining([A.organization.id, B.organization.id]),
+    // Libellés, jamais d'identifiant brut (§5.9) : l'association cible est nommée.
+    expect(audit.events.map((e) => e.targetLabel)).toEqual(
+      expect.arrayContaining([A.organization.name, B.organization.name]),
     );
+    expect(JSON.stringify(audit.events)).not.toContain(A.organization.id);
   });
 
   it('l’espace de plateforme n’est pas modifiable par les procédures d’association', async () => {

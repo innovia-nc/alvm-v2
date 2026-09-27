@@ -13,8 +13,12 @@ const labels: Record<string, string> = {
   'platform.account.created': 'Compte créé',
   'platform.account.updated': 'Accès au compte modifié',
   'platform.account.sessions_revoked': 'Sessions révoquées',
-  'platform.feature.enabled': 'Fonctionnalité activée',
-  'platform.feature.disabled': 'Fonctionnalité désactivée',
+  'platform.feature.enabled': 'Module activé',
+  'platform.feature.disabled': 'Module désactivé',
+  'platform.organization.created': 'Association créée',
+  'platform.organization.renamed': 'Association renommée',
+  'platform.organization.suspended': 'Association suspendue',
+  'platform.organization.reactivated': 'Association réactivée',
   'account.updated': 'Compte personnel modifié',
   'account.password_reset': 'Mot de passe réinitialisé',
 };
@@ -28,8 +32,8 @@ export function AuditLog() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Historique des accès et de l’administration de la plateforme. Les mots de passe, clés API et
-        contenus métier ne sont pas enregistrés dans ce journal.
+        Historique des accès et de l’administration de la plateforme et des associations. Les mots
+        de passe, clés API et contenus métier ne sont pas enregistrés dans ce journal.
       </p>
       <div className="space-y-2">
         <Label htmlFor="audit-action">Filtrer par code d’action</Label>
@@ -57,6 +61,7 @@ export function AuditLog() {
                 <tr>
                   <th className="p-3">Date</th>
                   <th className="p-3">Action</th>
+                  <th className="p-3">Espace</th>
                   <th className="p-3">Auteur</th>
                   <th className="p-3">Cible</th>
                   <th className="p-3">Résultat</th>
@@ -69,6 +74,7 @@ export function AuditLog() {
                       {new Date(event.createdAt).toLocaleString('fr-FR')}
                     </td>
                     <td className="p-3">{labels[event.action] ?? event.action}</td>
+                    <td className="p-3">{event.organizationName}</td>
                     <td className="break-all p-3">{event.actorName}</td>
                     <td className="break-all p-3">{event.targetLabel}</td>
                     <td className="p-3">{event.outcome === 'SUCCESS' ? 'Réussi' : 'Échec'}</td>

@@ -383,6 +383,7 @@ export const platformRouter = router({
             target: true,
             outcome: true,
             createdAt: true,
+            organization: { select: { name: true, kind: true } },
           },
         }),
         ctx.prisma.platformAuditLog.count({ where }),
@@ -394,19 +395,26 @@ export const platformRouter = router({
             .filter((value): value is string => Boolean(value && /^[0-9a-f-]{36}$/i.test(value))),
         ),
       ];
-      const identities = ids.length
-        ? await ctx.prisma.user.findMany({
-            where: { id: { in: ids } },
-            select: { id: true, name: true, email: true },
-          })
-        : [];
-      const names = new Map(
-        identities.map((identity) => [identity.id, identity.name || identity.email]),
-      );
+      const [identities, organizations] = ids.length
+        ? await Promise.all([
+            ctx.prisma.user.findMany({
+              where: { id: { in: ids } },
+              select: { id: true, name: true, email: true },
+            }),
+            ctx.prisma.organization.findMany({
+              where: { id: { in: ids } },
+              select: { id: true, name: true },
+            }),
+          ])
+        : [[], []];
+      const names = new Map([
+        ...identities.map((identity) => [identity.id, identity.name || identity.email] as const),
+        ...organizations.map((organization) => [organization.id, organization.name] as const),
+      ]);
       const labels: Record<string, string> = {
         branding: 'Identité de l’application',
         SUPER_ADMIN: 'Super admin',
-        ADMIN: 'Admin entreprise',
+        ADMIN: 'Admin association',
         STAFF: 'Personnel',
         PARENT: 'Parent',
         ...Object.fromEntries(Object.entries(FEATURES).map(([key, value]) => [key, value.label])),
@@ -421,6 +429,8 @@ export const platformRouter = router({
           action: event.action,
           outcome: event.outcome,
           createdAt: event.createdAt,
+          organizationName:
+            event.organization?.kind === 'TENANT' ? event.organization.name : 'Plateforme',
           actorName: event.actorId
             ? (names.get(event.actorId) ?? 'Compte supprimé')
             : 'Non authentifié',

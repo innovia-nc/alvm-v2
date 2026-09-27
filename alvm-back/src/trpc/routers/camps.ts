@@ -316,7 +316,13 @@ export const campsRouter = router({
 
         const existing = await tx.camp.findFirst({
           where: { id: input.id, deletedAt: null },
-          select: { startDate: true, endDate: true, pricePerDay: true, totalPrice: true },
+          select: {
+            startDate: true,
+            endDate: true,
+            pricePerDay: true,
+            totalPrice: true,
+            campTypeId: true,
+          },
         });
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
