@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardBasePath } from '@/lib/hooks/use-dashboard-base-path';
+import { InvoiceEmailHistory } from './invoice-email-history';
 
 type Invoice = {
   id: string;
@@ -131,7 +132,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
   const emailConfigured = emailStatus?.configured ?? true;
 
   // L'envoi part par la file `alvm-email` : la mutation le programme, le
-  // worker l'exécute (historique : invoices.emailHistory).
+  // résultat s'affiche dans l'historique (<InvoiceEmailHistory />).
   const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
     onSuccess: (data) => {
       toast.success(`Envoi programmé à ${data.recipient}`);
@@ -464,6 +465,8 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
           </CardContent>
         </Card>
       )}
+
+      <InvoiceEmailHistory invoiceId={invoice.id} />
 
       {/* Traçabilité interne — rendu uniquement sur les routes admin/staff (jamais parent).
           Le back renvoie null pour les parents (role-gating getById) ; fallback "Non renseigné". */}

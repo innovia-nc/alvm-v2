@@ -42,7 +42,8 @@ type StatusBadgeType =
   | 'creditNote'
   | 'refund'
   | 'camp'
-  | 'organization';
+  | 'organization'
+  | 'email';
 
 interface StatusBadgeProps {
   type: StatusBadgeType;
@@ -133,6 +134,13 @@ const ORGANIZATION_MAP: Record<string, StatusInfo> = {
   SUSPENDED: { label: 'Suspendue', className: 'status-badge-cancelled', icon: PauseCircle },
 };
 
+// Envoi d'email programme dans la file `alvm-email` (enum Prisma EmailStatus).
+const EMAIL_MAP: Record<string, StatusInfo> = {
+  QUEUED: { label: 'Programmé', className: 'status-badge-pending', icon: Clock },
+  SENT: { label: 'Envoyé', className: 'status-badge-confirmed', icon: CheckCircle2 },
+  FAILED: { label: 'Échec', className: 'status-badge-cancelled', icon: AlertCircle },
+};
+
 const TYPE_MAPS: Record<StatusBadgeType, Record<string, StatusInfo>> = {
   invoice: INVOICE_MAP,
   registration: REGISTRATION_MAP,
@@ -141,6 +149,7 @@ const TYPE_MAPS: Record<StatusBadgeType, Record<string, StatusInfo>> = {
   camp: CAMP_MAP,
   refund: REFUND_MAP,
   organization: ORGANIZATION_MAP,
+  email: EMAIL_MAP,
 };
 
 /**
