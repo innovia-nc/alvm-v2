@@ -249,3 +249,111 @@ describe('§5.9 — parents.* ne transporte ni secret ni champ interne', () => {
     expectNoKeys(result, forbidden);
   });
 });
+
+// ---------------------------------------------------------------------------
+// staff.* et staffDocuments.*
+// ---------------------------------------------------------------------------
+
+const STAFF_MEMBER_ID = 'c0000000-0000-4000-a000-000000000011';
+
+function poisonedStaffMember(overrides: Record<string, unknown> = {}) {
+  return {
+    userId: STAFF_MEMBER_ID,
+    organizationId: TEST_ORGANIZATION_ID,
+    firstName: 'Anne',
+    lastName: 'Animatrice',
+    email: 'anne@test.nc',
+    phone: null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    user: poisonedUser({ id: STAFF_MEMBER_ID, role: 'STAFF', parent: null }),
+    ...overrides,
+  };
+}
+
+describe('§5.9 — staff.* ne transporte ni secret ni champ interne', () => {
+  const forbidden = [...ACCOUNT_SECRETS, ...TENANT_INTERNALS];
+
+  it('staff.list : whitelist select et réponse sans secret', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.staffMember.findMany.mockResolvedValue([poisonedStaffMember()]);
+    mockPrisma.staffMember.count.mockResolvedValue(1);
+
+    const result = await caller.staff.list({});
+
+    expectWhitelistedQuery(mockPrisma.staffMember.findMany, forbidden);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('staff.getById : whitelist select et réponse sans secret', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.staffMember.findFirst.mockResolvedValue(poisonedStaffMember());
+
+    const result = await caller.staff.getById({ id: STAFF_MEMBER_ID });
+
+    expectWhitelistedQuery(mockPrisma.staffMember.findFirst, forbidden);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('staff.create : seul le mot de passe généré sort, jamais son hash', async () => {
+    const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
+    mockPrisma.user.create.mockResolvedValue({ id: STAFF_MEMBER_ID });
+    mockPrisma.staffMember.create.mockResolvedValue(poisonedStaffMember());
+
+    const result = await caller.staff.create({
+      firstName: 'Anne',
+      lastName: 'Animatrice',
+      email: 'anne@test.nc',
+    });
+
+    expectWhitelistedQuery(mockPrisma.staffMember.create, forbidden);
+    expectNoKeys(result, forbidden);
+    expect(result.generatedPassword).toEqual(expect.any(String));
+  });
+
+  it('staff.update : réponse whitelistée', async () => {
+    const { caller, mockPrisma } = createTestCaller(ADMIN_USER);
+    mockPrisma.staffMember.findFirst.mockResolvedValue(poisonedStaffMember());
+    mockPrisma.user.findUnique.mockResolvedValue(poisonedUser({ role: 'STAFF' }));
+    mockPrisma.staffMember.update.mockResolvedValue(poisonedStaffMember());
+
+    const result = await caller.staff.update({ id: STAFF_MEMBER_ID, email: 'anne2@test.nc' });
+
+    expectWhitelistedQuery(mockPrisma.staffMember.update, forbidden);
+    expectWhitelistedQuery(mockPrisma.user.findUnique, ACCOUNT_SECRETS);
+    expectNoKeys(result, forbidden);
+  });
+
+  it('staffDocuments.list : ni URL de stockage, ni déposant, ni tenant', async () => {
+    const { caller, mockPrisma } = createTestCaller(STAFF_USER);
+    mockPrisma.staffMember.findFirst.mockResolvedValue({ userId: STAFF_MEMBER_ID });
+    mockPrisma.staffDocument.findMany.mockResolvedValue([
+      {
+        id: 'd0000000-0000-4000-a000-000000000001',
+        organizationId: TEST_ORGANIZATION_ID,
+        staffId: STAFF_MEMBER_ID,
+        filename: 'x.pdf',
+        originalFilename: 'contrat.pdf',
+        fileUrl: 'https://blob.example/tenants/secret/x.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 10,
+        description: null,
+        uploadedBy: ADMIN_USER.id,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      },
+    ]);
+
+    const result = await caller.staffDocuments.list({ staffId: STAFF_MEMBER_ID });
+
+    expectWhitelistedQuery(mockPrisma.staffDocument.findMany, [
+      'fileUrl',
+      'uploadedBy',
+      'organizationId',
+    ]);
+    expectNoKeys(result, ['uploadedBy', 'organizationId', 'deletedAt']);
+    expect(result[0].fileUrl).toBe('/api/documents/staff/d0000000-0000-4000-a000-000000000001');
+  });
+});
