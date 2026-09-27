@@ -15,7 +15,8 @@
 `compose.ovh.yml` décrit la topologie de production de façon exécutable (mêmes
 images, variables et alias réseau que les réglages Coolify ci-dessous). Il sert
 de répétition « comme en prod » (§ 8) ; en production, Coolify gère chaque
-service séparément (bases sauvegardées, Watch Paths par application).
+service séparément (bases sauvegardées, applications « Docker Image » tirant
+les images publiées par la CI).
 
 ## 1. Topologie
 
@@ -48,8 +49,14 @@ même joignable sur le réseau Docker, il ne répond qu'au front
 
 ## 2. Images
 
-Contexte de build = **racine du monorepo** (`.dockerignore` racine), tag = SHA
-court du commit, jamais `latest` :
+**Publiées par la CI** : pour chaque commit de `master` dont la qualité et
+l'intégration sont vertes, le job `images` de `.github/workflows/ci.yml` pousse
+`ghcr.io/innovia-noumea/asso-saas-{back,front}:<sha court>` (jamais `latest`).
+Staging et production **tirent** ces images ; le tag validé en staging est
+promu tel quel en production (§ 6.4).
+
+Construction locale (répétition, § 8) — contexte de build = **racine du
+monorepo** (`.dockerignore` racine) :
 
 ```bash
 TAG=$(git rev-parse --short HEAD)
@@ -156,8 +163,11 @@ Suit la convention du serveur (`/srv/staging/README.md` : bloc de 10 ports par
 projet, seul le front lié à `127.0.0.1`, back/base/Redis jamais liés à l'hôte,
 accès HTTPS par le tailnet via `tailscale serve`) ; écart assumé à « jamais
 d'app sur srv-innovia » : `docs/adr/0001-monorepo-nestjs.md`. Dépôt :
-`innovia-noumea/asso-saas`. Images **construites sur le serveur**, taguées au
-SHA court (cible : images publiées par la CI sur ghcr.io, comme ppm-saas).
+`innovia-noumea/asso-saas`. Images **publiées par la CI** sur
+`ghcr.io/innovia-noumea/asso-saas-{front,back}:<sha court>` (job `images`, commit
+de `master` dont la qualité et l'intégration sont vertes) : le staging les
+**tire**, rien n'est construit sur le serveur. Le tag validé en staging est
+celui que la production sert ensuite.
 Aucune règle UFW : aucun port n'est ouvert.
 
 ```bash
@@ -166,11 +176,11 @@ free -h                                   # mémoire partagée avec l'inférence
 staging-ports alloc asso-saas && staging-ports list   # noter le port de base
 git clone git@github.com:innovia-noumea/asso-saas.git /srv/dev/asso-saas && cd /srv/dev/asso-saas
 cp deploy/staging/.env.example deploy/staging/.env && chmod 600 deploy/staging/.env
-# remplir : BASE_PORT, IMAGE_TAG=$(git rev-parse --short HEAD), APP_URL=$(staging-ports url asso-saas),
+# remplir : BASE_PORT, IMAGE_TAG=<sha court publié par la CI>, APP_URL=$(staging-ports url asso-saas),
 #           secrets (openssl rand -hex 32 / -base64 32)
 dc() { docker compose -f deploy/staging/compose.yml --env-file deploy/staging/.env "$@"; }
 
-dc build                                  # asso-saas-front:<sha>, asso-saas-back:<sha>
+dc pull front back                        # ghcr.io/innovia-noumea/asso-saas-{front,back}:<sha>
 dc up -d postgres redis                   # crée alvm_app (init-app-role.sh)
 dc --profile ops run --rm migrate         # migrations + droits de alvm_app
 read -r SUPER_ADMIN_EMAIL; read -rs SUPER_ADMIN_PASSWORD; export SUPER_ADMIN_EMAIL SUPER_ADMIN_PASSWORD
@@ -185,9 +195,10 @@ L'ancien staging (image unique, PostgreSQL 17, volume `db-data`) n'est pas
 repris : ce volume n'est plus monté ; le supprimer après vérification
 (`docker volume rm asso-saas-staging_db-data`).
 
-**Mise à jour** : `git pull`, `IMAGE_TAG` = nouveau SHA court dans le `.env`,
-`dc build`, `dc --profile ops run --rm migrate` (sans effet s'il n'y a rien à
-appliquer), `dc up -d`. **Retour arrière** : remettre l'ancien `IMAGE_TAG` (les
+**Mise à jour** : `git pull` (compose et scripts), `IMAGE_TAG` = SHA court du
+commit de `master` publié par la CI, `dc pull front back`,
+`dc --profile ops run --rm migrate` (sans effet s'il n'y a rien à appliquer),
+`dc up -d`, puis recette. **Retour arrière** : remettre l'ancien `IMAGE_TAG` (les
 images précédentes restent en local) et `dc up -d` — voir § 6.5 pour les
 migrations.
 
@@ -199,39 +210,28 @@ camp → inscription → facture → paiement → PDF → email.
 
 ### 6.1 Ressources Coolify
 
-Une ressource par service, toutes dans le même projet/environnement Coolify
-(réseau Docker `coolify`). Dépôt `innovia-noumea/asso-saas`, branche `master`,
-auto-deploy par webhook GitHub App.
+**Même artefact qu'en staging.** Les images sont construites **une seule fois**
+par la CI et publiées sur `ghcr.io/innovia-noumea/asso-saas-{back,front}:<sha
+court>` pour chaque commit de `master` dont la CI est verte. Le staging tire un
+tag, la recette le valide, et la production sert **ce même tag** : Coolify tire
+l'image (type d'application « Docker Image », comme ppm-saas) — rien n'est
+construit sur le VPS. Le VPS est déjà authentifié sur `ghcr.io`
+(`/root/.docker/config.json`).
 
-| Ressource       | Type                     | Réglages                                                                                                                                                                                  |
-| --------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `alvm-postgres` | Database — PostgreSQL    | Image `postgres:16-alpine` ; utilisateur `alvm_owner`, base initiale `alvm` ; port public : **non** ; sauvegardes planifiées (§ 6.6)                                                      |
-| `alvm-redis`    | Database — Redis         | Image `redis:7-alpine` ; mot de passe ; port public : **non** ; configuration : `appendonly yes`, `maxmemory-policy noeviction` (exigence BullMQ)                                         |
-| `alvm-back`     | Application — Dockerfile | Base Directory `/`, Dockerfile `/alvm-back/Dockerfile`, Ports Exposes `4001`, **aucun domaine**, **Custom Docker Network Aliases : `alvm-back`**, health check `/api/health` port 4001    |
-| `alvm-worker`   | Application — Dockerfile | Même Dockerfile que le back, variable `ALVM_PROCESS=worker`, Ports Exposes `4001` (rien n'écoute), **aucun domaine**, health check Coolify désactivé (le `HEALTHCHECK` de l'image suffit) |
-| `alvm-front`    | Application — Dockerfile | Base Directory `/`, Dockerfile `/alvm-front/Dockerfile`, Ports Exposes `3000`, domaine `https://<domaine>`, health check `/api/health` port 3000                                          |
+Une ressource par service, dans le projet Coolify `asso-saas`, environnement
+`production` (réseau Docker `coolify`) :
 
-Pour chaque application : **Keep N images = 3** (retour arrière, § 6.5) et
-**Watch Paths** (monorepo : sans eux, chaque push reconstruit tout) :
+| Ressource       | Type                       | Réglages                                                                                                                                                                                      |
+| --------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alvm-postgres` | Database — PostgreSQL      | Image `postgres:16-alpine` ; utilisateur `alvm_owner`, base `alvm` ; port public : **non** ; sauvegardes planifiées (§ 6.6)                                                                 |
+| `alvm-redis`    | Database — Redis           | Image `redis:7-alpine` ; mot de passe ; port public : **non** ; configuration : `appendonly yes`, `maxmemory-policy noeviction` (exigence BullMQ)                                            |
+| `alvm-back`     | Application — Docker Image | `ghcr.io/innovia-noumea/asso-saas-back`, tag validé en staging ; Ports Exposes `4001` ; **aucun domaine** ; **Custom Docker Network Aliases : `alvm-back`** ; health check `/api/health` port 4001 |
+| `alvm-worker`   | Application — Docker Image | Même image et **même tag** que le back ; variable `ALVM_PROCESS=worker` ; Ports Exposes `4001` (rien n'écoute) ; **aucun domaine** ; health check Coolify désactivé                        |
+| `alvm-front`    | Application — Docker Image | `ghcr.io/innovia-noumea/asso-saas-front`, **même tag** ; Ports Exposes `3000` ; domaine `https://asso.innovia.nc` ; health check `/api/health` port 3000                                       |
 
-```
-# alvm-back et alvm-worker
-alvm-back/**
-packages/shared/**
-package.json
-pnpm-workspace.yaml
-pnpm-lock.yaml
-.dockerignore
-
-# alvm-front
-alvm-front/**
-packages/shared/src/**
-packages/shared/package.json
-package.json
-pnpm-workspace.yaml
-pnpm-lock.yaml
-.dockerignore
-```
+Pour chaque application : **Keep N images = 3** (retour arrière, § 6.5). Pas
+de Watch Paths ni de webhook : une application « Docker Image » ne se déploie
+pas toute seule — la mettre à jour est un geste explicite (§ 6.4).
 
 DNS : enregistrement A Cloudflare → `51.68.127.157`, proxy actif, SSL **Full
 (Strict)**. Aucune règle UFW nouvelle : seuls 80/443 (Traefik) sont publics,
@@ -273,7 +273,7 @@ dans le dépôt), selon le tableau du § 4 :
 4. **Migrations**, avec l'image du back tout juste construite :
    ```bash
    ssh ubuntu@51.68.127.157
-   IMG=$(sudo docker inspect <conteneur-back> --format '{{.Config.Image}}')
+   IMG=ghcr.io/innovia-noumea/asso-saas-back:<tag validé en staging>
    read -rs DATABASE_URL; read -rs DATABASE_MIGRATION_URL; export DATABASE_URL DATABASE_MIGRATION_URL
    sudo --preserve-env=DATABASE_URL,DATABASE_MIGRATION_URL \
      docker run --rm --network coolify -e DATABASE_URL -e DATABASE_MIGRATION_URL "$IMG" migrate
@@ -299,24 +299,28 @@ dans le dépôt), selon le tableau du § 4 :
 
 ### 6.4 Mises à jour
 
-- **Sans migration** : merge sur `master` → Coolify reconstruit les seules
-  applications concernées (Watch Paths). Le back et le worker partagent le code :
-  ils se déploient ensemble.
+Chaîne de promotion — **le même tag de bout en bout** :
+
+1. merge sur `master` → la CI (qualité + intégration vertes) publie
+   `asso-saas-{back,front}:<sha court>` sur ghcr.io ;
+2. **staging** : `IMAGE_TAG=<sha>`, `dc pull front back`, `migrate`, `dc up -d`,
+   recette (§ 5) ;
+3. **production** : dans Coolify, remplacer le tag de `alvm-back`,
+   `alvm-worker` et `alvm-front` par ce `<sha>` et redéployer — back et worker
+   **ensemble** (même code), puis le front.
+
 - **Avec migration** (nouveau dossier dans `packages/shared/prisma/migrations`) :
   aucune migration n'est jouée au démarrage. Écrire des migrations **compatibles
   avec la version en service** (ajouts d'abord ; suppressions et renommages dans
-  une livraison suivante), puis :
-  1. merge → Coolify déploie back et worker ;
-  2. **aussitôt**, `migrate` avec la nouvelle image (commande du § 6.3, étape 4) ;
-  3. vérifier `/api/health?db=1` et un parcours métier.
-- **Fenêtre entre 1 et 2** : le nouveau code tourne sur l'ancien schéma ; les
-  requêtes qui lisent une colonne nouvelle échouent pendant ces quelques
-  secondes. Pour une migration lourde, prévoir une fenêtre de maintenance.
+  une livraison suivante), puis en production : `migrate` avec la nouvelle image
+  (commande du § 6.3, étape 4) **avant** de basculer back et worker sur le
+  nouveau tag ; vérifier `/api/health?db=1` et un parcours métier.
 
 ### 6.5 Retour arrière
 
-Coolify → application → _Rollback_ vers l'image précédente (Keep N = 3), pour
-**back, worker et front ensemble** si le contrat tRPC a changé. Les migrations
+Remettre le tag précédent dans Coolify (ou _Rollback_, Keep N = 3), pour
+**back, worker et front ensemble** si le contrat tRPC a changé — les images
+restent disponibles sur ghcr.io. Les migrations
 ne se défont pas : une migration compatible (§ 6.4) laisse tourner l'ancienne
 version ; sinon, restaurer la sauvegarde précédant la migration (perte des
 écritures intervenues depuis — décision à prendre explicitement).
@@ -385,8 +389,6 @@ relancée (migrate, create-super-admin, front/back/worker `healthy`).
 ## 9. Pas encore vérifié
 
 - Coolify réel : champ _Custom Docker Network Aliases_, `ALVM_PROCESS` sur
-  l'application worker, Watch Paths, réglages Redis.
+  l'application worker, réglages Redis.
 - Comportement derrière Cloudflare + Traefik (valeur de `TRUSTED_PROXY_HOPS`).
 - Téléversement (jeton Blob) et envoi réel d'email (clé Resend).
-- Publication des images par la CI (ghcr.io) : les images sont aujourd'hui
-  construites sur chaque serveur.

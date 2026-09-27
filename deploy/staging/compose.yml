@@ -8,9 +8,10 @@
 #   - seul le front se lie à l'hôte, sur 127.0.0.1 ; l'accès passe par
 #     `tailscale serve` (staging-ports expose asso-saas) ;
 #   - back, worker, base et Redis ne sont JAMAIS liés à l'hôte : réseaux Docker seuls ;
-#   - les images sont construites sur le serveur et taguées au SHA court du
-#     commit (IMAGE_TAG) — jamais `latest`. Cible : images publiées par la CI sur
-#     ghcr.io/innovia-noumea/asso-saas, comme ppm-saas.
+#   - les images sont celles PUBLIÉES PAR LA CI (ghcr.io/innovia-noumea/
+#     asso-saas-{front,back}:<sha court>, commit de master à CI verte) — jamais
+#     construites ici, jamais `latest`. Le tag validé en staging est celui que
+#     la production (Coolify) sert ensuite : même artefact.
 #
 # Base neuve : `dc --profile ops run --rm migrate`, puis create-super-admin.
 # Procédure complète : docs/deploiement-ovh.md § 5.
@@ -38,16 +39,9 @@ x-back-env: &back-env
   BLOB_PRIVATE_READ_WRITE_TOKEN: ${BLOB_PRIVATE_READ_WRITE_TOKEN:-}
   SOURCE_COMMIT: ${IMAGE_TAG:?IMAGE_TAG absent du .env}
 
-x-back-build: &back-build
-  context: ../..
-  dockerfile: alvm-back/Dockerfile
-
 services:
   front:
-    image: asso-saas-front:${IMAGE_TAG:?IMAGE_TAG absent du .env}
-    build:
-      context: ../..
-      dockerfile: alvm-front/Dockerfile
+    image: ghcr.io/innovia-noumea/asso-saas-front:${IMAGE_TAG:?IMAGE_TAG absent du .env}
     restart: unless-stopped
     logging: *logging
     environment:
@@ -69,8 +63,7 @@ services:
     networks: [app]
 
   back:
-    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
-    build: *back-build
+    image: ghcr.io/innovia-noumea/asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
     restart: unless-stopped
     logging: *logging
     environment: *back-env
@@ -86,8 +79,7 @@ services:
       data: {}
 
   worker:
-    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
-    build: *back-build
+    image: ghcr.io/innovia-noumea/asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
     command: ['worker']
     restart: unless-stopped
     logging: *logging
@@ -102,7 +94,7 @@ services:
   # One-shot, seul détenteur des identifiants propriétaire :
   #   dc --profile ops run --rm migrate
   migrate:
-    image: asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
+    image: ghcr.io/innovia-noumea/asso-saas-back:${IMAGE_TAG:?IMAGE_TAG absent du .env}
     command: ['migrate']
     profiles: [ops]
     restart: 'no'
