@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import path from 'node:path';
 import { integrationDatabase } from './test/integration/setup/database-urls';
 
@@ -24,6 +24,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['test/integration/**/*.integration.spec.ts'],
+    // La file d'emails exige un Redis réel : elle a sa propre campagne
+    // (`vitest.email-queue.config.ts`, script `test:integration:email-queue`).
+    // Celle-ci ne dépend que de PostgreSQL.
+    exclude: [...configDefaults.exclude, 'test/integration/email-queue.integration.spec.ts'],
     globalSetup: ['test/integration/setup/global-setup.ts'],
     fileParallelism: false,
     pool: 'forks',
