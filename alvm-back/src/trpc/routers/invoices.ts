@@ -1,5 +1,6 @@
 import { effectiveInvoiceStatus, overdueWhere } from '@back/helpers/invoice-status';
 import {
+  assertInvoiceParent,
   issueInvoice,
   cancelUnpaidInvoice,
   validateInvoiceRegistrations,
@@ -342,6 +343,7 @@ export const invoicesRouter = router({
 
       const invoice = await ctx.prisma.$transaction(async (tx) => {
         await lockTenant(tx, 'billing');
+        await assertInvoiceParent(tx, input.parentId);
         await validateInvoiceRegistrations(
           tx,
           input.parentId,

@@ -292,6 +292,21 @@ export const campsRouter = router({
         const { id, totalPrice, startDate, endDate, ...rest } = input;
         const data: Prisma.CampUpdateInput = {};
 
+        // Même garde qu'à la création : un type d'une autre association (clé
+        // étrangère vérifiée hors RLS, `connect` en erreur 500) ou inactif est
+        // refusé proprement.
+        if (rest.campTypeId !== undefined && rest.campTypeId !== existing.campTypeId) {
+          const campType = await tx.campType.findFirst({
+            where: { id: rest.campTypeId, active: true },
+            select: { id: true },
+          });
+          if (!campType)
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'Type de camp non trouvé ou inactif',
+            });
+        }
+
         if (rest.name !== undefined) data.name = rest.name;
         if (rest.description !== undefined) data.description = rest.description;
         if (rest.campTypeId !== undefined) data.campType = { connect: { id: rest.campTypeId } };

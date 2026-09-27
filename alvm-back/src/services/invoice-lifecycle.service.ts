@@ -8,6 +8,46 @@ type Tx = Omit<
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
+/**
+ * Le client d'une pièce (facture, avoir) doit appartenir à l'association de
+ * la transaction. La clé étrangère `parent_id` ne le garantit PAS :
+ * PostgreSQL vérifie les clés étrangères hors RLS, si bien qu'un identifiant
+ * de parent d'une autre association était accepté et rattachait la pièce à
+ * un client étranger. `findUnique` (hors filtre soft-delete) : un client
+ * archivé reste facturable, seule la frontière du tenant est vérifiée ici.
+ */
+export async function assertInvoiceParent(tx: Tx, parentId: string) {
+  const parent = await tx.parent.findUnique({
+    where: { userId: parentId },
+    select: { userId: true },
+  });
+  if (!parent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Client non trouvé' });
+}
+
+/**
+ * Lignes d'avoir rattachées à une inscription : l'inscription doit exister
+ * dans l'association et appartenir au client de l'avoir (même garde que les
+ * factures, sans exiger une inscription active — un avoir porte souvent sur
+ * une inscription annulée).
+ */
+export async function assertCreditNoteRegistrations(
+  tx: Tx,
+  parentId: string,
+  ids: Array<string | null>,
+) {
+  for (const id of new Set(ids.filter((value): value is string => Boolean(value)))) {
+    const registration = await tx.registration.findUnique({
+      where: { id },
+      select: { parentId: true },
+    });
+    if (registration?.parentId !== parentId)
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Inscription inconnue ou appartenant à un autre client',
+      });
+  }
+}
+
 export async function validateInvoiceRegistrations(
   tx: Tx,
   parentId: string,
