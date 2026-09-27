@@ -63,7 +63,26 @@ const registrationWithDetailsSchema = registrationSchema.extend({
   invoiceStatus: z.enum(['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED', 'CREDITED']).nullable(),
 });
 
-const registrationInclude = {
+/**
+ * Colonnes d'une inscription exposées (§5.9) : ni `organizationId`, ni les
+ * champs internes d'annulation (`cancelledBy`, `cancellationReason`), ni
+ * `selectedDays`/`paymentStatus` (calculés côté serveur).
+ */
+const registrationScalarSelect = {
+  id: true,
+  campId: true,
+  childId: true,
+  parentId: true,
+  status: true,
+  registrationDate: true,
+  specialRequirements: true,
+  cancellationRequestedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.RegistrationSelect;
+
+const registrationDetailsSelect = {
+  ...registrationScalarSelect,
   camp: {
     select: {
       id: true,
@@ -101,7 +120,7 @@ const registrationInclude = {
     },
     take: 1,
   },
-} as const;
+} as const satisfies Prisma.RegistrationSelect;
 
 function mapRegistrationWithDetails(r: any) {
   const daysCount = computeDaysCount(r.camp.startDate, r.camp.endDate);
@@ -219,7 +238,7 @@ export const registrationsRouter = router({
       const [registrations, total] = await Promise.all([
         ctx.prisma.registration.findMany({
           where,
-          include: registrationInclude,
+          select: registrationDetailsSelect,
           orderBy: [orderByMap[sortBy], { id: 'asc' }],
           take: limit,
           skip: offset,
@@ -248,7 +267,7 @@ export const registrationsRouter = router({
 
       const registration = await ctx.prisma.registration.findFirst({
         where,
-        include: registrationInclude,
+        select: registrationDetailsSelect,
       });
 
       return registration ? mapRegistrationWithDetails(registration) : null;
@@ -283,6 +302,7 @@ export const registrationsRouter = router({
             parentId,
             child: { deletedAt: null },
           },
+          select: { id: true },
         });
         if (!childLink) {
           throw new TRPCError({
@@ -334,6 +354,7 @@ export const registrationsRouter = router({
             deletedAt: null,
             status: { not: 'CANCELLED' },
           },
+          select: { id: true },
         });
         if (existing) {
           throw new TRPCError({
@@ -365,6 +386,7 @@ export const registrationsRouter = router({
             selectedDays,
             paymentStatus: 'UNPAID',
           },
+          select: registrationScalarSelect,
         });
 
         return mapRegistration(registration);
@@ -393,6 +415,7 @@ export const registrationsRouter = router({
             parentId: input.parentId,
             child: { deletedAt: null },
           },
+          select: { id: true },
         });
         if (!childLink) {
           throw new TRPCError({
@@ -404,6 +427,7 @@ export const registrationsRouter = router({
         // 2. Verify camp exists
         const camp = await tx.camp.findFirst({
           where: { id: input.campId, deletedAt: null },
+          select: { maxCapacity: true },
         });
         if (!camp) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Camp non trouvé' });
@@ -417,6 +441,7 @@ export const registrationsRouter = router({
             deletedAt: null,
             status: { not: 'CANCELLED' },
           },
+          select: { id: true },
         });
         if (existing) {
           throw new TRPCError({
@@ -454,6 +479,7 @@ export const registrationsRouter = router({
             selectedDays,
             paymentStatus: 'UNPAID',
           },
+          select: registrationScalarSelect,
         });
 
         return mapRegistration(registration);
@@ -477,6 +503,7 @@ export const registrationsRouter = router({
 
         const existing = await tx.registration.findFirst({
           where: { id, deletedAt: null },
+          select: { id: true, campId: true, status: true, paymentStatus: true },
         });
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
@@ -499,7 +526,10 @@ export const registrationsRouter = router({
         }
 
         if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
-          const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
+          const camp = await tx.camp.findFirst({
+            where: { id: existing.campId, deletedAt: null },
+            select: { maxCapacity: true },
+          });
           const count = await tx.registration.count({
             where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null },
           });
@@ -527,6 +557,7 @@ export const registrationsRouter = router({
         const registration = await tx.registration.update({
           where: { id },
           data,
+          select: registrationScalarSelect,
         });
 
         return mapRegistration(registration);
@@ -547,6 +578,7 @@ export const registrationsRouter = router({
 
         const existing = await tx.registration.findFirst({
           where: { id: input.id, deletedAt: null },
+          select: { id: true, campId: true, status: true, paymentStatus: true },
         });
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
@@ -567,7 +599,10 @@ export const registrationsRouter = router({
         }
 
         if (input.status === 'CONFIRMED' && existing.status !== 'CONFIRMED') {
-          const camp = await tx.camp.findFirst({ where: { id: existing.campId, deletedAt: null } });
+          const camp = await tx.camp.findFirst({
+            where: { id: existing.campId, deletedAt: null },
+            select: { maxCapacity: true },
+          });
           const count = await tx.registration.count({
             where: { campId: existing.campId, status: 'CONFIRMED', deletedAt: null },
           });
@@ -595,6 +630,7 @@ export const registrationsRouter = router({
         const registration = await tx.registration.update({
           where: { id: input.id },
           data: { status: input.status },
+          select: registrationScalarSelect,
         });
 
         // Promote waitlisted registration when a spot opens
@@ -606,6 +642,7 @@ export const registrationsRouter = router({
               deletedAt: null,
             },
             orderBy: { createdAt: 'asc' },
+            select: { id: true },
           });
           if (nextInLine) {
             await tx.registration.update({
@@ -642,6 +679,7 @@ export const registrationsRouter = router({
     .query(async ({ ctx, input }) => {
       const reg = await ctx.prisma.registration.findFirst({
         where: { id: input.registrationId, deletedAt: null },
+        select: { status: true },
       });
       if (!reg) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
@@ -828,6 +866,7 @@ export const registrationsRouter = router({
 
         const existing = await tx.registration.findFirst({
           where: { id: input.id, deletedAt: null },
+          select: { paymentStatus: true },
         });
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
@@ -847,6 +886,7 @@ export const registrationsRouter = router({
             deletedAt: null,
             invoice: { deletedAt: null },
           },
+          select: { id: true },
         });
         if (hasInvoice) {
           throw new TRPCError({
@@ -866,12 +906,18 @@ export const registrationsRouter = router({
 
   requestCancellation: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ cancelled: z.boolean() }))
     .mutation(async ({ ctx, input }) =>
       ctx.prisma.$transaction(async (tx) => {
         await lockTenant(tx, 'billing');
         const registration = await tx.registration.findFirst({
           where: { id: input.id, parentId: ctx.user.id, deletedAt: null },
-          include: { camp: true },
+          select: {
+            id: true,
+            status: true,
+            cancellationRequestedAt: true,
+            camp: { select: { startDate: true } },
+          },
         });
         if (!registration)
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Inscription non trouvée' });
@@ -935,7 +981,13 @@ export const registrationsRouter = router({
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
           creditNote: { deletedAt: null, status: 'SENT' },
         },
-        include: {
+        select: {
+          id: true,
+          creditNoteId: true,
+          amountOriginal: true,
+          amountRemaining: true,
+          createdAt: true,
+          expiresAt: true,
           creditNote: { select: { invoiceNumber: true } },
         },
         orderBy: { createdAt: 'desc' },

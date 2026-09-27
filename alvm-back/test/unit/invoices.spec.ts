@@ -1046,6 +1046,8 @@ describe('invoices router', () => {
             pdfUrl: null,
             validatedById: STAFF_USER.id,
           }),
+          // §5.9 : la facture émise est relue en whitelist.
+          select: expect.objectContaining({ id: true, status: true, version: true }),
         });
       });
 
@@ -1383,18 +1385,33 @@ describe('invoices router', () => {
         await caller.invoices.getById({ id: INVOICE_ID });
 
         const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
+        // §5.9 : whitelist select à la racine, jamais include.
+        expect(findFirstCall.include).toBeUndefined();
 
         // creator select doit contenir uniquement id et name
-        expect(findFirstCall.include.creator.select).toEqual({ id: true, name: true });
-        expect(findFirstCall.include.creator.select).not.toHaveProperty('email');
-        expect(findFirstCall.include.creator.select).not.toHaveProperty('role');
-        expect(findFirstCall.include.creator.select).not.toHaveProperty('hashedPassword');
+        expect(findFirstCall.select.creator.select).toEqual({ id: true, name: true });
+        expect(findFirstCall.select.creator.select).not.toHaveProperty('email');
+        expect(findFirstCall.select.creator.select).not.toHaveProperty('role');
+        expect(findFirstCall.select.creator.select).not.toHaveProperty('hashedPassword');
 
         // validator select idem
-        expect(findFirstCall.include.validator.select).toEqual({ id: true, name: true });
-        expect(findFirstCall.include.validator.select).not.toHaveProperty('email');
-        expect(findFirstCall.include.validator.select).not.toHaveProperty('role');
-        expect(findFirstCall.include.validator.select).not.toHaveProperty('hashedPassword');
+        expect(findFirstCall.select.validator.select).toEqual({ id: true, name: true });
+        expect(findFirstCall.select.validator.select).not.toHaveProperty('email');
+        expect(findFirstCall.select.validator.select).not.toHaveProperty('role');
+        expect(findFirstCall.select.validator.select).not.toHaveProperty('hashedPassword');
+      });
+
+      it('getById (PARENT) ne lit ni créateur, ni validateur, ni notes internes (§5.13)', async () => {
+        ({ caller, mockPrisma } = createTestCaller(PARENT_USER));
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+
+        await caller.invoices.getById({ id: INVOICE_ID });
+
+        const findFirstCall = mockPrisma.invoice.findFirst.mock.calls[0][0];
+        expect(findFirstCall.select.creator).toBeUndefined();
+        expect(findFirstCall.select.validator).toBeUndefined();
+        expect(findFirstCall.select.notes).toBeUndefined();
+        expect(findFirstCall.select.organizationId).toBeUndefined();
       });
     });
   });

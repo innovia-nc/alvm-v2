@@ -144,12 +144,12 @@ export const fecRouter = router({
         skip: input.offset,
         take: 20,
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        // Pas de createdBy : identifiant interne, lu par aucun écran (§5.9).
         select: {
           id: true,
           startDate: true,
           endDate: true,
           createdAt: true,
-          createdBy: true,
           filename: true,
           sha256: true,
           entryCount: true,
@@ -196,6 +196,27 @@ export const fecRouter = router({
           { accountNumber: 'asc' },
           { id: 'asc' },
         ],
+        // Colonnes de `accountingEntrySchema` (§5.9) : ni tenant, ni auteurs.
+        select: {
+          id: true,
+          entryNum: true,
+          entryDate: true,
+          journalCode: true,
+          journalLib: true,
+          accountNumber: true,
+          accountLabel: true,
+          pieceRef: true,
+          pieceDate: true,
+          description: true,
+          debit: true,
+          credit: true,
+          invoiceId: true,
+          paymentId: true,
+          creditNoteId: true,
+          refundId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
 
       return entries.map(mapEntry);

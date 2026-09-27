@@ -13,10 +13,26 @@ const childDocumentSchema = z.object({
   mimeType: z.literal('application/pdf'),
   fileSize: z.number().int().positive(),
   description: z.string().nullable(),
-  uploadedBy: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
+
+/**
+ * Whitelist (§5.9). Jamais l'URL de stockage (le client passe par
+ * `/api/documents/child/:id`, qui vérifie l'accès), ni `uploadedBy`
+ * (identifiant interne du déposant, visible d'un parent), ni `organizationId`.
+ */
+const childDocumentSelect = {
+  id: true,
+  childId: true,
+  filename: true,
+  originalFilename: true,
+  mimeType: true,
+  fileSize: true,
+  description: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 /**
  * Refus uniforme (404) : un parent ne doit pas pouvoir distinguer « enfant
@@ -46,9 +62,10 @@ export const childDocumentsRouter = router({
       const docs = await ctx.prisma.childDocument.findMany({
         where: { childId: input.childId, deletedAt: null },
         orderBy: { createdAt: 'desc' },
+        select: childDocumentSelect,
       });
 
-      return docs.map((d: any) => ({
+      return docs.map((d) => ({
         id: d.id,
         childId: d.childId,
         filename: d.filename,
@@ -57,7 +74,6 @@ export const childDocumentsRouter = router({
         mimeType: d.mimeType as 'application/pdf',
         fileSize: d.fileSize,
         description: d.description,
-        uploadedBy: d.uploadedBy,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       }));
@@ -69,6 +85,7 @@ export const childDocumentsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const doc = await ctx.prisma.childDocument.findFirst({
         where: { id: input.documentId, deletedAt: null },
+        select: { childId: true, fileUrl: true },
       });
 
       if (!doc) {

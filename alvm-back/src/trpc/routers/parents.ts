@@ -40,6 +40,30 @@ const parentWithUserSchema = parentSchema.extend({
   deletedAt: z.date().nullable().optional(),
 });
 
+/**
+ * Whitelist des colonnes `parents` exposées (§5.9) : ni `organizationId`
+ * (tenant implicite) ni rien du compte de connexion.
+ */
+const parentSelect = {
+  userId: true,
+  firstName: true,
+  lastName: true,
+  phone: true,
+  homePhone: true,
+  workPhone: true,
+  email: true,
+  address: true,
+  city: true,
+  postalCode: true,
+  employeur: true,
+  fonction: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.ParentSelect;
+
+/** Compte de connexion : identité affichable uniquement (jamais `accounts`, `sessionVersion`). */
+const parentUserSelect = { email: true, name: true, emailVerified: true } as const;
+
 function mapParent(p: {
   userId: string;
   firstName: string;
@@ -118,8 +142,10 @@ export const parentsRouter = router({
       const [parents, total] = await Promise.all([
         ctx.prisma.parent.findMany({
           where,
-          include: {
-            user: { select: { email: true, name: true, emailVerified: true } },
+          select: {
+            ...parentSelect,
+            deletedAt: true,
+            user: { select: parentUserSelect },
             childrenLinks: { select: { id: true } },
           },
           orderBy: [{ [sortBy]: sortOrder }, { userId: 'asc' }],
@@ -160,9 +186,7 @@ export const parentsRouter = router({
     .query(async ({ ctx, input }) => {
       const parent = await ctx.prisma.parent.findFirst({
         where: { userId: input.id, deletedAt: null },
-        include: {
-          user: { select: { email: true, name: true, emailVerified: true } },
-        },
+        select: { ...parentSelect, user: { select: parentUserSelect } },
       });
 
       if (!parent) return null;
@@ -231,6 +255,7 @@ export const parentsRouter = router({
         return tx.parent.update({
           where: { userId: ctx.user.id },
           data,
+          select: parentSelect,
         });
       });
 
@@ -262,6 +287,7 @@ export const parentsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existingUser = await ctx.prisma.user.findFirst({
         where: { email: input.email },
+        select: { id: true },
       });
       if (existingUser) {
         throw new TRPCError({ code: 'CONFLICT', message: 'Un compte avec cet email existe déjà' });
@@ -269,6 +295,7 @@ export const parentsRouter = router({
 
       const existingParent = await ctx.prisma.parent.findFirst({
         where: { email: input.email, deletedAt: null },
+        select: { userId: true },
       });
       if (existingParent) {
         throw new TRPCError({ code: 'CONFLICT', message: 'Un parent avec cet email existe déjà' });
@@ -310,6 +337,7 @@ export const parentsRouter = router({
             employeur: input.employeur || null,
             fonction: input.fonction || null,
           },
+          select: parentSelect,
         });
       });
 
@@ -341,6 +369,7 @@ export const parentsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.parent.findFirst({
         where: { userId: input.id, deletedAt: null },
+        select: { userId: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent non trouvé' });
@@ -367,7 +396,7 @@ export const parentsRouter = router({
       const result = await ctx.prisma.$transaction(async (tx) => {
         if (updates.email) {
           await lockTenant(tx, 'accounts');
-          const target = await tx.user.findUnique({ where: { id } });
+          const target = await tx.user.findUnique({ where: { id }, select: { role: true } });
           if (
             target?.role === 'SUPER_ADMIN' ||
             (target?.role !== 'PARENT' && !['ADMIN', 'SUPER_ADMIN'].includes(ctx.user.role))
@@ -386,6 +415,7 @@ export const parentsRouter = router({
         return tx.parent.update({
           where: { userId: id },
           data,
+          select: parentSelect,
         });
       });
 

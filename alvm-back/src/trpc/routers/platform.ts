@@ -14,6 +14,11 @@ import { lockAdministrators } from '@back/services/account-access.service';
 import { BCRYPT_ROUNDS } from '@back/helpers/password';
 
 const integrationId = z.enum(Object.keys(INTEGRATIONS) as [IntegrationId, ...IntegrationId[]]);
+/**
+ * Comptes vus par la super administration (§5.9) : identité, rôle, état et
+ * association de rattachement. Jamais `accounts` (hash du mot de passe) ni
+ * `sessionVersion` ; la sortie est en plus bornée par `accountOutput`.
+ */
 const accountSelect = {
   id: true,
   name: true,
@@ -23,6 +28,15 @@ const accountSelect = {
   createdAt: true,
   organization: { select: { id: true, name: true, slug: true } },
 } as const;
+const accountOutput = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  email: z.string(),
+  role: z.enum(['PARENT', 'STAFF', 'ADMIN', 'SUPER_ADMIN']),
+  disabledAt: z.date().nullable(),
+  createdAt: z.date(),
+  organization: z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() }),
+});
 const brandingSchema = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(200),
@@ -53,7 +67,10 @@ export const platformRouter = router({
     return { success: true };
   }),
   integrations: superAdminProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.prisma.platformIntegration.findMany();
+    // `encryptedSecret` n'est lu que pour savoir s'il existe : jamais renvoyé.
+    const rows = await ctx.prisma.platformIntegration.findMany({
+      select: { id: true, enabled: true, encryptedSecret: true, updatedAt: true },
+    });
     return Object.entries(INTEGRATIONS).map(([id, definition]) => {
       const row = rows.find((row) => row.id === id);
       const fromEnvironment = Boolean(process.env[definition.environment]);
@@ -92,7 +109,10 @@ export const platformRouter = router({
         });
       const encrypted = input.secret ? encryptSecret(input.secret) : undefined;
       await ctx.prisma.$transaction(async (tx) => {
-        const current = await tx.platformIntegration.findUnique({ where: { id: input.id } });
+        const current = await tx.platformIntegration.findUnique({
+          where: { id: input.id },
+          select: { encryptedSecret: true },
+        });
         if (
           input.enabled &&
           !encrypted &&
@@ -174,6 +194,7 @@ export const platformRouter = router({
         limit: z.number().int().min(1).max(50).default(20),
       }),
     )
+    .output(z.object({ accounts: z.array(accountOutput), total: z.number() }))
     .query(async ({ ctx, input }) => {
       const where = {
         ...(input.organizationId ? { organizationId: input.organizationId } : {}),
@@ -207,6 +228,7 @@ export const platformRouter = router({
         password: z.string().min(12).max(128).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
       }),
     )
+    .output(accountOutput)
     .mutation(async ({ ctx, input }) => {
       const passwordHash = await hash(input.password, BCRYPT_ROUNDS);
       return ctx.prisma.$transaction(async (tx) => {
@@ -220,7 +242,12 @@ export const platformRouter = router({
             code: 'PRECONDITION_FAILED',
             message: 'Espace de plateforme absent : initialisez la base (create-super-admin).',
           });
-        if (await tx.user.findFirst({ where: { organizationId: platform.id, email: input.email } }))
+        if (
+          await tx.user.findFirst({
+            where: { organizationId: platform.id, email: input.email },
+            select: { id: true },
+          })
+        )
           throw new TRPCError({
             code: 'CONFLICT',
             message: 'Cette adresse possède déjà un compte.',
@@ -254,6 +281,7 @@ export const platformRouter = router({
         disabled: z.boolean(),
       }),
     )
+    .output(accountOutput)
     .mutation(async ({ ctx, input }) => {
       if (input.id === ctx.user.id)
         throw new TRPCError({
@@ -263,7 +291,10 @@ export const platformRouter = router({
         });
       return ctx.prisma.$transaction(async (tx) => {
         await lockAdministrators(tx);
-        const current = await tx.user.findUnique({ where: { id: input.id } });
+        const current = await tx.user.findUnique({
+          where: { id: input.id },
+          select: { role: true, email: true, disabledAt: true, organizationId: true },
+        });
         if (!current) throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte introuvable.' });
         if (current.role !== 'SUPER_ADMIN' && input.email !== current.email)
           throw new TRPCError({
@@ -290,6 +321,7 @@ export const platformRouter = router({
           input.email !== current.email &&
           (await tx.user.findFirst({
             where: { organizationId: current.organizationId, email: input.email },
+            select: { id: true },
           }))
         )
           throw new TRPCError({
@@ -317,7 +349,7 @@ export const platformRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.$transaction(async (tx) => {
-        if (!(await tx.user.findUnique({ where: { id: input.id } })))
+        if (!(await tx.user.findUnique({ where: { id: input.id }, select: { id: true } })))
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte introuvable.' });
         await tx.user.update({
           where: { id: input.id },
@@ -343,6 +375,15 @@ export const platformRouter = router({
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: input.limit,
           skip: input.offset,
+          // Pas d'organizationId : le journal affiche des libellés, pas des identifiants.
+          select: {
+            id: true,
+            action: true,
+            actorId: true,
+            target: true,
+            outcome: true,
+            createdAt: true,
+          },
         }),
         ctx.prisma.platformAuditLog.count({ where }),
       ]);
@@ -374,8 +415,12 @@ export const platformRouter = router({
         ),
       };
       return {
+        // Identifiants bruts (auteur, cible) remplacés par leurs libellés (§5.9).
         events: events.map((event) => ({
-          ...event,
+          id: event.id,
+          action: event.action,
+          outcome: event.outcome,
+          createdAt: event.createdAt,
           actorName: event.actorId
             ? (names.get(event.actorId) ?? 'Compte supprimé')
             : 'Non authentifié',

@@ -14,7 +14,10 @@ export async function lockAdministrators(tx: Pick<Tx, '$queryRaw'>) {
 
 export async function deactivateAccount(tx: Tx, id: string, actorRole: UserRole) {
   await lockAdministrators(tx);
-  const user = await tx.user.findUnique({ where: { id } });
+  const user = await tx.user.findUnique({
+    where: { id },
+    select: { role: true, disabledAt: true },
+  });
   if (!user) throw new TRPCError({ code: 'NOT_FOUND', message: 'Utilisateur non trouvé' });
   if (user.role === 'SUPER_ADMIN')
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });

@@ -12,10 +12,22 @@ const campTypeSchema = z.object({
   updatedAt: z.date(),
 });
 
+/** Whitelist (§5.9) : les colonnes de `campTypeSchema`, jamais `organizationId`. */
+const campTypeSelect = {
+  id: true,
+  name: true,
+  description: true,
+  active: true,
+  accountingCode: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export const campTypesRouter = router({
   listAll: staffProcedure.output(z.array(campTypeSchema)).query(async ({ ctx }) => {
     return ctx.prisma.campType.findMany({
       orderBy: [{ active: 'desc' }, { name: 'asc' }],
+      select: campTypeSelect,
     });
   }),
 
@@ -34,6 +46,7 @@ export const campTypesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.campType.findFirst({
         where: { name: input.name },
+        select: { id: true },
       });
       if (existing) {
         throw new TRPCError({
@@ -45,6 +58,7 @@ export const campTypesRouter = router({
       if (input.accountingCode) {
         const codeExists = await ctx.prisma.campType.findFirst({
           where: { accountingCode: input.accountingCode },
+          select: { id: true },
         });
         if (codeExists) {
           throw new TRPCError({
@@ -61,6 +75,7 @@ export const campTypesRouter = router({
           accountingCode: input.accountingCode ?? null,
           active: true,
         },
+        select: campTypeSelect,
       });
     }),
 
@@ -82,6 +97,7 @@ export const campTypesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.campType.findUnique({
         where: { id: input.id },
+        select: { name: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé' });
@@ -90,6 +106,7 @@ export const campTypesRouter = router({
       if (input.name && input.name !== existing.name) {
         const nameExists = await ctx.prisma.campType.findFirst({
           where: { name: input.name },
+          select: { id: true },
         });
         if (nameExists) {
           throw new TRPCError({
@@ -102,6 +119,7 @@ export const campTypesRouter = router({
       if (input.accountingCode) {
         const codeExists = await ctx.prisma.campType.findFirst({
           where: { accountingCode: input.accountingCode, id: { not: input.id } },
+          select: { id: true },
         });
         if (codeExists) {
           throw new TRPCError({
@@ -115,6 +133,7 @@ export const campTypesRouter = router({
       return ctx.prisma.campType.update({
         where: { id },
         data,
+        select: campTypeSelect,
       });
     }),
 
@@ -124,6 +143,7 @@ export const campTypesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.campType.findUnique({
         where: { id: input.id },
+        select: { active: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé' });
@@ -148,6 +168,7 @@ export const campTypesRouter = router({
       return ctx.prisma.campType.update({
         where: { id: input.id },
         data: { active: !existing.active },
+        select: campTypeSelect,
       });
     }),
 
@@ -157,6 +178,7 @@ export const campTypesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.campType.findUnique({
         where: { id: input.id },
+        select: { id: true },
       });
       if (!existing) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Type de camp non trouvé' });

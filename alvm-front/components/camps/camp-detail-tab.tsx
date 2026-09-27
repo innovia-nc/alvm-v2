@@ -28,10 +28,11 @@ type CampDetail = {
     name: string;
     description: string | null;
   };
+  // `null` pour un parent (§5.13) ; ce composant n'est monté que pour le personnel.
   creator: {
     firstName: string;
     lastName: string;
-  };
+  } | null;
   daysCount: number;
   registrationsCount: number;
   availableSpots: number;
@@ -170,7 +171,7 @@ export function CampDetailTab({ camp }: CampDetailTabProps) {
               <User className="h-3 w-3" /> Créateur
             </span>
             <span>
-              {camp.creator.firstName} {camp.creator.lastName}
+              {camp.creator ? `${camp.creator.firstName} ${camp.creator.lastName}` : '—'}
             </span>
           </div>
         </CardContent>

@@ -102,7 +102,20 @@ function mapUser(u: {
   };
 }
 
-const includeProfiles = {
+/**
+ * Whitelist des champs exposés (§5.9). Jamais `accounts` (hash du mot de
+ * passe dans `providerAccountId`), `sessionVersion`, `disabledAt` ni
+ * `organizationId` : le tenant est implicite.
+ */
+const userSelect = {
+  id: true,
+  email: true,
+  name: true,
+  image: true,
+  role: true,
+  emailVerified: true,
+  createdAt: true,
+  updatedAt: true,
   parent: {
     select: {
       userId: true,
@@ -124,7 +137,7 @@ const includeProfiles = {
       email: true,
     },
   },
-} as const;
+} as const satisfies Prisma.UserSelect;
 
 export const usersRouter = router({
   list: staffProcedure
@@ -158,7 +171,7 @@ export const usersRouter = router({
       const [users, total] = await Promise.all([
         ctx.prisma.user.findMany({
           where,
-          include: includeProfiles,
+          select: userSelect,
           orderBy: { createdAt: 'desc' },
           take: limit,
           skip: offset,
@@ -175,7 +188,7 @@ export const usersRouter = router({
     .query(async ({ ctx, input }) => {
       const user = await ctx.prisma.user.findUnique({
         where: { id: input.id },
-        include: includeProfiles,
+        select: userSelect,
       });
       return user && user.role !== 'SUPER_ADMIN' ? mapUser(user) : null;
     }),
@@ -217,6 +230,7 @@ export const usersRouter = router({
     .mutation(async ({ ctx, input }) => {
       const existingUser = await ctx.prisma.user.findFirst({
         where: { email: input.email },
+        select: { id: true },
       });
       if (existingUser) {
         throw new TRPCError({
@@ -288,7 +302,7 @@ export const usersRouter = router({
 
         return tx.user.findUniqueOrThrow({
           where: { id: newUser.id },
-          include: includeProfiles,
+          select: userSelect,
         });
       });
 
@@ -333,7 +347,10 @@ export const usersRouter = router({
     )
     .output(userSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.user.findUnique({ where: { id: input.id } });
+      const existing = await ctx.prisma.user.findUnique({
+        where: { id: input.id },
+        select: { role: true, email: true },
+      });
       if (existing?.role === 'SUPER_ADMIN')
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
       if (!existing) {
@@ -343,6 +360,7 @@ export const usersRouter = router({
       if (input.email && input.email !== existing.email) {
         const emailExists = await ctx.prisma.user.findFirst({
           where: { email: input.email, id: { not: input.id } },
+          select: { id: true },
         });
         if (emailExists) {
           throw new TRPCError({
@@ -356,7 +374,12 @@ export const usersRouter = router({
         await lockAdministrators(tx);
         const current = await tx.user.findUnique({
           where: { id: input.id },
-          include: { parent: true, staffMember: true },
+          select: {
+            role: true,
+            disabledAt: true,
+            parent: { select: { deletedAt: true } },
+            staffMember: { select: { deletedAt: true } },
+          },
         });
         if (!current || current.disabledAt || current.role === 'SUPER_ADMIN')
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte inactif' });
@@ -438,7 +461,7 @@ export const usersRouter = router({
 
       const user = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: input.id },
-        include: includeProfiles,
+        select: userSelect,
       });
 
       return mapUser(user);
@@ -448,7 +471,10 @@ export const usersRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.user.findUnique({ where: { id: input.id } });
+      const existing = await ctx.prisma.user.findUnique({
+        where: { id: input.id },
+        select: { role: true },
+      });
       if (existing?.role === 'SUPER_ADMIN')
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
       if (!existing) {
@@ -524,7 +550,10 @@ export const usersRouter = router({
     )
     .output(z.object({ success: z.boolean(), tempPassword: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.user.findUnique({ where: { id: input.userId } });
+      const existing = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { role: true, disabledAt: true },
+      });
       if (existing?.role === 'SUPER_ADMIN')
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Compte super administrateur protégé' });
       if (!existing) {
@@ -543,7 +572,10 @@ export const usersRouter = router({
       const hashedPassword = await hash(tempPassword, BCRYPT_ROUNDS);
       await ctx.prisma.$transaction(async (tx) => {
         await lockAdministrators(tx);
-        const current = await tx.user.findUnique({ where: { id: input.userId } });
+        const current = await tx.user.findUnique({
+          where: { id: input.userId },
+          select: { role: true, disabledAt: true },
+        });
         if (
           !current ||
           current.disabledAt ||
@@ -554,6 +586,7 @@ export const usersRouter = router({
         }
         const account = await tx.account.findFirst({
           where: { userId: input.userId, provider: 'credentials' },
+          select: { id: true },
         });
         if (account)
           await tx.account.update({

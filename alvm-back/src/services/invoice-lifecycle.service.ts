@@ -8,6 +8,30 @@ type Tx = Omit<
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
+/**
+ * Colonnes d'une facture renvoyées au client (§5.9) : jamais `organizationId`,
+ * `notes`, l'URL de stockage du PDF (`pdfUrl` en base), ni les identifiants
+ * internes du créateur et du validateur.
+ */
+export const invoiceSummarySelect = {
+  id: true,
+  invoiceNumber: true,
+  parentId: true,
+  issueDate: true,
+  dueDate: true,
+  subtotalHt: true,
+  taxAmount: true,
+  taxRate: true,
+  totalAmount: true,
+  paidAmount: true,
+  creditedAmount: true,
+  status: true,
+  version: true,
+  accountingExportedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export async function validateInvoiceRegistrations(
   tx: Tx,
   parentId: string,
@@ -85,6 +109,7 @@ export async function issueInvoice(tx: Tx, id: string, userId: string) {
       pdfUrl: null,
       version: { increment: 1 },
     },
+    select: invoiceSummarySelect,
   });
 }
 
@@ -107,5 +132,6 @@ export async function cancelUnpaidInvoice(tx: Tx, id: string, userId: string, ve
   return tx.invoice.update({
     where: { id },
     data: { status: 'CANCELLED', pdfUrl: null, version: { increment: 1 } },
+    select: invoiceSummarySelect,
   });
 }
