@@ -1,0 +1,38 @@
+# Environnement de DÉVELOPPEMENT local (CLAUDE.md InnovIA §3.3 / §6.2).
+#   docker compose up -d
+# PostgreSQL 16 : bases alvm_dev (dev) et alvm_test (tests d'intégration / E2E),
+# rôle applicatif alvm_app non-superuser pour que la RLS s'applique comme en prod.
+# Redis 7 : file d'emails BullMQ (alvm-email).
+name: alvm
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '127.0.0.1:${ALVM_DB_PORT:-5436}:5432'
+    volumes:
+      - alvm-pg-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-dev.sql:/docker-entrypoint-initdb.d/10-init-dev.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${ALVM_REDIS_PORT:-6380}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  alvm-pg-data:

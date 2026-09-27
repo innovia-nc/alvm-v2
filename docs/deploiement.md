@@ -1,9 +1,14 @@
-# Déploiement — ALVM (Vercel + Neon)
+# Déploiement — ALVM (Vercel + Neon) — OBSOLÈTE
 
-> Dernière mise à jour : 2026-08-19 (§ Échecs de déploiement en preview ; version pnpm figée)
+> ⛔ **OBSOLÈTE depuis le 2026-09-27 — ne pas suivre.** Vercel + Neon sont
+> abandonnés : l'application est une plateforme SaaS multi-tenant auto-hébergée
+> (front, back, worker, PostgreSQL 16, Redis 7), staging srv-innovia et
+> production srv-ovh, base neuve. Procédure en vigueur :
+> **`docs/deploiement-ovh.md`**. Ce document n'est conservé que pour
+> l'historique (incident 2025-11, choix passés) ; ses variables
+> (`POSTGRES_PRISMA_URL`…), commandes et procédures ne s'appliquent plus.
 >
-> ⚠️ **Topologie abandonnée le 2026-09-27** : staging srv-innovia, prod srv-ovh,
-> base neuve — voir `docs/deploiement-ovh.md`. Ce document reste pour l'historique.
+> Dernière mise à jour du contenu historique : 2026-08-19.
 
 ## Topologie
 
