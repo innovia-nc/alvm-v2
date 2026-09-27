@@ -43,6 +43,7 @@ import { seedTenantDataset, type TenantDataset } from './helpers/dataset';
 import { crossTenantReferences } from './helpers/integrity';
 import {
   callerFor,
+  type Caller,
   createParent,
   createSuperAdmin,
   provisionTenant,
@@ -292,6 +293,153 @@ describe('accès par le client Prisma (chemin du code applicatif)', () => {
       }),
     );
     expect(foreign).toEqual([]);
+  });
+});
+
+describe('lecture par rôle : toutes les procédures de lecture, sans erreur ni fuite de B', () => {
+  /** Identifiants de B qui ne doivent apparaître dans AUCUNE réponse faite à A. */
+  const foreignIds = () => [
+    orgB,
+    B.tenant.admin.id,
+    B.parentId,
+    B.parentEmail,
+    B.childId,
+    B.staffId,
+    B.campId,
+    B.registrationId,
+    B.invoiceId,
+    B.secondInvoiceId,
+    B.paymentId,
+    B.refundId,
+    B.creditNoteId,
+    B.childDocumentId,
+    B.staffDocumentId,
+  ];
+
+  function staffReads(caller: Caller) {
+    return {
+      'parents.list': () => caller.parents.list({ status: 'all' }),
+      'parents.getById': () => caller.parents.getById({ id: A.parentId }),
+      'children.list': () => caller.children.list({}),
+      'children.getById': () => caller.children.getById({ id: A.childId }),
+      'children.getParents': () => caller.children.getParents({ childId: A.childId }),
+      'childDocuments.list': () => caller.childDocuments.list({ childId: A.childId }),
+      'childDocuments.count': () => caller.childDocuments.count({ childId: A.childId }),
+      'staff.list': () => caller.staff.list({}),
+      'staff.getById': () => caller.staff.getById({ id: A.staffId }),
+      'staffDocuments.list': () => caller.staffDocuments.list({ staffId: A.staffId }),
+      'staffDocuments.getById': () => caller.staffDocuments.getById({ id: A.staffDocumentId }),
+      'staffDocuments.count': () => caller.staffDocuments.count({ staffId: A.staffId }),
+      'users.list': () => caller.users.list({}),
+      'users.getById': () => caller.users.getById({ id: A.parentId }),
+      'camps.list': () => caller.camps.list({}),
+      'camps.getById': () => caller.camps.getById({ id: A.campId }),
+      'camps.listCampTypes': () => caller.camps.listCampTypes(),
+      'campTypes.listAll': () => caller.campTypes.listAll(),
+      'attendances.getGridForCamp': () => caller.attendances.getGridForCamp({ campId: A.campId }),
+      'attendances.list': () => caller.attendances.list({ campId: A.campId }),
+      'attendances.getStatistics': () => caller.attendances.getStatistics({ campId: A.campId }),
+      'registrations.list': () => caller.registrations.list({}),
+      'registrations.getById': () => caller.registrations.getById({ id: A.registrationId }),
+      'registrations.analyzeRegistrationStatus': () =>
+        caller.registrations.analyzeRegistrationStatus({ registrationId: A.registrationId }),
+      'registrations.getAvailableCredits': () =>
+        caller.registrations.getAvailableCredits({ parentId: A.parentId }),
+      'invoices.list': () => caller.invoices.list({}),
+      'invoices.getById': () => caller.invoices.getById({ id: A.invoiceId }),
+      'invoices.fetchUnpaidRegistrations': () =>
+        caller.invoices.fetchUnpaidRegistrations({ parentId: A.parentId }),
+      'payments.list': () => caller.payments.list({}),
+      'payments.getById': () => caller.payments.getById({ id: A.paymentId }),
+      'creditNotes.list': () => caller.creditNotes.list({}),
+      'creditNotes.getById': () => caller.creditNotes.getById({ id: A.creditNoteId }),
+      'refunds.list': () => caller.refunds.list({}),
+      'refunds.getById': () => caller.refunds.getById({ id: A.refundId }),
+      'settings.getByCategory': () => caller.settings.getByCategory({ category: 'pricing' }),
+      'settings.getLogoUrl': () => caller.settings.getLogoUrl(),
+      'settings.isEmailConfigured': () => caller.settings.isEmailConfigured(),
+      'paymentMethods.list': () => caller.paymentMethods.list(),
+      'dashboard.summary': () => caller.dashboard.summary(),
+      'organizations.current': () => caller.organizations.current(),
+      'features.get': () => caller.features.get(),
+      'account.me': () => caller.account.me(),
+    };
+  }
+
+  function adminReads(caller: Caller) {
+    const year = new Date().getFullYear();
+    const period = { startDate: `${year}-01-01`, endDate: `${year}-12-31` };
+    return {
+      ...staffReads(caller),
+      'paymentMethods.listAll': () => caller.paymentMethods.listAll(),
+      'payments.statistics': () => caller.payments.statistics({}),
+      'fec.history': () => caller.fec.history({}),
+      'fec.getEntries': () => caller.fec.getEntries(period),
+      'fec.getStats': () => caller.fec.getStats(period),
+    };
+  }
+
+  function parentReads(caller: Caller) {
+    return {
+      'children.list': () => caller.children.list({}),
+      'children.getById': () => caller.children.getById({ id: A.childId }),
+      'children.getParents': () => caller.children.getParents({ childId: A.childId }),
+      'childDocuments.list': () => caller.childDocuments.list({ childId: A.childId }),
+      'camps.list': () => caller.camps.list({}),
+      'camps.getById': () => caller.camps.getById({ id: A.campId }),
+      'registrations.list': () => caller.registrations.list({}),
+      'registrations.getById': () => caller.registrations.getById({ id: A.registrationId }),
+      'registrations.getAvailableCredits': () =>
+        caller.registrations.getAvailableCredits({ parentId: A.parentId }),
+      'invoices.list': () => caller.invoices.list({}),
+      'invoices.getById': () => caller.invoices.getById({ id: A.invoiceId }),
+      'payments.list': () => caller.payments.list({}),
+      'payments.getById': () => caller.payments.getById({ id: A.paymentId }),
+      'creditNotes.list': () => caller.creditNotes.list({}),
+      'creditNotes.getById': () => caller.creditNotes.getById({ id: A.creditNoteId }),
+      'attendances.list': () => caller.attendances.list({}),
+      'paymentMethods.list': () => caller.paymentMethods.list(),
+      'dashboard.summary': () => caller.dashboard.summary(),
+      'organizations.current': () => caller.organizations.current(),
+      'features.get': () => caller.features.get(),
+      'account.me': () => caller.account.me(),
+    };
+  }
+
+  async function sweep(reads: Record<string, () => Promise<unknown>>) {
+    const failures: string[] = [];
+    let seen = '';
+    for (const [name, call] of Object.entries(reads)) {
+      try {
+        const json = JSON.stringify(await call()) ?? '';
+        seen += json;
+        const leaked = foreignIds().filter((id) => json.includes(id));
+        if (leaked.length) failures.push(`${name} : fuite de B (${leaked.join(', ')})`);
+      } catch (error) {
+        const { code, message } = error as { code?: string; message?: string };
+        failures.push(`${name} : ${code ?? 'erreur'} ${message ?? ''}`);
+      }
+    }
+    return { failures, seen };
+  }
+
+  it.each(['ADMIN', 'STAFF', 'PARENT'] as const)('%s de A', async (role) => {
+    const user =
+      role === 'ADMIN'
+        ? A.tenant.admin
+        : { id: role === 'STAFF' ? A.staffId : A.parentId, role, organizationId: orgA };
+    const caller = callerFor(user);
+    const reads =
+      role === 'ADMIN'
+        ? adminReads(caller)
+        : role === 'STAFF'
+          ? staffReads(caller)
+          : parentReads(caller);
+    const { failures, seen } = await sweep(reads);
+    expect(failures).toEqual([]);
+    // Contrôle positif : A lit bien ses propres données.
+    for (const id of [A.childId, A.invoiceId, A.campId, A.registrationId, A.creditNoteId])
+      expect(seen).toContain(id);
   });
 });
 
