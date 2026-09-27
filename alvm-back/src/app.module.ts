@@ -2,6 +2,7 @@ import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common
 import type { NextFunction, Request, Response } from 'express';
 import { hasInternalSecret } from '@back/auth/request-auth';
 import { DocumentsModule } from '@back/modules/documents/documents.module';
+import { EmailQueueModule } from '@back/modules/email-queue/email-queue.module';
 import { HealthModule } from '@back/modules/health/health.module';
 import { InternalAuthModule } from '@back/modules/internal-auth/internal-auth.module';
 import { UploadsModule } from '@back/modules/uploads/uploads.module';
@@ -18,7 +19,14 @@ function requireInternalSecret(req: Request, res: Response, next: NextFunction) 
 }
 
 @Module({
-  imports: [HealthModule, TrpcModule, DocumentsModule, UploadsModule, InternalAuthModule],
+  imports: [
+    HealthModule,
+    TrpcModule,
+    DocumentsModule,
+    UploadsModule,
+    InternalAuthModule,
+    EmailQueueModule,
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

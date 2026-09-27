@@ -8,6 +8,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     main: 'src/main.ts',
+    worker: 'src/worker.ts',
     'scripts/db-migrate': 'scripts/db-migrate.ts',
     'scripts/create-super-admin': 'scripts/create-super-admin.ts',
   },
