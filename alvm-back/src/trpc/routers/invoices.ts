@@ -14,6 +14,8 @@ import { toNum } from '@back/helpers/decimal';
 import { generateDocumentNumber } from '@back/helpers/invoice-number';
 import { generateAndStoreInvoicePdf } from '@back/services/invoice-pdf.service';
 import { lockTenant } from '@back/db-context';
+import { assertEmailQueueConfigured, enqueueEmail } from '@back/queues/email.queue';
+import { buildInvoiceEmail } from '@back/services/email-templates';
 
 type InvStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'CREDITED';
 
@@ -681,23 +683,27 @@ export const invoicesRouter = router({
     }),
 
   /**
-   * Envoie la facture (ou le devis, tant qu'elle est en brouillon) au parent,
-   * PDF en pièce jointe (TD-008).
+   * Programme l'envoi de la facture (ou du devis, tant qu'elle est en
+   * brouillon) au parent, PDF en pièce jointe (TD-008, file `alvm-email`).
    *
-   * Le PDF est régénéré à chaque envoi : la pièce jointe reflète donc l'état
-   * du document au moment de l'envoi, et l'URL archivée est rafraîchie au
-   * passage.
+   * Asynchrone (CLAUDE.md InnovIA §5.11) : la procédure vérifie les
+   * préconditions, crée la ligne `email_messages` (QUEUED) et ajoute le job.
+   * Le worker régénère le PDF au moment de l'envoi — la pièce jointe reflète
+   * l'état du document à cet instant, exactement comme le téléchargement.
+   * Le résultat se suit dans `invoices.emailHistory`.
    */
   sendEmail: staffProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .output(z.object({ success: z.boolean(), sentTo: z.string() }))
+    .output(
+      z.object({
+        success: z.boolean(),
+        status: z.literal('QUEUED'),
+        recipient: z.string(),
+        emailMessageId: z.string().uuid(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const {
-        isEmailConfigured,
-        getEmailSender,
-        sendEmail: sendTransactionalEmail,
-        escapeHtml,
-      } = await import('@back/services/email.service');
+      const { isEmailConfigured, getEmailSender } = await import('@back/services/email.service');
 
       if (!(await isEmailConfigured())) {
         throw new TRPCError({
@@ -706,8 +712,22 @@ export const invoicesRouter = router({
             "L'envoi d'email n'est pas configuré sur cet environnement (clé RESEND_API_KEY absente). Contactez l'administrateur.",
         });
       }
+      assertEmailQueueConfigured();
 
-      const { invoice, pdfBuffer } = await generateAndStoreInvoicePdf(ctx.prisma, input.id);
+      const invoice = await ctx.prisma.invoice.findFirst({
+        where: { id: input.id, deletedAt: null },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          totalAmount: true,
+          dueDate: true,
+          parent: { select: { firstName: true, lastName: true, email: true } },
+        },
+      });
+      if (!invoice) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Facture non trouvée' });
+      }
 
       const recipient: string | null = invoice.parent?.email ?? null;
       if (!recipient) {
@@ -718,60 +738,72 @@ export const invoicesRouter = router({
       }
 
       const { getPdfSettings } = await import('@back/helpers/pdf-settings.helper');
-      const [pdfSettings, sender] = await Promise.all([
-        getPdfSettings(ctx.prisma),
-        getEmailSender(ctx.prisma),
-      ]);
-
-      // Un brouillon n'est pas encore une facture : c'est le devis que les
-      // écrans admin proposent d'envoyer (« Envoyer le devis »).
-      const isQuote = invoice.status === 'DRAFT';
-      const label = isQuote ? 'devis' : 'facture';
-      const orgName = pdfSettings.org.shortName || pdfSettings.org.name;
-      const amount = `${toNum(invoice.totalAmount).toLocaleString('fr-FR')} XPF`;
-      const dueDate = new Date(invoice.dueDate).toLocaleDateString('fr-FR');
-      const greeting = `${invoice.parent.firstName} ${invoice.parent.lastName}`.trim();
-
-      const subject = isQuote
-        ? `Votre devis ${invoice.invoiceNumber} — ${orgName}`
-        : `Votre facture ${invoice.invoiceNumber} — ${orgName}`;
-
-      const lines = [
-        `Bonjour ${greeting},`,
-        isQuote
-          ? `Vous trouverez en pièce jointe votre devis ${invoice.invoiceNumber} d'un montant de ${amount}.`
-          : `Vous trouverez en pièce jointe votre facture ${invoice.invoiceNumber} d'un montant de ${amount}, à régler avant le ${dueDate}.`,
-        `Pour toute question, répondez simplement à cet email.`,
-        `Cordialement,`,
-        orgName,
-      ];
-
-      await sendTransactionalEmail(
-        {
-          to: recipient,
-          subject,
-          text: lines.join('\n\n'),
-          html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
-          attachments: [
-            {
-              filename: `${label}-${invoice.invoiceNumber}.pdf`,
-              content: pdfBuffer,
-            },
-          ],
-        },
-        sender,
-      ).catch((error: unknown) => {
+      const pdfSettings = await getPdfSettings(ctx.prisma);
+      // Identité d'expédition vérifiée dès maintenant : un réglage manquant
+      // est signalé à l'utilisateur plutôt que découvert par le worker.
+      await getEmailSender(ctx.prisma).catch((error: unknown) => {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message:
-            error instanceof Error
-              ? `Envoi impossible : ${error.message}`
-              : "Envoi impossible : erreur inconnue du fournisseur d'email.",
+          code: 'PRECONDITION_FAILED',
+          message: error instanceof Error ? error.message : "Identité d'expédition invalide.",
         });
       });
 
-      return { success: true, sentTo: recipient };
+      const { subject } = buildInvoiceEmail(
+        { ...invoice, totalAmount: toNum(invoice.totalAmount) },
+        pdfSettings.org.shortName || pdfSettings.org.name,
+      );
+
+      // En dernier : un échec de la file annule la transaction (pas de ligne orpheline).
+      const { emailMessageId } = await enqueueEmail(ctx.prisma, {
+        organizationId: ctx.organizationId!,
+        kind: 'invoice',
+        recipient,
+        subject,
+        relatedId: invoice.id,
+        createdBy: ctx.user.id,
+      });
+
+      return { success: true, status: 'QUEUED' as const, recipient, emailMessageId };
     }),
+
+  /**
+   * Historique des envois par email d'une facture (file `alvm-email`), du plus
+   * récent au plus ancien. Select whitelist (§5.9) : ni identifiant du
+   * fournisseur, ni auteur, ni corps (jamais persisté).
+   */
+  emailHistory: staffProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(
+      z.array(
+        z.object({
+          id: z.string().uuid(),
+          recipient: z.string(),
+          subject: z.string(),
+          status: z.enum(['QUEUED', 'SENT', 'FAILED']),
+          attempts: z.number().int(),
+          lastError: z.string().nullable(),
+          createdAt: z.date(),
+          sentAt: z.date().nullable(),
+        }),
+      ),
+    )
+    .query(({ ctx, input }) =>
+      ctx.prisma.emailMessage.findMany({
+        where: { kind: 'invoice', relatedId: input.id },
+        select: {
+          id: true,
+          recipient: true,
+          subject: true,
+          status: true,
+          attempts: true,
+          lastError: true,
+          createdAt: true,
+          sentAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+    ),
 
   fetchUnpaidRegistrations: staffProcedure
     .input(z.object({ parentId: z.string().uuid() }))
