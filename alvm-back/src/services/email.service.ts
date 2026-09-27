@@ -98,6 +98,23 @@ export async function getEmailSender(prisma: HasAppSettingFindMany): Promise<Ema
 /** Échappement HTML partagé (CLAUDE.md InnovIA §5.13) — réexporté pour les appelants existants. */
 export { escapeHtml } from '@alvm/shared/validation/escape-html';
 
+/** Refus du fournisseur d'email, avec son statut HTTP. */
+export class EmailProviderError extends Error {
+  override name = 'EmailProviderError';
+  constructor(readonly status: number) {
+    super(`Le fournisseur d'email a refusé l'envoi (HTTP ${status}).`);
+  }
+
+  /**
+   * Un refus « client » (clé invalide 401/403, requête ou adresse invalide
+   * 400/422) ne se corrige pas en réessayant ; 408, 409 et 429 (délai,
+   * conflit, limite de débit) et les 5xx sont transitoires.
+   */
+  get permanent(): boolean {
+    return this.status >= 400 && this.status < 500 && ![408, 409, 429].includes(this.status);
+  }
+}
+
 // ============================================================================
 // ENVOI
 // ============================================================================
@@ -144,9 +161,8 @@ export async function sendEmail(
 
   if (!response.ok) {
     // Le corps d'erreur Resend est du JSON `{ name, message }`, mais on ne peut
-    // pas en dépendre (proxy, 502 HTML…) : on retombe sur le texte brut.
-
-    throw new Error(`Le fournisseur d'email a refusé l'envoi (HTTP ${response.status}).`.trim());
+    // pas en dépendre (proxy, 502 HTML…) : seul le statut HTTP est conservé.
+    throw new EmailProviderError(response.status);
   }
 
   const payload = (await response.json().catch(() => ({}))) as { id?: string };

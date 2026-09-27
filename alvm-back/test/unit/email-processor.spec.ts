@@ -13,6 +13,7 @@ vi.mock('@back/db', () => ({
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UnrecoverableError } from 'bullmq';
 import { TRPCError } from '@trpc/server';
+import { EmailProviderError } from '@back/services/email.service';
 import {
   processEmailJob,
   type EmailJob,
@@ -183,6 +184,27 @@ describe('email.processor — traitement des jobs alvm-email', () => {
       lastError: 'HTTP 503',
       status: 'FAILED',
     });
+  });
+
+  it.each([401, 403, 422])(
+    'conclut FAILED sans réessai quand le fournisseur refuse la requête (HTTP %i)',
+    async (status) => {
+      deps.sendEmail.mockRejectedValue(new EmailProviderError(status));
+
+      const failure = await processEmailJob(invoiceJob(0), deps).catch((e: unknown) => e);
+
+      expect(failure).toBeInstanceOf(UnrecoverableError);
+      expect(lastUpdate().data).toMatchObject({ status: 'FAILED' });
+    },
+  );
+
+  it.each([429, 503])('réessaie un refus transitoire du fournisseur (HTTP %i)', async (status) => {
+    deps.sendEmail.mockRejectedValue(new EmailProviderError(status));
+
+    const failure = await processEmailJob(invoiceJob(0), deps).catch((e: unknown) => e);
+
+    expect(failure).not.toBeInstanceOf(UnrecoverableError);
+    expect(lastUpdate().data).not.toHaveProperty('status');
   });
 
   it("n'envoie rien si la ligne n'est pas (encore) visible et laisse BullMQ réessayer", async () => {

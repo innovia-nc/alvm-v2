@@ -20,7 +20,7 @@
 import { UnrecoverableError } from 'bullmq';
 import { TRPCError } from '@trpc/server';
 import { withDbContext, type Db } from '@back/db-context';
-import { getEmailSender, sendEmail } from '@back/services/email.service';
+import { getEmailSender, sendEmail, EmailProviderError } from '@back/services/email.service';
 import { generateAndStoreInvoicePdf } from '@back/services/invoice-pdf.service';
 import { getPdfSettings } from '@back/helpers/pdf-settings.helper';
 import { getFeatures } from '@back/helpers/features';
@@ -80,6 +80,8 @@ function describe(error: unknown): string {
 function isPermanent(error: unknown): boolean {
   return (
     error instanceof PermanentEmailError ||
+    // Clé refusée, adresse invalide… : réessayer ne changerait rien.
+    (error instanceof EmailProviderError && error.permanent) ||
     // Facture introuvable (supprimée entre la programmation et l'envoi).
     (error instanceof TRPCError && error.code === 'NOT_FOUND')
   );
