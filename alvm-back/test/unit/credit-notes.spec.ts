@@ -168,6 +168,7 @@ describe('creditNotes router', () => {
       invoiceType: 'INVOICE',
       deletedAt: null,
     });
+    staff.mockPrisma.parent.findUnique.mockResolvedValue({ userId: parentId });
     staff.mockPrisma.invoice.create.mockResolvedValue(fakeCreditNote);
     staff.mockPrisma.invoiceLine.create.mockResolvedValue({});
 
@@ -216,6 +217,41 @@ describe('creditNotes router', () => {
         lines: [{ registrationId: null, description: 'Test', quantity: 1, unitPrice: 5000 }],
       }),
     ).rejects.toThrow("Le parent de l'avoir doit correspondre");
+  });
+
+  it('should reject a client invisible in the organization (other tenant)', async () => {
+    staff.mockPrisma.parent.findUnique.mockResolvedValue(null);
+
+    await expect(
+      staff.caller.creditNotes.create({
+        parentId,
+        refundMethod: 'FUTURE_CREDIT',
+        reason: 'Geste commercial de test',
+        lines: [{ registrationId: null, description: 'Geste', quantity: 1, unitPrice: 500 }],
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(staff.mockPrisma.invoice.create).not.toHaveBeenCalled();
+  });
+
+  it('should reject a line registration of another client or organization', async () => {
+    const registrationId = 'd0000000-0000-4000-a000-000000000040';
+    staff.mockPrisma.parent.findUnique.mockResolvedValue({ userId: parentId });
+    // Invisible (autre association) puis appartenant à un autre client.
+    staff.mockPrisma.registration.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ parentId: 'c0000000-0000-4000-a000-000000000099' });
+    const input = {
+      parentId,
+      refundMethod: 'FUTURE_CREDIT' as const,
+      reason: 'Geste commercial de test',
+      lines: [{ registrationId, description: 'Geste', quantity: 1, unitPrice: 500 }],
+    };
+
+    for (let attempt = 0; attempt < 2; attempt++)
+      await expect(staff.caller.creditNotes.create(input)).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+    expect(staff.mockPrisma.invoice.create).not.toHaveBeenCalled();
   });
 
   // --- updateStatus ---

@@ -12,6 +12,10 @@ import { toNum } from '@back/helpers/decimal';
 import { createCreditNoteAccountingEntries } from '@back/services/accounting.service';
 import { generateDocumentNumber } from '@back/helpers/invoice-number';
 import { lockTenant } from '@back/db-context';
+import {
+  assertCreditNoteRegistrations,
+  assertInvoiceParent,
+} from '@back/services/invoice-lifecycle.service';
 
 type CreditNoteStatus = 'DRAFT' | 'SENT' | 'CANCELLED';
 
@@ -364,6 +368,12 @@ export const creditNotesRouter = router({
             });
           }
         }
+        await assertInvoiceParent(tx, input.parentId);
+        await assertCreditNoteRegistrations(
+          tx,
+          input.parentId,
+          input.lines.map((line) => line.registrationId),
+        );
 
         // Calculate amounts
         let subtotalHt = 0;

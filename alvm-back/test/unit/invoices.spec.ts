@@ -490,6 +490,7 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         const result = await caller.invoices.create(validInput);
         expect(result.id).toBe(created.id);
       });
@@ -504,6 +505,7 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         const result = await caller.invoices.create(validInput);
         expect(result.id).toBe(created.id);
       });
@@ -533,6 +535,7 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         await caller.invoices.create(input);
 
         const createCall = mockPrisma.invoice.create.mock.calls[0][0];
@@ -552,6 +555,7 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         await caller.invoices.create(validInput);
 
         expect(mockPrisma.invoiceLine.create).toHaveBeenCalledTimes(1);
@@ -571,9 +575,26 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         await caller.invoices.create(validInput);
 
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('client de la facture', () => {
+      it('refuse un client invisible dans l’association (autre tenant) sans rien écrire', async () => {
+        ({ caller, mockPrisma } = createTestCaller(STAFF_USER));
+        mockPrisma.parent.findUnique.mockResolvedValue(null);
+
+        await expect(caller.invoices.create(validInput)).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
+        expect(mockPrisma.parent.findUnique).toHaveBeenCalledWith({
+          where: { userId: PARENT_USER.id },
+          select: { userId: true },
+        });
+        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
       });
     });
 
@@ -1195,6 +1216,7 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         await caller.invoices.create({
           parentId: PARENT_USER.id,
           dueDate: '2026-04-15',
@@ -1222,6 +1244,7 @@ describe('invoices router', () => {
         );
         mockPrisma.invoiceLine.create.mockResolvedValue({});
 
+        mockPrisma.parent.findUnique.mockResolvedValue({ userId: PARENT_USER.id });
         await caller.invoices.create({
           parentId: PARENT_USER.id,
           dueDate: '2026-04-15',

@@ -651,6 +651,21 @@ describe('camps.update', () => {
       await expect(caller.camps.update(updateInput)).rejects.toThrow('Camp non trouvé');
     });
 
+    it('should refuse a camp type that is invisible (other tenant) or inactive', async () => {
+      mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow());
+      mockPrisma.campType.findFirst.mockResolvedValue(null);
+      const otherType = 'e0000000-0000-4000-a000-000000000077';
+
+      await expect(
+        caller.camps.update({ id: CAMP_ID, campTypeId: otherType }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      expect(mockPrisma.campType.findFirst).toHaveBeenCalledWith({
+        where: { id: otherType, active: true },
+        select: { id: true },
+      });
+      expect(mockPrisma.camp.update).not.toHaveBeenCalled();
+    });
+
     it('should throw BAD_REQUEST when no modifications provided', async () => {
       mockPrisma.camp.findFirst.mockResolvedValue(makeCampRow());
 
