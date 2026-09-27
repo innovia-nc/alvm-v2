@@ -9,8 +9,10 @@ const h = (xff?: string, vercel?: string) => {
 };
 
 describe('getClientIp', () => {
-  it('uses the Vercel header on Vercel', () => {
-    expect(getClientIp(h('6.6.6.6', '1.2.3.4'), { VERCEL: '1' })).toBe('1.2.3.4');
+  it('ignore l’en-tête Vercel : hors Vercel, un client peut le forger', () => {
+    expect(getClientIp(h('6.6.6.6, 1.2.3.4', '9.9.9.9'), { VERCEL: '1', TRUSTED_PROXY_HOPS: '1' })).toBe(
+      '1.2.3.4',
+    );
   });
 
   it('ignores X-Forwarded-For without trusted proxies', () => {

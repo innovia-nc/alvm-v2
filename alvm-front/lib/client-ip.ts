@@ -1,8 +1,9 @@
 /**
- * Adresse du client, pour la limitation de débit des connexions.
+ * Adresse du client, pour la limitation de débit des connexions. Calculée par
+ * le front (qui connaît les relais devant lui) et transmise au back dans
+ * l'en-tête interne `x-alvm-client-ip`.
  *
- * Sur Vercel, `x-vercel-forwarded-for` est posé par la plateforme et fait foi.
- * Hors Vercel (Coolify / Traefik, éventuellement derrière Cloudflare), on lit
+ * Derrière Traefik (Coolify), éventuellement précédé de Cloudflare, on lit
  * `X-Forwarded-For` EN PARTANT DE LA FIN : chaque relais ajoute l'adresse qu'il
  * voit, le premier élément est fourni par le client et donc forgeable.
  * `TRUSTED_PROXY_HOPS` = nombre de relais de confiance devant l'application
@@ -13,8 +14,6 @@ export function getClientIp(
   headers: Headers,
   env: Record<string, string | undefined> = process.env,
 ): string {
-  if (env.VERCEL) return headers.get('x-vercel-forwarded-for')?.trim() || 'unknown';
-
   const hops = Number.parseInt(env.TRUSTED_PROXY_HOPS ?? '0', 10);
   if (!Number.isInteger(hops) || hops <= 0) return 'local';
 
