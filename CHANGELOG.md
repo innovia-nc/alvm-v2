@@ -5,6 +5,77 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-09-27 — Asso SaaS : plateforme multi-tenant
+
+Refonte de l'installation mono-entreprise en SaaS pour associations, mise en
+conformité avec les directives InnovIA (CLAUDE.md global). **Base neuve** :
+aucune reprise de données (aucune production en service).
+
+### Added
+- **Multi-tenant** (ADR 0002) : une association = un tenant ; `organization_id`
+  sur toutes les tables métier ; **Row Level Security PostgreSQL** (ENABLE +
+  FORCE) ; rôle applicatif `alvm_app` NOSUPERUSER NOBYPASSRLS ; contexte posé
+  par transaction (`app.scope`, `app.org_id`) ; unicités et numérotation des
+  pièces par association (`document_counters`) ; fichiers rangés sous
+  `organizations/<uuid>/`.
+- **Connexion par espace** : identifiant de l'association + email + mot de
+  passe ; lien d'accès `/o/<espace>` ; même adresse possible dans deux
+  associations ; suspension d'une association = sessions révoquées.
+- **Super administration des associations** : création (données de
+  référence + premier admin), renommage, suspension, **modules par
+  association**, comptes par association, journal d'audit avec l'espace
+  concerné.
+- **File d'emails BullMQ** `alvm-email` + worker (ADR 0003) : envois de
+  factures et de liens de réinitialisation asynchrones, réessais, historique
+  des envois sur la fiche facture.
+- **Tests d'intégration sur PostgreSQL réel** (`pnpm test:integration`,
+  298 tests) : isolation RLS table par table, flux métier complet sous RLS,
+  routes HTTP ; **recette E2E Playwright** multi-tenant
+  (`docs/test-evidence/recette-saas-3.0.0/`).
+- Environnement de développement `compose.yml` (PostgreSQL 16, Redis 7),
+  seed de démonstration multi-tenant, `.env.example` par service.
+
+### Changed
+- **Monorepo pnpm** (ADR 0001) : `packages/shared` (schéma Prisma +
+  migrations, code partagé), `alvm-back` (**NestJS 11** + tRPC), `alvm-front`
+  (Next.js 15). Le front ne touche plus la base : relais `/api/*` vers le
+  back, NextAuth via l'API interne du back.
+- **Migrations Prisma versionnées** (`packages/shared/prisma/migrations`) à la
+  place de `prisma db push` + SQL manuel ; `pnpm db:migrate` pose les droits
+  du rôle applicatif et refuse un rôle privilégié.
+- **API** : `select` explicite partout (§5.9, 38 tests de non-régression) ;
+  projections distinctes pour l'espace parent.
+- Déploiement : deux images (front, back — le worker réutilise l'image back),
+  `compose.ovh.yml`, staging srv-innovia en PostgreSQL 16, CI monorepo
+  (qualité, intégration PostgreSQL + Redis, construction des images).
+- Configuration validée au démarrage (Zod côté back, `@t3-oss/env-nextjs`
+  côté front), secrets critiques fail-closed.
+- `CLAUDE.md` réduit à un index ; documentation dans `docs/`.
+
+### Fixed
+- Références croisées entre associations refusées (facture ou avoir au nom
+  d'un client d'une autre association, lignes d'avoir sur une inscription
+  étrangère, type d'ACM étranger) — les clés étrangères sont vérifiées hors
+  RLS par PostgreSQL.
+- Journal d'audit inscriptible hors super administration (`RETURNING` soumis
+  à la policy SELECT, bug-patterns BP-01).
+- Fiche enfant PDF d'une autre famille / association : 404 indistinct.
+- Corps de requête bornés (6 Mo) au relais et au back.
+- Plus aucune identité ALVM codée en dur (expéditeur, pied de page PDF,
+  titres) ; URL de logo limitée au stockage de l'association.
+
+### Removed
+- `prisma/migrations-manual/`, `prisma/reset-data.sql`, `scripts/db-init.ts`,
+  `prisma/seed-payment-methods.ts` (remplacés par les migrations et le
+  provisionnement), campagne smoke mono-tenant (remplacée par les tests
+  d'intégration), branche Vercel de `getClientIp`.
+
+
+### Livré avant la refonte SaaS et inclus dans cette version
+
+> Les entrées suivantes décrivent l'état mono-entreprise (commandes `db-init`,
+> `seed-payment-methods`, Vercel…) désormais remplacé ci-dessus.
+
 ### Added — déploiement staging srv-innovia, prod srv-ovh (2026-09-27)
 
 Vercel + Neon abandonnés : l'application est auto-hébergée sur base neuve.
