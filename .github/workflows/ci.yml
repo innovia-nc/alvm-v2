@@ -5,17 +5,76 @@ on:
     branches: [master]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
-    name: Lint, typecheck, tests & build
+    name: Lint, typecheck, tests unitaires & build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Pas de `version:` ici — la version fait autorité dans le champ
-      # `packageManager` de package.json, pour que le CI, les postes de dev et
-      # le build Vercel installent avec le MÊME pnpm.
+      # Pas de `version:` : elle fait autorité dans le champ `packageManager`
+      # de package.json (même pnpm en CI, sur les postes et dans les images).
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Le postinstall de @alvm/shared génère le client Prisma.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (eslint, 3 paquets)
+        run: pnpm lint:all
+
+      - name: Typecheck (tsc strict, 3 paquets)
+        run: pnpm typecheck:all
+
+      - name: Tests unitaires (vitest)
+        run: pnpm test:unit
+
+      # Aucune variable d'environnement fournie, volontairement : le build ne
+      # doit dépendre ni d'une base ni d'un secret. S'il se met à en réclamer
+      # une, c'est qu'une page interroge le back au prérendu.
+      - name: Build (tsup + next build)
+        run: pnpm build:all
+
+  integration:
+    name: Tests d'intégration (PostgreSQL 16 réel, RLS)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      # Rôle applicatif NOSUPERUSER NOBYPASSRLS : la RLS s'applique comme en prod.
+      TEST_DATABASE_URL: postgresql://alvm_app:alvm_app@localhost:5432/alvm_integration
+      # Propriétaire : migrations et préparation des jeux de données.
+      TEST_DATABASE_MIGRATION_URL: postgresql://postgres:postgres@localhost:5432/alvm_integration
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -28,29 +87,47 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma client
-        run: pnpm exec prisma generate
+      # Même script que l'initialisation des bases de production et de staging
+      # (deploy/postgres/init-app-role.sh) : il est ainsi exercé à chaque CI.
+      - name: Base alvm_integration + rôle applicatif alvm_app
+        env:
+          PGHOST: localhost
+          PGPASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: alvm_integration
+          ALVM_APP_DB_PASSWORD: alvm_app
+        run: |
+          psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c 'CREATE DATABASE alvm_integration'
+          sh deploy/postgres/init-app-role.sh
 
-      - name: Typecheck (tsc)
-        run: pnpm typecheck
+      # Le globalSetup remet le schéma à zéro puis joue les VRAIES migrations
+      # (scripts/db-migrate.ts, droits du rôle applicatif compris) ; sans base,
+      # la campagne échoue au lieu d'être ignorée.
+      - name: Tests d'intégration (vitest)
+        run: pnpm --filter @alvm/back test:integration
 
-      - name: Lint (eslint)
-        run: pnpm lint
+  images:
+    name: Image ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [back, front]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Unit tests (vitest)
-        run: pnpm test
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # Le build était le seul filet manquant : les tests sont mockés et le
-      # typecheck ne voit pas les erreurs de rendu/prérendu de Next. Une
-      # régression de build ne se serait vue qu'au déploiement — et les
-      # déploiements de preview Vercel échouent pour une raison d'environnement
-      # (docs/deploiement.md § « Échecs de déploiement en preview »), donc
-      # personne ne la rattrapait.
-      #
-      # Aucune variable d'environnement n'est fournie volontairement : toutes
-      # les pages du tableau de bord sont dynamiques, le build ne doit jamais
-      # dépendre d'un accès base ou d'un secret. Si cette étape se met à
-      # réclamer une variable, c'est qu'une page s'est mise à interroger la
-      # base au prérendu.
-      - name: Build (next build)
-        run: pnpm build
+      # Construite, jamais poussée ici : la publication (ghcr.io) viendra avec
+      # le workflow de déploiement. Contexte = racine du monorepo.
+      - name: Build alvm-${{ matrix.service }}/Dockerfile
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: alvm-${{ matrix.service }}/Dockerfile
+          push: false
+          tags: asso-saas-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
