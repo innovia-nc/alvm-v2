@@ -63,6 +63,12 @@ aucune reprise de données (aucune production en service).
 - Corps de requête bornés (6 Mo) au relais et au back.
 - Plus aucune identité ALVM codée en dur (expéditeur, pied de page PDF,
   titres) ; URL de logo limitée au stockage de l'association.
+- Suspension d'une association : les sessions sont **révoquées** (et non plus
+  seulement bloquées) — un jeton émis avant la suspension ne redevient plus
+  valable à la réactivation (recette E2E, SAAS-05).
+- Création d'un enfant : la carte du parent sélectionné affiche de nouveau son
+  nom, son email et son téléphone (carte vide depuis la migration du front ;
+  recette E2E, FAM-02).
 
 ### Removed
 - `prisma/migrations-manual/`, `prisma/reset-data.sql`, `scripts/db-init.ts`,
