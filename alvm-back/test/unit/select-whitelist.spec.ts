@@ -664,3 +664,63 @@ describe('§5.13 — un parent ne reçoit pas la traçabilité interne', () => {
     expectNoKeys(result, ['recordedBy', 'organizationId']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// registrations.* (vues par un parent)
+// ---------------------------------------------------------------------------
+
+describe('§5.9 — registrations.* vues par un parent', () => {
+  const internals = ['organizationId', 'cancelledBy', 'cancellationReason', 'deletedAt', 'user'];
+
+  it('registrations.list : whitelist select, ni tenant ni traçabilité d’annulation', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.registration.findMany.mockResolvedValue([
+      {
+        id: 'c0000000-0000-4000-a000-000000000050',
+        organizationId: TEST_ORGANIZATION_ID,
+        campId: CAMP_ID,
+        childId: CHILD_ID,
+        parentId: PARENT_USER.id,
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        registrationDate: now,
+        specialRequirements: null,
+        selectedDays: [],
+        cancellationRequestedAt: null,
+        cancellationDate: null,
+        cancellationReason: 'Motif interne',
+        cancelledBy: STAFF_USER.id,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        camp: poisonedCamp(),
+        child: poisonedChild(),
+        parent: { ...poisonedUser().parent, user: poisonedUser() },
+        invoiceLines: [],
+      },
+    ]);
+    mockPrisma.registration.count.mockResolvedValue(1);
+
+    const result = await caller.registrations.list({});
+
+    expectWhitelistedQuery(mockPrisma.registration.findMany, [...ACCOUNT_SECRETS, ...internals]);
+    expectNoKeys(result, [...ACCOUNT_SECRETS, ...internals, 'createdBy', 'creator']);
+  });
+
+  it('registrations.requestCancellation : ne lit du camp que sa date de début', async () => {
+    const { caller, mockPrisma } = createTestCaller(PARENT_USER);
+    mockPrisma.registration.findFirst.mockResolvedValue({
+      id: 'c0000000-0000-4000-a000-000000000050',
+      status: 'PENDING',
+      cancellationRequestedAt: null,
+      camp: { startDate: new Date('2099-01-01') },
+    });
+
+    const result = await caller.registrations.requestCancellation({
+      id: 'c0000000-0000-4000-a000-000000000050',
+    });
+
+    expectWhitelistedQuery(mockPrisma.registration.findFirst, ['organizationId', 'createdBy']);
+    expect(result).toEqual({ cancelled: true });
+  });
+});
