@@ -234,7 +234,7 @@ export function CampForm({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel required>Statut de publication</FormLabel>
+                  <FormLabel>Statut de publication</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
