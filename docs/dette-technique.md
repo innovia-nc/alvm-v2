@@ -265,7 +265,17 @@ libellés — seules chaînes de ce fichier destinées à l'écran — ont donc 
 accentués, ce qui corrige du même coup les badges facture, inscription et
 présence. Commentaires et identifiants restent en ASCII.
 
-## TD-005 — Trigger legacy « dernier parent » absent du dépôt — P2 — OPEN
+## TD-005 — Trigger legacy « dernier parent » absent du dépôt — P2 — PARTIEL (2026-09-27)
+
+**Mise à jour 2026-09-27 (refonte SaaS, base neuve)** : le second candidat est
+résolu — `registrations.payment_status` est posé par le trigger
+`alvm_sync_registration_payment`, désormais **versionné** dans
+`packages/shared/prisma/migrations/20260927000100_business_invariants`. Le
+trigger « dernier parent » n'existe plus (base neuve) : l'invariant n'est plus
+porté que par `parents.delete`, qui vérifie avant toute écriture. Reste à
+décider s'il redevient une contrainte de base (trigger versionné) — sans quoi
+une écriture SQL directe pourrait laisser un enfant sans parent.
+
 
 **Constat (2026-08-10, US-FAM-01/02)** : l'invariant « un enfant a toujours au
 moins un parent » est appliqué par un trigger PostgreSQL sur `children_parents`
@@ -297,7 +307,7 @@ passe, précisément pour cette raison — mais tant que le mécanisme n'est pas
 identifié, personne ne peut dire si elles protègent ce qu'elles croient
 protéger. À inclure dans l'inventaire ci-dessus.
 
-## TD-001 — Typage `any` des mappers dans `server/routers/**` — P2 — OPEN
+## TD-001 — Typage `any` des mappers dans `alvm-back/src/trpc/routers/**` (ex-`server/routers/**`) — P2 — OPEN
 
 **Constat (2026-07-06, introduction d'ESLint)** : les fonctions de mapping
 (`mapInvoice`, `mapInvoiceWithDetails`, `mapCreditNote`, `mapRegistration`,
@@ -320,7 +330,14 @@ révélé deux bugs réels masqués par `any` : champ inexistant
 `new Date(null)` possible sur la période d'un camp dans le formulaire
 d'inscription.
 
-## TD-009 — Aucune limitation de débit sur les endpoints d'authentification — P2 — OPEN
+## TD-009 — Aucune limitation de débit sur les endpoints d'authentification — P2 — DONE (2026-09-22, étendu 2026-09-27)
+
+**Résolution** : compteur partagé en base (`login_attempts`, fenêtres fixes de
+15 minutes, empreintes SHA-256 — `alvm-back/src/services/login-limit.service.ts`),
+par compte et par adresse client. Depuis la refonte SaaS, la clé de compte
+inclut l'espace (`<slug>:<email>`) et l'adresse client est calculée par le front
+(relais de confiance `TRUSTED_PROXY_HOPS`) puis transmise au back.
+
 
 **Constat (2026-08-10, passe de code mort)** : `lib/rate-limit.ts` fournissait
 `checkRateLimit` / `resetRateLimit` depuis l'origine du dépôt **sans un seul
@@ -452,7 +469,12 @@ pour distinguer les deux chemins) ainsi que l'entrée `attendance` de
 `segmentLabels` dans `components/layout/breadcrumbs.tsx`. À faire dans une
 livraison où la recette est rejouée.
 
-## TD-015 — Deux modèles NextAuth jamais utilisés en base — P3 — OPEN
+## TD-015 — Deux modèles NextAuth jamais utilisés en base — P3 — PARTIEL (2026-09-27)
+
+**Mise à jour 2026-09-27** : `VerificationToken` porte désormais les jetons de
+réinitialisation de mot de passe (empreinte SHA-256, RLS : visible si le compte
+l'est). Seul `Session` reste inutilisé (sessions JWT).
+
 
 **Constat (2026-08-11, troisième passe de code mort)** : les modèles Prisma
 `Session` et `VerificationToken` ne sont lus ni écrits par une seule ligne du
@@ -561,7 +583,12 @@ permissive (8 caractères, cf. `lib/password-policy.ts`). Appliquer
 l'application accepte aujourd'hui à dessein. Le branchement correct ne vise que
 le champ alimenté par le générateur, pas la saisie libre.
 
-## TD-020 — `prisma/reset-data.sql` : script de purge orphelin qui ment sur ce qu'il garde — P2 — OPEN
+## TD-020 — `prisma/reset-data.sql` : script de purge orphelin qui ment sur ce qu'il garde — P2 — DONE (2026-09-27)
+
+**Résolution** : supprimé avec `prisma/migrations-manual/` lors de la refonte
+SaaS. Remettre un clone à zéro = recréer la base puis `pnpm db:migrate`
+(`docs/developpement-local.md`).
+
 
 **Constat (2026-08-15, cinquième passe de code mort)** : `prisma/reset-data.sql`
 vide 17 tables. Il n'est référencé **nulle part** — ni `package.json`, ni
@@ -833,3 +860,50 @@ hors dépôt s'afficherait donc — s'il existait un écran pour la lire.
 commentaire et des horaires d'arrivée/départ (le serveur est déjà écrit), soit
 les trois champs quittent le schéma d'entrée et les colonnes rejoignent
 l'inventaire de TD-018.
+
+## TD-028 — Clés étrangères non contraintes au même tenant — P2 — OPEN
+
+**Constat (2026-09-27, refonte SaaS)** : les clés étrangères sont simples
+(`invoice_id`, `parent_id`…), pas composites `(organization_id, id)`. Les
+contrôles de clés étrangères de PostgreSQL ignorant la RLS, une ligne pourrait
+référencer une ligne d'un autre tenant si un routeur écrivait un identifiant
+reçu sans le relire.
+
+**Atténuation actuelle** : les routeurs lisent la ligne référencée (invisible
+hors tenant → NOT_FOUND) avant d'écrire ; toute lecture jointe d'une ligne
+étrangère est filtrée par la RLS (fuite impossible, incohérence possible).
+
+**Résolution cible** : contraintes composites `(organization_id, <fk>)` →
+`(organization_id, id)` sur les relations métier, ou trigger générique de
+cohérence de tenant ; attention aux `ON DELETE SET NULL` (non composables).
+
+## TD-029 — Stockage de fichiers mutualisé, sans quota par association — P3 — OPEN
+
+**Constat (2026-09-27)** : un seul store Vercel Blob (public + privé) pour toutes
+les associations ; les objets sont cloisonnés par préfixe
+`organizations/<uuid>/`, mais ni quota ni facturation par association, et la
+suppression d'une association n'emporte pas ses fichiers.
+
+**Résolution cible** : quotas par tenant, procédure de purge à la clôture d'une
+association (données + fichiers, après la durée légale de conservation
+comptable).
+
+## TD-030 — Identité d'expédition des emails par association — P3 — OPEN
+
+**Constat (2026-09-27)** : l'adresse d'expédition par défaut est celle de la
+plateforme (`EMAIL_FROM_ADDRESS`) ; une association peut saisir la sienne, mais
+rien ne vérifie que son domaine est validé chez le fournisseur (Resend) — un
+envoi échouera alors côté fournisseur.
+
+**Résolution cible** : vérification du domaine à l'enregistrement (API Resend
+des domaines) ou restriction aux domaines vérifiés de la plateforme.
+
+## TD-031 — Double revalidation de session par requête — P3 — OPEN
+
+**Constat (2026-09-27, ADR 0001)** : le front revalide la session (callback
+`jwt` → `/api/internal/auth/session`) et le back la revalide à nouveau à chaque
+requête métier. Correct (le back fait autorité) mais deux requêtes courtes par
+page.
+
+**Résolution cible** : cache court (quelques secondes) côté front, ou
+revalidation front limitée aux navigations.

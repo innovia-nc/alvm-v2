@@ -1,0 +1,307 @@
+'use client';
+
+import { FormActions } from '@/components/shared/form-actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { trpc } from '@/lib/trpc/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+
+// ============================================================================
+// SCHEMA - Doit correspondre au schema createChildSchema du router
+// ============================================================================
+
+const childFormSchema = z.object({
+  firstName: z
+    .string()
+    .min(2, 'Prénom requis (min 2 caractères)')
+    .max(50, 'Maximum 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s-]+$/, 'Caractères alphabétiques uniquement'),
+  lastName: z
+    .string()
+    .min(2, 'Nom requis (min 2 caractères)')
+    .max(50, 'Maximum 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s-]+$/, 'Caractères alphabétiques uniquement'),
+  birthDate: z.string().min(1, 'Date de naissance requise'),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER'], {
+    message: 'Genre requis',
+  }),
+  medicalNotes: z.string().optional(),
+  emergencyContactName: z.string().max(100).optional().or(z.literal('')),
+  emergencyContactPhone: z
+    .string()
+    .regex(/^[\d\s\-\(\)\+]*$/, 'Format téléphone invalide')
+    .optional()
+    .or(z.literal('')),
+  emergencyContactRelation: z.string().optional(),
+});
+
+type ChildFormData = z.infer<typeof childFormSchema>;
+
+// ============================================================================
+// COMPOSANT
+// ============================================================================
+
+export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnTo?: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const utils = trpc.useUtils();
+  const createChildMutation = trpc.children.createByParent.useMutation();
+
+  const form = useForm<ChildFormData>({
+    resolver: zodResolver(childFormSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      birthDate: '',
+      gender: 'MALE',
+      medicalNotes: '',
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      emergencyContactRelation: '',
+    },
+  });
+
+  async function onSubmit(values: ChildFormData) {
+    try {
+      setError(null);
+
+      // Convertir birthDate en ISO datetime pour tRPC
+      const birthDateISO = new Date(values.birthDate).toISOString();
+
+      await createChildMutation.mutateAsync({
+        firstName: values.firstName,
+        lastName: values.lastName,
+        birthDate: birthDateISO,
+        gender: values.gender,
+        medicalInfo: {
+          allergies: [],
+          medications: [],
+          conditions: [],
+          diet_restrictions: [],
+          notes: values.medicalNotes || '',
+        },
+        emergencyContactName: values.emergencyContactName || undefined,
+        emergencyContactPhone: values.emergencyContactPhone || undefined,
+        emergencyContactRelation: values.emergencyContactRelation || undefined,
+      });
+
+      await utils.children.list.invalidate(undefined, { refetchType: 'all' });
+      router.push(returnTo);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue');
+    }
+  }
+
+  return (
+    <>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Informations de l'enfant</CardTitle>
+          <CardDescription>Remplissez les informations concernant votre enfant</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Identité */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Prénom</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Jean" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Nom</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Dupont" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Date de naissance</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Genre</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MALE">Garçon</SelectItem>
+                          <SelectItem value="FEMALE">Fille</SelectItem>
+                          <SelectItem value="OTHER">Autre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Informations médicales */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4">Informations médicales (optionnel)</h3>
+
+                <FormField
+                  control={form.control}
+                  name="medicalNotes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes médicales</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Allergies, traitements en cours, conditions médicales particulières..."
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Indiquez toute information médicale importante (allergies, médicaments,
+                        conditions)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Contact d'urgence */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4">Contact d'urgence</h3>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="emergencyContactName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nom du contact</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Marie Dupont" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="emergencyContactPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Téléphone</FormLabel>
+                          <FormControl>
+                            <Input placeholder="75 12 34" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="emergencyContactRelation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Lien de parenté (optionnel)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Mère, Père, Tante..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <FormActions>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(returnTo)}
+                  disabled={createChildMutation.isPending}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createChildMutation.isPending}>
+                  {createChildMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Enregistrer l'enfant
+                </Button>
+              </FormActions>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </>
+  );
+}

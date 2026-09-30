@@ -1,0 +1,37 @@
+import { requireRole } from '@/lib/auth';
+import { createServerTRPC, notFoundOnMissing } from '@/lib/trpc';
+import { PageHeader } from '@/components/shared/page-header';
+import { InvoiceDetails } from '@/components/admin/invoices/invoice-details';
+import { notFound } from 'next/navigation';
+
+export default async function InvoiceDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  // Vérifier que l'utilisateur est staff ou admin
+  await requireRole(['STAFF', 'ADMIN']);
+
+  const { id } = await params;
+
+  // Créer le client tRPC server-side
+  const trpc = await createServerTRPC();
+
+  // Récupérer la facture
+  const invoice = await trpc.invoices.getById.query({ id }).catch(notFoundOnMissing);
+
+  if (!invoice) {
+    notFound();
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={`Facture ${invoice.invoiceNumber}`}
+        description={`${invoice.status === 'DRAFT' ? 'Devis du' : 'Émise le'} ${new Date(invoice.issueDate).toLocaleDateString('fr-FR', { timeZone: 'Pacific/Noumea' })}`}
+      />
+
+      <InvoiceDetails invoice={invoice} />
+    </div>
+  );
+}
