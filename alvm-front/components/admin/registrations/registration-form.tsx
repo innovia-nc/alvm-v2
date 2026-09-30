@@ -273,7 +273,7 @@ export function RegistrationForm() {
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel required>Statut initial</FormLabel>
+                  <FormLabel>Statut initial</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>

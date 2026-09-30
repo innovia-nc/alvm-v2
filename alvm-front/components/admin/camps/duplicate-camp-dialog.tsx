@@ -141,7 +141,7 @@ export function DuplicateCampDialog({
               name="campTypeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel required>Type d&apos;ACM</FormLabel>
+                  <FormLabel>Type d&apos;ACM</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
