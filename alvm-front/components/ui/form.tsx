@@ -85,10 +85,19 @@ const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
 );
 FormItem.displayName = 'FormItem';
 
+const RequiredMark = () => (
+  <span aria-hidden="true" className="ml-0.5 text-destructive">
+    *
+  </span>
+);
+
 const FormLabel = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
->(({ className, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & {
+    /** Champ obligatoire : affiche un astérisque (masqué aux lecteurs d'écran). */
+    required?: boolean;
+  }
+>(({ className, required, children, ...props }, ref) => {
   const { error, formItemId } = useFormField();
 
   return (
@@ -97,7 +106,10 @@ const FormLabel = React.forwardRef<
       className={cn(error && 'text-destructive', className)}
       htmlFor={formItemId}
       {...props}
-    />
+    >
+      {children}
+      {required ? <RequiredMark /> : null}
+    </Label>
   );
 });
 FormLabel.displayName = 'FormLabel';
@@ -170,5 +182,6 @@ export {
   FormItem,
   FormLabel,
   FormMessage,
+  RequiredMark,
   useFormField,
 };

@@ -119,7 +119,7 @@ export function StaffParentCreateForm() {
             name="firstName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Prénom</FormLabel>
+                <FormLabel required>Prénom</FormLabel>
                 <FormControl>
                   <Input placeholder="Jean" {...field} />
                 </FormControl>
@@ -133,7 +133,7 @@ export function StaffParentCreateForm() {
             name="lastName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nom</FormLabel>
+                <FormLabel required>Nom</FormLabel>
                 <FormControl>
                   <Input placeholder="Dupont" {...field} />
                 </FormControl>
@@ -147,7 +147,7 @@ export function StaffParentCreateForm() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel required>Email</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="jean.dupont@example.com" {...field} />
                 </FormControl>
@@ -162,7 +162,7 @@ export function StaffParentCreateForm() {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Téléphone</FormLabel>
+                <FormLabel required>Téléphone</FormLabel>
                 <FormControl>
                   <Input type="tel" placeholder="+687 12 34 56" {...field} />
                 </FormControl>

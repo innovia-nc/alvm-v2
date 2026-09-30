@@ -339,7 +339,7 @@ export function PaymentMethodsTable({ initialMethods }: PaymentMethodsTableProps
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom *</FormLabel>
+                    <FormLabel required>Nom</FormLabel>
                     <FormControl>
                       <Input placeholder="Espèces, Chèque, Virement..." {...field} />
                     </FormControl>

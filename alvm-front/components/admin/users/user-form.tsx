@@ -150,7 +150,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email *</FormLabel>
+                  <FormLabel required>Email</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
@@ -175,7 +175,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom d'affichage *</FormLabel>
+                  <FormLabel required>Nom d'affichage</FormLabel>
                   <FormControl>
                     <Input placeholder="Jean Dupont" {...field} />
                   </FormControl>
@@ -192,7 +192,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mot de passe *</FormLabel>
+                    <FormLabel required>Mot de passe</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
@@ -211,7 +211,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Rôle *</FormLabel>
+                  <FormLabel required>Rôle</FormLabel>
                   <Select
                     onValueChange={(value: string) => {
                       field.onChange(value);
@@ -259,7 +259,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                   name="parentProfile.firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Prénom *</FormLabel>
+                      <FormLabel required>Prénom</FormLabel>
                       <FormControl>
                         <Input placeholder="Jean" {...field} />
                       </FormControl>
@@ -273,7 +273,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                   name="parentProfile.lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom *</FormLabel>
+                      <FormLabel required>Nom</FormLabel>
                       <FormControl>
                         <Input placeholder="Dupont" {...field} />
                       </FormControl>
@@ -289,7 +289,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                   name="parentProfile.phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Téléphone *</FormLabel>
+                      <FormLabel>Téléphone</FormLabel>
                       <FormControl>
                         <Input placeholder="75.12.34" {...field} />
                       </FormControl>
@@ -374,7 +374,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                   name="staffProfile.firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Prénom *</FormLabel>
+                      <FormLabel required>Prénom</FormLabel>
                       <FormControl>
                         <Input placeholder="Marie" {...field} />
                       </FormControl>
@@ -388,7 +388,7 @@ export function UserForm({ defaultValues, onSubmit, isSubmitting = false, mode }
                   name="staffProfile.lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom *</FormLabel>
+                      <FormLabel required>Nom</FormLabel>
                       <FormControl>
                         <Input placeholder="Martin" {...field} />
                       </FormControl>

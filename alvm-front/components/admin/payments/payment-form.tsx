@@ -149,7 +149,7 @@ export function PaymentForm() {
               name="invoiceId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Facture</FormLabel>
+                  <FormLabel required>Facture</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -204,7 +204,7 @@ export function PaymentForm() {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Montant (XPF)</FormLabel>
+                  <FormLabel required>Montant (XPF)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -226,7 +226,7 @@ export function PaymentForm() {
               name="paymentDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date de paiement</FormLabel>
+                  <FormLabel required>Date de paiement</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -241,7 +241,7 @@ export function PaymentForm() {
               name="paymentMethodId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Méthode de paiement</FormLabel>
+                  <FormLabel required>Méthode de paiement</FormLabel>
                   <FormControl>
                     <PaymentMethodSelect
                       value={field.value}

@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RequiredMark } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -99,7 +100,7 @@ export function AccountsPanel({ organizationId }: { organizationId?: string }) {
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="new-name">Nom</Label>
+                <Label htmlFor="new-name">Nom<RequiredMark /></Label>
                 <Input
                   id="new-name"
                   required
@@ -109,7 +110,7 @@ export function AccountsPanel({ organizationId }: { organizationId?: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-email">Email</Label>
+                <Label htmlFor="new-email">Email<RequiredMark /></Label>
                 <Input
                   id="new-email"
                   type="email"
@@ -119,7 +120,7 @@ export function AccountsPanel({ organizationId }: { organizationId?: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-password">Mot de passe initial</Label>
+                <Label htmlFor="new-password">Mot de passe initial<RequiredMark /></Label>
                 <Input
                   id="new-password"
                   type="password"
@@ -156,7 +157,7 @@ export function AccountsPanel({ organizationId }: { organizationId?: string }) {
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Nom</Label>
+                <Label htmlFor="edit-name">Nom<RequiredMark /></Label>
                 <Input
                   id="edit-name"
                   required
@@ -166,7 +167,7 @@ export function AccountsPanel({ organizationId }: { organizationId?: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
+                <Label htmlFor="edit-email">Email<RequiredMark /></Label>
                 <Input
                   id="edit-email"
                   readOnly={editing.role !== 'SUPER_ADMIN'}

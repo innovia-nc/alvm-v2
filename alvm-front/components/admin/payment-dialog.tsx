@@ -246,7 +246,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                 name="invoiceId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Facture *</FormLabel>
+                    <FormLabel required>Facture</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -295,7 +295,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Montant (XPF) *</FormLabel>
+                    <FormLabel required>Montant (XPF)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -321,7 +321,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                 name="paymentDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date de paiement *</FormLabel>
+                    <FormLabel required>Date de paiement</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -337,7 +337,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
               name="paymentMethodId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Méthode de paiement *</FormLabel>
+                  <FormLabel required>Méthode de paiement</FormLabel>
                   <FormControl>
                     <PaymentMethodSelect
                       value={field.value}
@@ -358,7 +358,7 @@ export function PaymentDialog({ open, onOpenChange, onSuccess, invoiceId: propsI
                 name="creditNoteId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Avoir à utiliser *</FormLabel>
+                    <FormLabel required>Avoir à utiliser</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}

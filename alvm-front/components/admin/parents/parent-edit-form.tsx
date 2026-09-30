@@ -144,7 +144,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
             name="firstName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Prénom</FormLabel>
+                <FormLabel required>Prénom</FormLabel>
                 <FormControl>
                   <Input placeholder="Jean" {...field} />
                 </FormControl>
@@ -158,7 +158,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
             name="lastName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nom</FormLabel>
+                <FormLabel required>Nom</FormLabel>
                 <FormControl>
                   <Input placeholder="Dupont" {...field} />
                 </FormControl>
@@ -172,7 +172,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel required>Email</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="jean.dupont@example.com" {...field} />
                 </FormControl>
@@ -187,7 +187,7 @@ export function ParentEditForm({ parent }: ParentEditFormProps) {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Téléphone Mobile</FormLabel>
+                <FormLabel required>Téléphone Mobile</FormLabel>
                 <FormControl>
                   <Input type="tel" placeholder="+687 12 34 56" {...field} />
                 </FormControl>

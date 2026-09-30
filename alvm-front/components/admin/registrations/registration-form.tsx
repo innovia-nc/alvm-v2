@@ -220,7 +220,7 @@ export function RegistrationForm() {
               name="parentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Parent</FormLabel>
+                  <FormLabel required>Parent</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -246,7 +246,7 @@ export function RegistrationForm() {
               name="campId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Camp</FormLabel>
+                  <FormLabel required>Camp</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -273,7 +273,7 @@ export function RegistrationForm() {
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Statut initial</FormLabel>
+                  <FormLabel required>Statut initial</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -318,7 +318,7 @@ export function RegistrationForm() {
 
                 return (
                   <FormItem className="relative" data-child-search>
-                    <FormLabel>Enfant</FormLabel>
+                    <FormLabel required>Enfant</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input

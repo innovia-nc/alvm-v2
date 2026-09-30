@@ -140,7 +140,7 @@ export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnT
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Prénom *</FormLabel>
+                      <FormLabel required>Prénom</FormLabel>
                       <FormControl>
                         <Input placeholder="Jean" {...field} />
                       </FormControl>
@@ -154,7 +154,7 @@ export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnT
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom *</FormLabel>
+                      <FormLabel required>Nom</FormLabel>
                       <FormControl>
                         <Input placeholder="Dupont" {...field} />
                       </FormControl>
@@ -170,7 +170,7 @@ export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnT
                   name="birthDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date de naissance *</FormLabel>
+                      <FormLabel required>Date de naissance</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -184,7 +184,7 @@ export function ChildForm({ returnTo = '/dashboard/parent/children' }: { returnT
                   name="gender"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Genre *</FormLabel>
+                      <FormLabel required>Genre</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>

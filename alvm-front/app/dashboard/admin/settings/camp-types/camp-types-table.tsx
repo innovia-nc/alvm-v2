@@ -310,7 +310,7 @@ export function CampTypesTable({ initialCampTypes }: CampTypesTableProps) {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom *</FormLabel>
+                    <FormLabel required>Nom</FormLabel>
                     <FormControl>
                       <Input placeholder="Multi-activités" {...field} />
                     </FormControl>

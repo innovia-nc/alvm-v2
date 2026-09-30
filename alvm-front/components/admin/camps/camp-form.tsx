@@ -157,7 +157,7 @@ export function CampForm({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom du camp *</FormLabel>
+                  <FormLabel required>Nom du camp</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Ex: Camp d'été Pirates 2025"
@@ -177,7 +177,7 @@ export function CampForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description *</FormLabel>
+                  <FormLabel required>Description</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Décrivez les activités, objectifs et particularités du camp..."
@@ -199,7 +199,7 @@ export function CampForm({
               name="campTypeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type de camp *</FormLabel>
+                  <FormLabel required>Type de camp</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -234,7 +234,7 @@ export function CampForm({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Statut de publication *</FormLabel>
+                  <FormLabel required>Statut de publication</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -270,7 +270,7 @@ export function CampForm({
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date de début *</FormLabel>
+                    <FormLabel required>Date de début</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -286,7 +286,7 @@ export function CampForm({
                 name="endDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date de fin *</FormLabel>
+                    <FormLabel required>Date de fin</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -325,7 +325,7 @@ export function CampForm({
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lieu principal *</FormLabel>
+                  <FormLabel required>Lieu principal</FormLabel>
                   <FormControl>
                     <Input placeholder="Ex: Centre de loisirs de Nouméa" {...field} />
                   </FormControl>
@@ -342,7 +342,7 @@ export function CampForm({
                 name="maxCapacity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Capacité maximale *</FormLabel>
+                    <FormLabel required>Capacité maximale</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -363,7 +363,7 @@ export function CampForm({
                 name="totalPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prix total du camp (XPF) *</FormLabel>
+                    <FormLabel required>Prix total du camp (XPF)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -385,7 +385,7 @@ export function CampForm({
               name="registrationDeadline"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date limite d'inscription *</FormLabel>
+                  <FormLabel required>Date limite d'inscription</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>

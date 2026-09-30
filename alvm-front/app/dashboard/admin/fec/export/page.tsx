@@ -201,7 +201,7 @@ export default function FECExportPage() {
                   name="startDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date de début</FormLabel>
+                      <FormLabel required>Date de début</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -215,7 +215,7 @@ export default function FECExportPage() {
                   name="endDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date de fin</FormLabel>
+                      <FormLabel required>Date de fin</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>

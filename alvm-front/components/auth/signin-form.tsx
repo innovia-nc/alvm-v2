@@ -164,7 +164,7 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
             name="organization"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Identifiant de l’espace</FormLabel>
+                <FormLabel required>Identifiant de l’espace</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="mon-association"
@@ -202,7 +202,7 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel required>Email</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -225,7 +225,7 @@ export function SignInForm({ superAdmin = false }: { superAdmin?: boolean }) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Mot de passe</FormLabel>
+              <FormLabel required>Mot de passe</FormLabel>
               <div className="relative">
                 <FormControl>
                   <Input

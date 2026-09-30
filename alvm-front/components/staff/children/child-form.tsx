@@ -372,7 +372,7 @@ export function ChildForm({
                 name="parents"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Sélection des parents (1 à 3) *</FormLabel>
+                    <FormLabel required>Sélection des parents (1 à 3)</FormLabel>
                     <FormControl>
                       <ParentMultiSelect
                         value={field.value.map((p) => ({
@@ -467,7 +467,7 @@ export function ChildForm({
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prénom *</FormLabel>
+                    <FormLabel required>Prénom</FormLabel>
                     <FormControl>
                       <Input placeholder="Jean" {...field} />
                     </FormControl>
@@ -481,7 +481,7 @@ export function ChildForm({
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom *</FormLabel>
+                    <FormLabel required>Nom</FormLabel>
                     <FormControl>
                       <Input placeholder="Dupont" {...field} />
                     </FormControl>
@@ -497,7 +497,7 @@ export function ChildForm({
                 name="birthDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date de naissance *</FormLabel>
+                    <FormLabel required>Date de naissance</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -512,7 +512,7 @@ export function ChildForm({
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Genre *</FormLabel>
+                    <FormLabel required>Genre</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>

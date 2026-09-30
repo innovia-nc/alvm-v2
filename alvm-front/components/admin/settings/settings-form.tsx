@@ -452,7 +452,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nom de l&apos;organisation</FormLabel>
+                          <FormLabel required>Nom de l&apos;organisation</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -490,7 +490,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Adresse</FormLabel>
+                        <FormLabel required>Adresse</FormLabel>
                         <FormControl>
                           <Input {...field} disabled={updateMutation.isPending} />
                         </FormControl>
@@ -505,7 +505,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ville</FormLabel>
+                          <FormLabel required>Ville</FormLabel>
                           <FormControl>
                             <Input {...field} disabled={updateMutation.isPending} />
                           </FormControl>
@@ -519,7 +519,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                       name="postal_code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Code postal</FormLabel>
+                          <FormLabel required>Code postal</FormLabel>
                           <FormControl>
                             <Input {...field} disabled={updateMutation.isPending} />
                           </FormControl>
@@ -533,7 +533,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                       name="country"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Pays</FormLabel>
+                          <FormLabel required>Pays</FormLabel>
                           <FormControl>
                             <Input {...field} disabled={updateMutation.isPending} />
                           </FormControl>
@@ -549,7 +549,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Téléphone</FormLabel>
+                          <FormLabel required>Téléphone</FormLabel>
                           <FormControl>
                             <Input {...field} type="tel" disabled={updateMutation.isPending} />
                           </FormControl>
@@ -563,7 +563,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel required>Email</FormLabel>
                           <FormControl>
                             <Input {...field} type="email" disabled={updateMutation.isPending} />
                           </FormControl>
@@ -682,7 +682,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="tax_rate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Taux de taxe (%)</FormLabel>
+                        <FormLabel required>Taux de taxe (%)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -703,7 +703,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                   name="payment_terms_days"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Délai de paiement (jours)</FormLabel>
+                      <FormLabel required>Délai de paiement (jours)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -726,7 +726,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="credit_expiry_days"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Validité des avoirs (jours)</FormLabel>
+                        <FormLabel required>Validité des avoirs (jours)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -748,7 +748,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="payment_method_inactive_days"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Inactivité moyens de paiement (jours)</FormLabel>
+                        <FormLabel required>Inactivité moyens de paiement (jours)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -814,7 +814,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="from_name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nom de l&apos;expéditeur</FormLabel>
+                        <FormLabel required>Nom de l&apos;expéditeur</FormLabel>
                         <FormControl>
                           <Input {...field} disabled={updateMutation.isPending} />
                         </FormControl>
@@ -829,7 +829,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="from_email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email expéditeur</FormLabel>
+                        <FormLabel required>Email expéditeur</FormLabel>
                         <FormControl>
                           <Input {...field} type="email" disabled={updateMutation.isPending} />
                         </FormControl>
@@ -843,7 +843,7 @@ export function SettingsForm({ global = true }: { global?: boolean }) {
                     name="reply_to"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email de réponse</FormLabel>
+                        <FormLabel required>Email de réponse</FormLabel>
                         <FormControl>
                           <Input {...field} type="email" disabled={updateMutation.isPending} />
                         </FormControl>

@@ -191,7 +191,7 @@ export function CreditNoteForm() {
               name="creditedInvoiceId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Facture *</FormLabel>
+                  <FormLabel required>Facture</FormLabel>
                   <Select
                     disabled={loadingInvoices || eligibleInvoices.length === 0}
                     onValueChange={handleInvoiceChange}
@@ -289,7 +289,7 @@ export function CreditNoteForm() {
               name="reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Raison *</FormLabel>
+                  <FormLabel required>Raison</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -336,7 +336,7 @@ export function CreditNoteForm() {
                     name={`lines.${index}.description`}
                     render={({ field }) => (
                       <FormItem className="md:col-span-3">
-                        <FormLabel>Description *</FormLabel>
+                        <FormLabel required>Description</FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="Description de la ligne" />
                         </FormControl>
@@ -350,7 +350,7 @@ export function CreditNoteForm() {
                     name={`lines.${index}.quantity`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Quantité *</FormLabel>
+                        <FormLabel required>Quantité</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -369,7 +369,7 @@ export function CreditNoteForm() {
                     name={`lines.${index}.unitPrice`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Prix unitaire (XPF) *</FormLabel>
+                        <FormLabel required>Prix unitaire (XPF)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"

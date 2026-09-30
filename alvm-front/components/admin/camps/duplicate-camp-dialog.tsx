@@ -119,7 +119,7 @@ export function DuplicateCampDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom du nouvel ACM *</FormLabel>
+                  <FormLabel required>Nom du nouvel ACM</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Ex: Camp d'été Pirates 2026"
@@ -141,7 +141,7 @@ export function DuplicateCampDialog({
               name="campTypeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type d&apos;ACM *</FormLabel>
+                  <FormLabel required>Type d&apos;ACM</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}

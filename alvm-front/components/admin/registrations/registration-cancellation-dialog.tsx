@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { RequiredMark } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -292,7 +293,10 @@ export function RegistrationCancellationDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reason">Motif de l'annulation (minimum 10 caractères)</Label>
+                    <Label htmlFor="reason">
+                      Motif de l'annulation (minimum 10 caractères)
+                      <RequiredMark />
+                    </Label>
                     <Textarea
                       id="reason"
                       value={reason}
@@ -375,7 +379,10 @@ export function RegistrationCancellationDialog({
                   <h3 className="font-semibold text-lg">{getStepTitle()}</h3>
 
                   <div className="space-y-2">
-                    <Label htmlFor="refund-method">Méthode de remboursement</Label>
+                    <Label htmlFor="refund-method">
+                      Méthode de remboursement
+                      <RequiredMark />
+                    </Label>
                     <Select value={refundMethod} onValueChange={(v) => setRefundMethod(v as RefundMethod)}>
                       <SelectTrigger id="refund-method">
                         <SelectValue />

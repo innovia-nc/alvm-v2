@@ -212,7 +212,7 @@ export function InvoiceEditForm({
                       name={`lines.${index}.description`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Description</FormLabel>
+                          <FormLabel required>Description</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -227,7 +227,7 @@ export function InvoiceEditForm({
                         name={`lines.${index}.quantity`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Quantité</FormLabel>
+                            <FormLabel required>Quantité</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -246,7 +246,7 @@ export function InvoiceEditForm({
                         name={`lines.${index}.unitPrice`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Prix unitaire (XPF)</FormLabel>
+                            <FormLabel required>Prix unitaire (XPF)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"

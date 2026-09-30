@@ -130,7 +130,7 @@ export default function EditStaffPage({ params }: PageProps) {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Prénom</FormLabel>
+                      <FormLabel required>Prénom</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -144,7 +144,7 @@ export default function EditStaffPage({ params }: PageProps) {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom</FormLabel>
+                      <FormLabel required>Nom</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -159,7 +159,7 @@ export default function EditStaffPage({ params }: PageProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel required>Email</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} />
                     </FormControl>

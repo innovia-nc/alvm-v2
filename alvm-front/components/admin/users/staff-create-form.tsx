@@ -186,7 +186,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Prénom</FormLabel>
+                      <FormLabel required>Prénom</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -200,7 +200,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom</FormLabel>
+                      <FormLabel required>Nom</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -215,7 +215,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel required>Email</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} />
                     </FormControl>
@@ -243,7 +243,7 @@ export function StaffCreateForm({ listPath }: StaffCreateFormProps) {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mot de passe</FormLabel>
+                    <FormLabel required>Mot de passe</FormLabel>
                     <div className="flex items-center gap-2">
                       <FormControl>
                         {/* Volontairement `type="text"` : le mot de passe doit

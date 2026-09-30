@@ -175,7 +175,7 @@ export function RegistrationEditForm({ registration }: RegistrationEditFormProps
           name="status"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Statut de l'inscription</FormLabel>
+              <FormLabel required>Statut de l'inscription</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>

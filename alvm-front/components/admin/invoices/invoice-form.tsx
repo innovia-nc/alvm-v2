@@ -175,7 +175,7 @@ export function InvoiceForm() {
               name="parentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Parent</FormLabel>
+                  <FormLabel required>Parent</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -201,7 +201,7 @@ export function InvoiceForm() {
               name="dueDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date d'échéance</FormLabel>
+                  <FormLabel required>Date d'échéance</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>

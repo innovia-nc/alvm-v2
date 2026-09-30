@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RequiredMark } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -93,7 +94,7 @@ export function OrganizationsPanel() {
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="organization-name">Nom de l’association</Label>
+                <Label htmlFor="organization-name">Nom de l’association<RequiredMark /></Label>
                 <Input
                   id="organization-name"
                   required
@@ -110,7 +111,7 @@ export function OrganizationsPanel() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="organization-slug">Identifiant de l’espace</Label>
+                <Label htmlFor="organization-slug">Identifiant de l’espace<RequiredMark /></Label>
                 <Input
                   id="organization-slug"
                   required
@@ -127,7 +128,7 @@ export function OrganizationsPanel() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="organization-admin-name">Administrateur — nom</Label>
+                <Label htmlFor="organization-admin-name">Administrateur — nom<RequiredMark /></Label>
                 <Input
                   id="organization-admin-name"
                   required
@@ -137,7 +138,7 @@ export function OrganizationsPanel() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="organization-admin-email">Administrateur — email</Label>
+                <Label htmlFor="organization-admin-email">Administrateur — email<RequiredMark /></Label>
                 <Input
                   id="organization-admin-email"
                   type="email"
@@ -147,7 +148,7 @@ export function OrganizationsPanel() {
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="organization-admin-password">Mot de passe initial</Label>
+                <Label htmlFor="organization-admin-password">Mot de passe initial<RequiredMark /></Label>
                 <Input
                   id="organization-admin-password"
                   type="password"

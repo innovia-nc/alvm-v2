@@ -141,7 +141,7 @@ export function RefundForm() {
               name="paymentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Paiement à rembourser</FormLabel>
+                  <FormLabel required>Paiement à rembourser</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -204,7 +204,7 @@ export function RefundForm() {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Montant du remboursement (XPF)</FormLabel>
+                  <FormLabel required>Montant du remboursement (XPF)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -228,7 +228,7 @@ export function RefundForm() {
               name="refundDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date de remboursement</FormLabel>
+                  <FormLabel required>Date de remboursement</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -243,7 +243,7 @@ export function RefundForm() {
               name="refundMethod"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Méthode de remboursement</FormLabel>
+                  <FormLabel required>Méthode de remboursement</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -266,7 +266,7 @@ export function RefundForm() {
               name="reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Raison du remboursement</FormLabel>
+                  <FormLabel required>Raison du remboursement</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Ex: Annulation d'inscription, erreur de paiement..."

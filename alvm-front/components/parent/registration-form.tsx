@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { RequiredMark } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -159,7 +160,10 @@ export function RegistrationForm({
 
           {/* Child selection */}
           <div className="space-y-2">
-            <Label htmlFor="child-select">Sélectionner un enfant *</Label>
+            <Label htmlFor="child-select">
+              Sélectionner un enfant
+              <RequiredMark />
+            </Label>
             {loadingChildren ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />

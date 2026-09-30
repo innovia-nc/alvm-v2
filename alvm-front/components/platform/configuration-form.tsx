@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc/client';
 import { DEFAULT_BRANDING } from '@alvm/shared/platform';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RequiredMark } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -55,7 +56,7 @@ export function ConfigurationForm() {
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="application-name">Nom de l’application</Label>
+              <Label htmlFor="application-name">Nom de l’application<RequiredMark /></Label>
               <Input
                 id="application-name"
                 required
