@@ -1,0 +1,33 @@
+<!-- @dsCard height=320 -->
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0}
+body{background:var(--bg)}
+.cover{position:relative;width:960px;height:320px;overflow:hidden;background:var(--bg)}
+.cover svg{position:absolute;inset:0}
+.brand{fill:var(--brand)}.deep{fill:var(--brand-deep)}.tint{fill:var(--brand-tint)}.sun{fill:var(--accent)}.coral{fill:var(--coral)}
+.slab{rx:var(--radius-lg)}
+.txt{position:absolute;left:48px;bottom:40px;width:440px}
+.name{margin:0;font:700 80px/.95 var(--font-display);letter-spacing:-.02em;color:var(--ink)}
+.tag{margin:12px 0 0;font:400 14px/20px var(--font-body);color:var(--ink-muted)}
+</style></head><body>
+<div class="cover">
+<svg width="960" height="320" viewBox="0 0 960 320" aria-hidden="true">
+<!-- Derivation
+blocks: brand 224x176 (space-8 x ~), brand-deep 240x140, accent 136x164, brand-tint 224x128, coral disc 88
+arrangement: staggered stack right of x=480, brand slab and deep slab bleeding off the top, 16px (space-4) gutters
+pattern: discs and a half-disc sun, because the system is soft (radius-lg, radius-pill) and a camp by the lagoon rises as a sun over water
+steps and radii: gutter space-4 (16), corners radius-lg (16), disc and pill as half the short side -->
+<rect class="brand slab" x="480" y="-16" width="224" height="192"/>
+<rect class="deep slab" x="720" y="-16" width="256" height="156"/>
+<rect class="sun slab" x="720" y="156" width="136" height="164"/>
+<circle class="coral" cx="916" cy="200" r="44"/>
+<rect class="tint slab" x="480" y="192" width="224" height="144"/>
+<path class="sun" d="M528 320 A64 64 0 0 1 656 320 Z"/>
+<g class="tint">
+<circle cx="752" cy="40" r="12"/><circle cx="800" cy="40" r="12"/><circle cx="848" cy="40" r="12"/><circle cx="896" cy="40" r="12"/>
+<circle cx="752" cy="88" r="12"/><circle cx="800" cy="88" r="12"/><circle cx="848" cy="88" r="12"/><circle cx="896" cy="88" r="12"/>
+</g>
+</svg>
+<div class="txt"><h1 class="name">Asso SaaS</h1><p class="tag">La gestion des camps de vacances, simplement.</p></div>
+</div>
+</body></html>

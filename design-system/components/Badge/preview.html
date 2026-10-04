@@ -1,0 +1,7 @@
+<!-- @dsCard group="Retours" height=110 subtitle="Statuts toujours accompagnés d'un mot" -->
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font-family:var(--font-body)}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}</style></head><body><div id="root"></div><script>
+var A=window.AssoSaas,h=React.createElement;
+function App(){return h('div',{className:'row'},
+ h(A.Badge,{tone:'success',dot:true},'Payée'),h(A.Badge,{tone:'warning',dot:true},'En attente'),h(A.Badge,{tone:'danger',dot:true},'En retard'),h(A.Badge,{tone:'info'},'Système'),h(A.Badge,{tone:'brand'},'Personnel'),h(A.Badge,{tone:'neutral'},'Administrateur'));}
+ReactDOM.createRoot(document.getElementById('root')).render(App());
+</script></body></html>

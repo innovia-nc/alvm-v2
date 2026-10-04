@@ -1,0 +1,8 @@
+<!-- @dsCard group="Données" height=360 subtitle="Tableau de gestion avec statuts et montants" -->
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font-family:var(--font-body)}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}</style></head><body><div id="root"></div><script>
+var A=window.AssoSaas,h=React.createElement;
+function App(){var cols=[{key:'nom',label:'Nom',kind:'strong'},{key:'email',label:'Email'},{key:'role',label:'Rôle',render:function(r){return h(A.Badge,{tone:r.tone},r.role)}},{key:'montant',label:'Solde',kind:'amount',align:'right'},{key:'code',label:'Code comptable',kind:'code'}];
+var rows=[{nom:'Lucile DELACROIX',email:'lucile@pasport.nc',role:'Personnel',tone:'success',montant:'0 XPF',code:'512000'},{nom:'Jemila MOLE',email:'jemila@pasport.nc',role:'Personnel',tone:'success',montant:'45 000 XPF',code:'511200'},{nom:'BECKER',email:'direction@pasport.nc',role:'Administrateur',tone:'neutral',montant:'120 500 XPF',code:'530000'}];
+return h(A.DataTable,{columns:cols,rows:rows,footer:'1 à 3 sur 3 résultats'});}
+ReactDOM.createRoot(document.getElementById('root')).render(App());
+</script></body></html>

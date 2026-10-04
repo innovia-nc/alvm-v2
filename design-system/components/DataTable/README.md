@@ -1,0 +1,3 @@
+Le tableau liste des enregistrements dans une carte. Décrivez les colonnes par `columns` (`key`, `label`, `align`, `kind`, `render`) et les lignes par `rows`.
+
+Utilisez `kind: "amount"` pour un montant aligné à droite en police mono, `kind: "code"` pour un code comptable ou une référence, `kind: "strong"` pour le nom de la ligne. Les statuts passent par `render` avec un `Badge`. Le pied `footer` indique "1 à 20 sur 48 résultats". Quand la liste est vide, remplacez le tableau par un `EmptyState`. Les actions de ligne (modifier, supprimer) vont dans la dernière colonne, la suppression en `danger`, désactivée pour les éléments système.

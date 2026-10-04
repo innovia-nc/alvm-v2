@@ -1,0 +1,3 @@
+Le champ regroupe libellé, saisie, aide et message d'erreur. `Field` enveloppe un `Input` ou un `Select` et relie le libellé par `htmlFor` et l'id du contrôle.
+
+Le consommateur fournit `label`, `htmlFor` et le contrôle en enfant. Marquez un champ obligatoire par `required` et expliquez une erreur par une phrase qui dit quoi faire ("Ce champ est obligatoire."). `SearchBar` assemble une saisie et un bouton "Rechercher" : utilisez-le au-dessus de chaque liste, avec un placeholder qui énumère les critères ("Rechercher par nom, email ou téléphone..."). Les filtres de statut ou d'âge sont des `Select` dans une `Card`, placés avant la recherche.

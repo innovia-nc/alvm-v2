@@ -1,0 +1,3 @@
+Le bouton déclenche une action. Utilisez `primary` pour l'action principale de l'écran (une seule par vue, en haut à droite sous le titre), `secondary` pour les actions de filtrage et d'annulation, `ghost` pour les liens d'action dans une carte, `danger` uniquement pour une suppression confirmée.
+
+Le consommateur fournit le libellé en français, à l'infinitif ou au nom d'action ("Nouveau camp", "Enregistrer un paiement"), et jamais le mot "Cliquez". Les noms d'entités (camp, parent, enfant, personnel) viennent du vocabulaire de l'association et ne sont pas écrits en dur. Une icône optionnelle se règle par `icon`. Ne placez pas deux boutons `primary` dans la même zone.

@@ -1,0 +1,109 @@
+/*
+ * Asso SaaS, theme lagon et sable, genere depuis design-system/tokens.json.
+ * Remplace les variables shadcn de app/globals.css (memes noms, valeurs HSL).
+ * Les variables --as-* portent les couleurs completes (hex) pour les statuts,
+ * le soleil et les aplats decoratifs. Non branche dans l'application a ce stade.
+ */
+@layer base {
+  :root {
+    --background: 42 36% 95%;
+    --foreground: 170 35% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 170 35% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 170 35% 14%;
+    --primary: 177 75% 24%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 42 32% 90%;
+    --secondary-foreground: 170 35% 14%;
+    --muted: 42 32% 90%;
+    --muted-foreground: 157 9% 34%;
+    --accent: 169 39% 89%;
+    --accent-foreground: 177 78% 19%;
+    --destructive: 10 72% 41%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 24% 80%;
+    --input: 155 5% 51%;
+    --ring: 213 88% 38%;
+    --as-bg: #f6f3ec;
+    --as-surface: #ffffff;
+    --as-surface-sunken: #ede8dc;
+    --as-ink: #17302c;
+    --as-ink-muted: #4f5f59;
+    --as-border: #d8d1c0;
+    --as-border-strong: #7b8782;
+    --as-brand: #0f6b66;
+    --as-brand-hover: #0b5753;
+    --as-on-brand: #ffffff;
+    --as-brand-tint: #d8eeea;
+    --as-brand-text: #0b5753;
+    --as-brand-deep: #0b4a46;
+    --as-accent: #f2a33a;
+    --as-on-accent: #2a1c00;
+    --as-coral: #e0583c;
+    --as-success-bg: #dcf0df;
+    --as-success-ink: #1b5a24;
+    --as-warning-bg: #fdeccb;
+    --as-warning-ink: #7a4a00;
+    --as-danger: #b3361d;
+    --as-on-danger: #ffffff;
+    --as-danger-bg: #fbe2dc;
+    --as-danger-ink: #9a2a14;
+    --as-info-bg: #dde9f6;
+    --as-info-ink: #1d4f8c;
+    --as-focus: #0c58b8;
+    --radius: 0.625rem;
+    --font-display: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    --font-body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+
+  .dark {
+    --background: 172 33% 9%;
+    --foreground: 120 13% 94%;
+    --card: 171 30% 13%;
+    --card-foreground: 120 13% 94%;
+    --popover: 171 30% 13%;
+    --popover-foreground: 120 13% 94%;
+    --primary: 175 50% 57%;
+    --primary-foreground: 175 61% 8%;
+    --secondary: 171 35% 7%;
+    --secondary-foreground: 120 13% 94%;
+    --muted: 171 35% 7%;
+    --muted-foreground: 154 8% 67%;
+    --accent: 174 40% 19%;
+    --accent-foreground: 174 55% 69%;
+    --destructive: 11 100% 72%;
+    --destructive-foreground: 10 87% 12%;
+    --border: 169 19% 22%;
+    --input: 164 9% 48%;
+    --ring: 42 100% 70%;
+    --as-bg: #10201e;
+    --as-surface: #172b28;
+    --as-surface-sunken: #0c1917;
+    --as-ink: #eef2ee;
+    --as-ink-muted: #a5b3ad;
+    --as-border: #2d423e;
+    --as-border-strong: #6f8680;
+    --as-brand: #5cc8bf;
+    --as-brand-hover: #7fd9d1;
+    --as-on-brand: #08211f;
+    --as-brand-tint: #1d4440;
+    --as-brand-text: #86dcd4;
+    --as-brand-deep: #2a7770;
+    --as-accent: #f2b24f;
+    --as-on-accent: #2a1c00;
+    --as-coral: #ff8f73;
+    --as-success-bg: #1c3b24;
+    --as-success-ink: #a3dfab;
+    --as-warning-bg: #46330f;
+    --as-warning-ink: #f6c76a;
+    --as-danger: #ff8a70;
+    --as-on-danger: #3a0d04;
+    --as-danger-bg: #4a211a;
+    --as-danger-ink: #ffb4a3;
+    --as-info-bg: #1c3550;
+    --as-info-ink: #a8cdf3;
+    --as-focus: #ffd166;
+  }
+}

@@ -1,0 +1,10 @@
+<!-- @dsCard group="Navigation" height=640 subtitle="Menu latéral par groupes" -->
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font-family:var(--font-body)}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}</style></head><body><div id="root"></div><script>
+var A=window.AssoSaas,h=React.createElement;
+function App(){return h('div',{style:{height:'600px',display:'flex'}},h(A.Sidebar,{brand:'Asso SaaS',footer:h('div',null,h('div',null,'Espace Administrateur'),h('div',null,'Gestion des camps')),groups:[
+ {items:[{label:'Tableau de bord',icon:'home'}]},
+ {label:'Gestion des utilisateurs',items:[{label:'Parents',icon:'users'},{label:'Enfants',icon:'users'},{label:'Comptes et habilitations',icon:'users'},{label:'Personnels',icon:'users'}]},
+ {label:'Gestion des camps',items:[{label:'Camps',icon:'tent',active:true},{label:'Inscriptions',icon:'file'}]},
+ {label:'Gestion des factures',items:[{label:'Factures',icon:'receipt'},{label:'Paiements',icon:'card'}]}]}));}
+ReactDOM.createRoot(document.getElementById('root')).render(App());
+</script></body></html>

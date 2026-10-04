@@ -1,0 +1,9 @@
+<!-- @dsCard group="Données" height=190 subtitle="Indicateur du tableau de bord" -->
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font-family:var(--font-body)}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}</style></head><body><div id="root"></div><script>
+var A=window.AssoSaas,h=React.createElement;
+function App(){return h('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:'16px'}},
+ h(A.StatCard,{label:'Inscriptions en attente',value:'12',icon:'clock',caption:'Consulter les inscriptions'}),
+ h(A.StatCard,{label:'Montant restant à encaisser',value:'184 500',unit:'XPF',icon:'receipt',caption:'Consulter les factures'}),
+ h(A.StatCard,{alert:true,label:'Factures en retard',value:'3',icon:'clock',caption:'Voir les échéances dépassées'}));}
+ReactDOM.createRoot(document.getElementById('root')).render(App());
+</script></body></html>
